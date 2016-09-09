@@ -287,6 +287,14 @@ int Ygl_uniformWindow(void * p );
 int YglProgramInit();
 int YglProgramChange( YglLevel * level, int prgid );
 
+int YglEs20_uniformWindow(void * p );
+int YglEs20ProgramInit();
+int YglEs20ProgramChange( YglLevel * level, int prgid );
+int YglEs20BlitFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h);
+void YglEs20_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float to, float * offsetcol);
+int YglEs20_uniformVDP2DrawFramebuffer_addcolor(void * p, float from, float to, float * offsetcol);
+void YglEs20_uniformVDP2DrawFramebuffer( void * p,float from, float to , float * offsetcol );
+
 #if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(_USEGLEW_) && !defined(_OGLES3_)
 
 extern GLuint (STDCALL *glCreateProgram)(void);
