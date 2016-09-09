@@ -123,6 +123,8 @@ GLuint samplerLoc     = 0;
 int g_buf_width = -1;
 int g_buf_height = -1;
 
+static int resizeFilter = GL_NEAREST;
+
 static char biospath[256] = "\0";
 static char cdpath[256] = "\0";
 
@@ -165,8 +167,8 @@ glViewport(0, 0, screen_width, screen_height);
        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, resizeFilter );
+       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, resizeFilter );
        error = glGetError();
        if( error != GL_NO_ERROR )
        {
@@ -474,6 +476,10 @@ int main(int argc, char *argv[]) {
          // Set sound
          else if (strcmp(argv[i], "-ns") == 0 || strcmp(argv[i], "--nosound") == 0) {
 	    yinit.sndcoretype = 0;
+	 }
+         // Set sound
+         else if (strcmp(argv[i], "-rb") == 0 || strcmp(argv[i], "--resizebilinear") == 0) {
+	    resizeFilter = GL_LINEAR;
 	 }
          // Auto frame skip
          else if (strstr(argv[i], "--autoframeskip=")) {
