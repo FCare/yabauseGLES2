@@ -28,6 +28,14 @@
 #include "vidshared.h"
 #include "debug.h"
 
+
+static int (*UniformWindow)(void *) = Ygl_uniformWindow;
+static int (*ProgramChange)( YglLevel * level, int prgid ) = YglProgramChange;
+static int (*BlitFramebuffer)(u32 srcTexture, u32 targetFbo, float w, float h) = YglBlitFramebuffer;
+static void (*UniformVDP2DrawFramebuffer_linecolor)(void * p, float from, float to, float * offsetcol) = Ygl_uniformVDP2DrawFramebuffer_linecolor;
+static int (*UniformVDP2DrawFramebuffer_addcolor)(void * p, float from, float to, float * offsetcol) = Ygl_uniformVDP2DrawFramebuffer_addcolor;
+static void (*UniformVDP2DrawFramebuffer)( void * p,float from, float to , float * offsetcol ) = Ygl_uniformVDP2DrawFramebuffer;
+
 static int YglCalcTextureQ( float   *pnts,float *q);
 
 #define PI 3.1415926535897932384626433832795f
@@ -561,7 +569,7 @@ void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _Ygl->smallfbo);
     glBlitFramebuffer(0, 0, GlWidth, GlHeight, 0, 0, _Ygl->rwidth, _Ygl->rheight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 #else
-	YglBlitFramebuffer(_Ygl->vdp1FrameBuff[_Ygl->readframe], _Ygl->smallfbo, (float)_Ygl->rwidth / (float)GlWidth, (float)_Ygl->rheight / (float)GlHeight);
+	BlitFramebuffer(_Ygl->vdp1FrameBuff[_Ygl->readframe], _Ygl->smallfbo, (float)_Ygl->rwidth / (float)GlWidth, (float)_Ygl->rheight / (float)GlHeight);
 #endif
     glBindFramebuffer(GL_FRAMEBUFFER, _Ygl->smallfbo);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, _Ygl->vdp1pixelBufferID);
@@ -937,7 +945,7 @@ void YglStartWindow( vdp2draw_struct * info, int win0, int logwin0, int win1, in
    YglLevel   *level;
    YglProgram *program;
    level = &_Ygl->levels[info->priority];
-   YglProgramChange(level,PG_VDP2_STARTWINDOW);
+   ProgramChange(level,PG_VDP2_STARTWINDOW);
    program = &level->prg[level->prgcurrent];
    program->bwin0 = win0;
    program->logwin0 = logwin0;
@@ -951,7 +959,7 @@ void YglEndWindow( vdp2draw_struct * info )
 {
    YglLevel   *level;
    level = &_Ygl->levels[info->priority];
-   YglProgramChange(level,PG_VDP2_ENDWINDOW);
+   ProgramChange(level,PG_VDP2_ENDWINDOW);
 }
 
 
@@ -976,7 +984,7 @@ YglProgram * YglGetProgram( YglSprite * input, int prg )
    {
       if( input->uclipmode == 0x02 || input->uclipmode == 0x03 )
       {
-         YglProgramChange(level,PG_VFP1_STARTUSERCLIP);
+         ProgramChange(level,PG_VFP1_STARTUSERCLIP);
          program = &level->prg[level->prgcurrent];
          program->uClipMode = input->uclipmode;
          if( level->ux1 != Vdp1Regs->userclipX1 || level->uy1 != Vdp1Regs->userclipY1 ||
@@ -997,7 +1005,7 @@ YglProgram * YglGetProgram( YglSprite * input, int prg )
             program->uy2=-1;
          }
       }else{
-         YglProgramChange(level,PG_VFP1_ENDUSERCLIP);
+         ProgramChange(level,PG_VFP1_ENDUSERCLIP);
          program = &level->prg[level->prgcurrent];
          program->uClipMode = input->uclipmode;
       }
@@ -1008,13 +1016,13 @@ YglProgram * YglGetProgram( YglSprite * input, int prg )
    checkval = (float)(input->cor) / 255.0f;
    if (checkval != level->prg[level->prgcurrent].color_offset_val[0])
    {
-	   YglProgramChange(level, prg);
+	   ProgramChange(level, prg);
    } else if( level->prg[level->prgcurrent].prgid != prg ) {
-      YglProgramChange(level,prg);
+      ProgramChange(level,prg);
    }
 // for polygon debug
 //   else if (prg == PG_VFP1_GOURAUDSAHDING ){
-//	   YglProgramChange(level, prg);
+//	   ProgramChange(level, prg);
 //   }
    program = &level->prg[level->prgcurrent];
 
@@ -2011,7 +2019,7 @@ void YglSetVdp2Window()
    if( (_Ygl->win0_vertexcnt != 0 || _Ygl->win1_vertexcnt != 0 )  )
    {
 
-     Ygl_uniformWindow(&_Ygl->windowpg);
+     UniformWindow(&_Ygl->windowpg);
      glUniformMatrix4fv( _Ygl->windowpg.mtxModelView, 1, GL_FALSE, (GLfloat*) &_Ygl->mtxModelView.m[0][0] );
 
       //
@@ -2077,12 +2085,12 @@ void YglRenderFrameBuffer( int from , int to ) {
 
    if ( (Vdp2Regs->CCCTL & 0x540) == 0x140 ){
 		// Sprite Add Color
-	   Ygl_uniformVDP2DrawFramebuffer_addcolor(&_Ygl->renderfb, (float)(from) / 10.0f, (float)(to) / 10.0f, offsetcol);
+	   UniformVDP2DrawFramebuffer_addcolor(&_Ygl->renderfb, (float)(from) / 10.0f, (float)(to) / 10.0f, offsetcol);
    }else if (Vdp2Regs->LNCLEN & 0x20){
-		Ygl_uniformVDP2DrawFramebuffer_linecolor(&_Ygl->renderfb, (float)(from) / 10.0f, (float)(to) / 10.0f, offsetcol);
+		UniformVDP2DrawFramebuffer_linecolor(&_Ygl->renderfb, (float)(from) / 10.0f, (float)(to) / 10.0f, offsetcol);
    }
    else{
-     Ygl_uniformVDP2DrawFramebuffer(&_Ygl->renderfb, (float)(from) / 10.0f, (float)(to) / 10.0f, offsetcol);
+     UniformVDP2DrawFramebuffer(&_Ygl->renderfb, (float)(from) / 10.0f, (float)(to) / 10.0f, offsetcol);
    }
    glBindTexture(GL_TEXTURE_2D, _Ygl->vdp1FrameBuff[_Ygl->readframe]);
    //glBindTexture(GL_TEXTURE_2D, _Ygl->vdp1FrameBuff[_Ygl->drawframe]);
