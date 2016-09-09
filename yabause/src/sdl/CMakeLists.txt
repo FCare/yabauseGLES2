@@ -14,6 +14,7 @@ set(PORT_LIBRARIES ${SDL2_LIBRARIES})
 
 set(yabause_sdl_SOURCES
 	main.c
+	vidsoftnogl.c
 )
 
 add_executable(yabause-sdl ${yabause_sdl_SOURCES})
