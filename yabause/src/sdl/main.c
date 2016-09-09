@@ -20,8 +20,8 @@
 */
 
 #include <SDL2/SDL.h>
-
-#include "opengles20.h"
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 #include "../yabause.h"
 #include "../gameinfo.h"
@@ -30,7 +30,7 @@
 #include "../sh2core.h"
 #include "../sh2int.h"
 #include "../vidogl.h"
-#include "../vidsoft.h"
+#include "vidsoftnogl.h"
 #include "../cs0.h"
 #include "../cs2.h"
 #include "../cdbase.h"
@@ -109,7 +109,7 @@ NULL
 VideoInterface_struct *VIDCoreList[] = {
 &VIDDummy,
 &VIDOGL,
-&VIDSoft,
+&VIDSoftNoGL,
 NULL
 };
 
@@ -257,7 +257,6 @@ void YuiInit() {
 void SDLInit(void) {
 	SDL_GLContext context;
 	SDL_Renderer* rdr;
-	GLData gl;
 
 	SDL_InitSubSystem(SDL_INIT_VIDEO);
 
