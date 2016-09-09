@@ -24,25 +24,14 @@
     \brief Software video renderer interface.
 */
 
-#include "vidsoft.h"
-#include "ygl.h"
-#include "vidshared.h"
-#include "debug.h"
-#include "vdp2.h"
-#include "titan/titan.h"
+#include "vidsoftnogl.h"
+#include "../vidshared.h"
+#include "../debug.h"
+#include "../vdp2.h"
+#include "../titan/titan.h"
 
-#ifdef HAVE_LIBGL
-#ifndef HAVE_LIBSDL2
-#define USE_OPENGL
-#endif
-#endif
-
-#ifdef USE_OPENGL
-#include "ygl.h"
-#endif
-
-#include "yui.h"
-#include "threads.h"
+#include "../yui.h"
+#include "../threads.h"
 
 #include <stdlib.h>
 #include <limits.h>
@@ -75,7 +64,6 @@ static INLINE u32 COLSATSTRIPPRIORITY(u32 pixel) { return (0xFF000000 | pixel); 
 
 
 int VIDSoftInit(void);
-void VIDSoftSetupGL(void);
 void VIDSoftDeInit(void);
 void VIDSoftResize(unsigned int, unsigned int, int);
 int VIDSoftIsFullscreen(void);
@@ -105,7 +93,7 @@ void VidsoftDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8* vdp1_front
 void VIDSoftGetNativeResolution(int *width, int *height, int*interlace);
 void VIDSoftVdp2DispOff(void);
 
-VideoInterface_struct VIDSoft = {
+VideoInterface_struct VIDSoftNoGL = {
 VIDCORE_SOFT,
 "Software Video Interface",
 VIDSoftInit,
@@ -153,16 +141,6 @@ int vdp2width;
 int rbg0width = 0;
 int vdp2height;
 
-#ifdef USE_OPENGL
-static int outputwidth;
-static int outputheight;
-GLuint vao = 0;
-GLuint vbo = 0;
-GLuint vshader = 0;
-GLuint fshader = 0;
-GLuint gl_shader_prog = 0;
-GLuint gl_texture_id = 0;
-#endif
 int vdp2_x_hires = 0;
 int vdp2_interlace = 0;
 static int rbg0height = 0;
@@ -2180,10 +2158,6 @@ int VIDSoftInit(void)
    rbg0width = vdp2width = 320;
    vdp2height = 224;
 
-#ifdef USE_OPENGL
-   VIDSoftSetupGL();
-#endif
-
    for (i = 0; i < 6; i++)
    {
       vidsoft_thread_context.draw_finished[i] = 1;
@@ -2213,106 +2187,6 @@ void VIDSoftSetBilinear(int b)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDSoftSetupGL(void)
-{
-#ifdef USE_OPENGL
-   GLint status;
-   GLint texAttrib;
-   GLint posAttrib;
-
-   // Shader sources
-   const GLchar* vshader_src =
-      "#version 330 core\n"
-      "in vec2 position;"
-      "in vec2 texcoord;"
-      "out vec2 outcoord;"
-      "void main() {"
-      "   outcoord = texcoord;"
-      "   gl_Position = vec4(position, 0.0, 1.0);"
-      "}";
-
-   const GLchar* fshader_src =
-      "#version 330 core\n"
-      "in vec2 outcoord;"
-      "out vec4 fragcolor;"
-      "uniform sampler2D sattex;"
-      "void main() {"
-      "   fragcolor = texture(sattex, outcoord);"
-      "}";
-
-   const float vertices[16] = {
-      -1.0f, -1.0f, // Vertex 1 (X, Y)
-      -1.0f, 1.0f,  // Vertex 2 (X, Y)
-      1.0f, -1.0f,  // Vertex 3 (X, Y)
-      1.0f, 1.0f,   // Vertex 4 (X, Y)
-      0.0, 1.0,     // Texture 1 (X, Y)
-      0.0, 0.0,     // Texture 2 (X, Y)
-      1.0, 1.0,     // Texture 3 (X, Y)
-      1.0, 0.0      // Texture 4 (X, Y)
-   };
-
-   outputwidth = vdp2width;
-   outputheight = vdp2height;
-
-   glewInit();
-
-   glGenVertexArrays(1, &vao);
-   glBindVertexArray(vao);
-
-   glGenBuffers(1, &vbo);
-   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-   vshader = glCreateShader(GL_VERTEX_SHADER);
-   glShaderSource(vshader, 1, &vshader_src, NULL);
-   glCompileShader(vshader);
-
-   glGetShaderiv(vshader, GL_COMPILE_STATUS, &status);
-   if (status == GL_FALSE) { YGLLOG("Failed to compile vertex shader\n"); }
-
-   fshader = glCreateShader(GL_FRAGMENT_SHADER);
-   glShaderSource(fshader, 1, &fshader_src, NULL);
-   glCompileShader(fshader);
-
-   glGetShaderiv(fshader, GL_COMPILE_STATUS, &status);
-   if (status == GL_FALSE) { YGLLOG("Failed to compile fragment shader\n"); }
-	
-   gl_shader_prog = glCreateProgram();
-   glAttachShader(gl_shader_prog, vshader);
-   glAttachShader(gl_shader_prog, fshader);
-
-   glLinkProgram(gl_shader_prog);
-
-   glValidateProgram(gl_shader_prog);
-   glGetProgramiv(gl_shader_prog, GL_LINK_STATUS, &status);
-   if (status == GL_FALSE) { YGLLOG("Failed to link shader program\n"); }
-
-   glUseProgram(gl_shader_prog);
-	
-   posAttrib = glGetAttribLocation(gl_shader_prog, "position");
-   glEnableVertexAttribArray(posAttrib);
-   glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-
-   texAttrib = glGetAttribLocation(gl_shader_prog, "texcoord");
-   glEnableVertexAttribArray(texAttrib);
-   glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 0, (void*)(8 * sizeof(GLfloat)));
-
-   glGenTextures(1, &gl_texture_id);
-   glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D, gl_texture_id);
-
-   if (bilinear) { glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); }
-   else { glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); }
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-   glViewport(0, 0, outputwidth, outputheight);
-
-   glUniform1i(glGetUniformLocation(gl_shader_prog, "sattex"), 0);
-#endif
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
 void VIDSoftDeInit(void)
 {
    if (dispbuffer)
@@ -2326,14 +2200,6 @@ void VIDSoftDeInit(void)
 
    if (vdp1framebuffer[1])
       free(vdp1framebuffer[1]);
-#ifdef USE_OPENGL
-   if (gl_texture_id) { glDeleteTextures(1, &gl_texture_id); }
-   if (gl_shader_prog) { glDeleteProgram(gl_shader_prog); }
-   if (vshader) { glDeleteShader(vshader); }
-   if (fshader) { glDeleteShader(fshader); }
-   if (vao) { glDeleteVertexArrays(1, &vao); }
-   if (vbo) { glDeleteBuffers(1, &vbo); }
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2342,13 +2208,6 @@ static int IsFullscreen = 0;
 
 void VIDSoftResize(unsigned int w, unsigned int h, int on)
 {
-#ifdef USE_OPENGL
-   IsFullscreen = on;
-   glClear(GL_COLOR_BUFFER_BIT);
-   glViewport(0, 0, w, h);
-   outputwidth = w;
-   outputheight = h;
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3891,16 +3750,6 @@ void VIDSoftVdp2DrawEnd(void)
    if (OSDUseBuffer())
       OSDDisplayMessages(dispbuffer, vdp2width, vdp2height);
 
-#ifdef USE_OPENGL	
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, vdp2width, vdp2height, 0, GL_RGBA, GL_UNSIGNED_BYTE, dispbuffer);
-   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-   glClear(GL_COLOR_BUFFER_BIT);
-   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-   if (! OSDUseBuffer())
-      OSDDisplayMessages(NULL, -1, -1);
-#endif
-
    YuiSwapBuffers();
 }
 
@@ -4185,13 +4034,8 @@ void VIDSoftVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer)
 
 void VIDSoftGetGlSize(int *width, int *height)
 {
-#ifdef USE_OPENGL
-   *width = outputwidth;
-   *height = outputheight;
-#else
    *width = vdp2width;
    *height = vdp2height;
-#endif
 }
 
 void VIDSoftGetNativeResolution(int *width, int *height, int* interlace)
