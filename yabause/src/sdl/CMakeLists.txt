@@ -4,13 +4,18 @@ yab_port_start()
 
 find_package(SDL2 COMPONENTS sdl)
 find_package(SDL2 REQUIRED)
+find_package(OpenGLES)
 
 if (NOT SDL2_FOUND)
 	return()
 endif (NOT SDL2_FOUND)
 
-set(PORT_INCLUDE_DIRS ${SDL2_INCLUDE_DIR})
-set(PORT_LIBRARIES ${SDL2_LIBRARIES})
+if (NOT OPENGLES_FOUND)
+	return()
+endif (NOT OPENGLES_FOUND)
+
+set(PORT_INCLUDE_DIRS ${SDL2_INCLUDE_DIR} ${OPENGLES_INCLUDE_DIR})
+set(PORT_LIBRARIES ${SDL2_LIBRARIES} ${OPENGLES_LIBRARIES})
 
 set(yabause_sdl_SOURCES
 	main.c
