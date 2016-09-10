@@ -108,7 +108,7 @@ NULL
 
 VideoInterface_struct *VIDCoreList[] = {
 &VIDDummy,
-&VIDOGL,
+&VIDOGLES,
 &VIDSoftNoGL,
 NULL
 };
