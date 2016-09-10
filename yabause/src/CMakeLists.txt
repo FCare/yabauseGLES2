@@ -194,20 +194,29 @@ elseif (YAB_RGB STREQUAL "565")
     add_definitions(-DUSE_16BPP=1 -DUSE_RGB_565=1)
 endif ()
 
+#finding necessary packages
+#-------------------------------------------------------------------------------
+if(${GLSystem} MATCHES "Desktop OpenGL")
+    find_package(OpenGL REQUIRED)
+else()
+    find_package(OpenGLES REQUIRED)
+endif()
+
+
 # OpenGL
 option(YAB_WANT_OPENGL "use OpenGL for video output (most ports require it)" ON)
 if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
-	include(FindOpenGL)
 	if (OPENGL_FOUND)
+		MESSAGE("Looking for OpenGL")
 		add_definitions(-DHAVE_LIBGL=1)
 		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${OPENGL_LIBRARIES})
 
 		include(FindGLUT)
 		if (GLUT_FOUND)
 			message (WARNING "Deprecated Glut found. Support will be removed in the future. ")
-			include_directories(${GLUT_INCLUDE_DIR})
-			add_definitions(-DHAVE_LIBGLUT=1)
-			set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${GLUT_LIBRARIES})
+			#include_directories(${GLUT_INCLUDE_DIR})
+			#add_definitions(-DHAVE_LIBGLUT=1)
+			#set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${GLUT_LIBRARIES})
 		endif()
 
 		# glXGetProcAddress
@@ -230,7 +239,29 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
         endif()
 
 	endif(OPENGL_FOUND)
+	if (OPENGLES_FOUND)
+		MESSAGE("Looking for OpenGLES")
+		add_definitions(-DHAVE_LIBGLES=1)
+		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${OPENGLES_LIBRARIES})
+		add_definitions(-D_OGLES_)
+
+        	include(FindGLEW)
+        	add_definitions(-D_USEGLEW_)
+        	if (GLEW_FOUND)
+            		include_directories( ${GLEW_INCLUDE_DIRS})
+            		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${GLEW_LIBRARIES})
+        	else()
+			add_definitions(-DGLEW_STATIC)
+			include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/gllibs/include/ )
+			set(yabause_SOURCES ${yabause_SOURCES} gllibs/glew/glew.c)
+        	endif()
+
+	endif(OPENGLES_FOUND)
 endif ()
+
+if(DEFINED RPI)
+    add_definitions(-D_RPI_)
+endif()
 
 # SDL
 option(YAB_WANT_SDL "use SDL cores if available" ON)

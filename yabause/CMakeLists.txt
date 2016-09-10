@@ -2,6 +2,24 @@ project(yabause)
 
 cmake_minimum_required(VERSION 2.8)
 
+#-------------------------------------------------------------------------------
+#add local find scripts to CMAKE path
+LIST(APPEND CMAKE_MODULE_PATH
+    ${CMAKE_CURRENT_SOURCE_DIR}/CMake/Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/CMake/Packages
+)
+
+set(GLSystem "Desktop OpenGL")
+
+#-------------------------------------------------------------------------------
+#check if we're running on Raspberry Pi
+if(EXISTS "/opt/vc/include/bcm_host.h")
+    MESSAGE("Running on Raspberry Pi")
+    set(RPI found)
+    set(GLSystem "OpenGL ES 2.0")
+endif()
+
+
 set(YAB_PACKAGE yabause)
 set(YAB_VERSION_MAJOR 0)
 set(YAB_VERSION_MINOR 9)
