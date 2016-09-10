@@ -30,7 +30,7 @@
 #include "../sh2core.h"
 #include "../sh2int.h"
 #include "../vidogl.h"
-#include "vidsoftnogl.h"
+#include "../vidsoftnogl.h"
 #include "../cs0.h"
 #include "../cs2.h"
 #include "../cdbase.h"
