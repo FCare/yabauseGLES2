@@ -21,8 +21,8 @@ set(yabause_HEADERS
 	peripheral.h profile.h
 	scsp.h scspdsp.h scu.h sh2core.h sh2d.h sh2iasm.h sh2idle.h sh2int.h sh2trace.h smpc.h sock.h
 	threads.h titan/titan.h
-	vdp1.h vdp2.h vdp2debug.h vidogl.h vidogles.h vidshared.h vidsoft.h
-	yabause.h ygl.h ygles2.h yui.h sh2cache.h sh7034.h ygr.h cd_drive.h tsunami/yab_tsunami.h mpeg_card.h)
+	vdp1.h vdp2.h vdp2debug.h vidshared.h vidsoft.h
+	yabause.h yui.h sh2cache.h sh7034.h ygr.h cd_drive.h tsunami/yab_tsunami.h mpeg_card.h)
 
 set(yabause_SOURCES
 	bios.c
@@ -37,8 +37,8 @@ set(yabause_SOURCES
 	peripheral.c profile.c
 	scspdsp.c scu.c sh2core.c sh2d.c sh2iasm.c sh2idle.c sh2int.c sh2trace.c smpc.c snddummy.c
 	titan/titan.c
-	vdp1.c vdp2.c vdp2debug.c vidogl.c vidogles.c vidshared.c vidsoft.c vidsoftnogl.c
-	yabause.c ygles.c ygles2.c yglshaderes.c yglshaderes20.c sh2cache.c sh7034.c ygr.c cd_drive.c tsunami/yab_tsunami.c tsunami/Tsunami.c mpeg_card.c)
+	vdp1.c vdp2.c vdp2debug.c vidshared.c
+	yabause.c sh2cache.c sh7034.c ygr.c cd_drive.c tsunami/yab_tsunami.c tsunami/Tsunami.c mpeg_card.c)
 
 option(YAB_USE_CXX "Allow C++ in the emulation core.")
 if (YAB_USE_CXX)
@@ -207,6 +207,8 @@ endif()
 option(YAB_WANT_OPENGL "use OpenGL for video output (most ports require it)" ON)
 if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 	if (OPENGL_FOUND)
+		set(yabause_HEADERS ${yabause_HEADERS} ygl.h vidogl.h)
+		set(yabause_SOURCES ${yabause_SOURCES} yglshaderes.c ygles.c vidogl.c)
 		MESSAGE("Looking for OpenGL")
 		add_definitions(-DHAVE_LIBGL=1)
 		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${OPENGL_LIBRARIES})
@@ -244,7 +246,8 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 		add_definitions(-DHAVE_LIBGLES=1)
 		set(YABAUSE_LIBRARIES ${YABAUSE_LIBRARIES} ${OPENGLES_LIBRARIES})
 		add_definitions(-D_OGLES_)
-
+		set(yabause_HEADERS ${yabause_HEADERS} ygles2.h vidogles.h)
+                set(yabause_SOURCES ${yabause_SOURCES} ygles2.c yglshaderes20.c  vidogles.c vidsoftnogl.c)
         	include(FindGLEW)
         	add_definitions(-D_USEGLEW_)
         	if (GLEW_FOUND)
@@ -255,7 +258,8 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 			include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/gllibs/include/ )
 			set(yabause_SOURCES ${yabause_SOURCES} gllibs/glew/glew.c)
         	endif()
-
+        else()
+		set(yabause_SOURCES ${yabause_SOURCES} vidsoft.c)
 	endif(OPENGLES_FOUND)
 endif ()
 
