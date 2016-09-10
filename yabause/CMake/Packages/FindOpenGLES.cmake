@@ -58,6 +58,16 @@ ELSE (WIN32)
             /opt/vc/lib
     )
 
+    FIND_LIBRARY(OPENGLES_gl2_LIBRARY
+      NAMES GLESv2
+      PATHS /opt/graphics/OpenGL/lib
+            /usr/openwin/lib
+            /usr/shlib /usr/X11R6/lib
+            /usr/lib
+            /opt/vc/lib
+    )
+
+
     # On Unix OpenGL most certainly always requires X11.
     # Feel free to tighten up these conditions if you don't 
     # think this is always true.
@@ -83,7 +93,17 @@ IF(OPENGLES_gl_LIBRARY)
 
 ENDIF(OPENGLES_gl_LIBRARY)
 
+SET( OPENGLES2_FOUND "NO" )
+IF(OPENGLES_gl2_LIBRARY)
+SET( OPENGLES_LIBRARIES ${OPENGLES_gl2_LIBRARY} ${OPENGLES_LIBRARIES})
+
+    SET( OPENGLES2_FOUND "YES" )
+
+ENDIF(OPENGLES_gl2_LIBRARY)
+
+
 MARK_AS_ADVANCED(
   OPENGLES_INCLUDE_DIR
   OPENGLES_gl_LIBRARY
+  OPENGLES_gl2_LIBRARY
 )
