@@ -58,44 +58,30 @@ static GLuint _prgid[PG_MAX] ={0};
  *  Normal Draw
  * ----------------------------------------------------------------------------------*/
 const GLchar YglEs20prg_normal_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
       "uniform mat4 u_mvpMatrix;    \n"
       "uniform mat4 u_texMatrix;    \n"
-      "layout (location = 0) in vec4 a_position;   \n"
-      "layout (location = 1) in vec4 a_texcoord;   \n"
-      "out  highp vec4 v_texcoord;     \n"
+      "attribute vec4 a_position;   \n"
+      "attribute vec4 a_texcoord;   \n"
+      "varying vec4 v_texcoord;     \n"
       "void main()                  \n"
       "{                            \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
-      "   v_texcoord  = a_texcoord/*u_texMatrix*/; \n"
-      "   v_texcoord.s  = v_texcoord.s; ///2048.0; \n"
-      "   v_texcoord.t  = v_texcoord.t; ///1024.0; \n"
+      "   v_texcoord  = a_texcoord; \n"
       "} ";
 const GLchar * pYglEs20prg_normal_v[] = {YglEs20prg_normal_v, NULL};
 
 const GLchar YglEs20prg_normal_f[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-      "precision highp float;                            \n"
-      "in highp vec4 v_texcoord;                            \n"
+      "varying vec4 v_texcoord;                            \n"
       "uniform vec4 u_color_offset;    \n"
       "uniform sampler2D s_texture;                        \n"
-      "out vec4 fragColor;            \n"
       "void main()                                         \n"
       "{                                                   \n"
       "  ivec2 addr; \n"
       "  addr.x = int(v_texcoord.x);                        \n"
       "  addr.y = int(v_texcoord.y);                        \n"
-      "  vec4 txcol = texelFetch( s_texture, addr,0 );         \n"
+      "  vec4 txcol = texture2D( s_texture, addr );         \n"
       "  if(txcol.a > 0.0)\n                                 "
-      "     fragColor = clamp(txcol+u_color_offset,vec4(0.0),vec4(1.0));\n                         "
+      "     gl_FragColor = clamp(txcol+u_color_offset,vec4(0.0),vec4(1.0));\n                         "
       "  else \n                                            "
       "     discard;\n                                      "
       "}                                                   \n";
@@ -125,13 +111,8 @@ int YglEs20_cleanupNormal(void * p )
  *  Window Operation
  * ----------------------------------------------------------------------------------*/
 const GLchar YglEs20prg_window_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
       "uniform mat4 u_mvpMatrix;    \n"
-      "layout (location = 0) in vec4 a_position;               \n"
+      "attribute vec4 a_position;               \n"
       "void main()                  \n"
       "{                            \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
@@ -139,16 +120,9 @@ const GLchar YglEs20prg_window_v[] =
 const GLchar * pYglEs20prg_window_v[] = {YglEs20prg_window_v, NULL};
 
 const GLchar YglEs20prg_window_f[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-      "precision highp float;                            \n"
-      "out vec4 fragColor;            \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  fragColor = vec4( 1.0,1.0,1.0,1.0 );\n"
+      "  gl_FragColor = vec4( 1.0,1.0,1.0,1.0 );\n"
       "}                                                   \n";
 const GLchar * pYglEs20prg_window_f[] = {YglEs20prg_window_f, NULL};
 
@@ -175,15 +149,10 @@ int YglEs20_cleanupWindow(void * p )
  *  VDP1 Normal Draw
  * ----------------------------------------------------------------------------------*/
 const GLchar YglEs20prg_vdp1_normal_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
       "uniform mat4 u_mvpMatrix;    \n"
-      "layout (location = 0) in vec4 a_position;   \n"
-      "layout (location = 1) in vec4 a_texcoord;   \n"
-      "out   vec4 v_texcoord;     \n"
+      "attribute vec4 a_position;   \n"
+      "attribute vec4 a_texcoord;   \n"
+      "varying   vec4 v_texcoord;     \n"
       "void main()                  \n"
       "{                            \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
@@ -194,23 +163,14 @@ const GLchar YglEs20prg_vdp1_normal_v[] =
 const GLchar * pYglEs20prg_vdp1_normal_v[] = {YglEs20prg_vdp1_normal_v, NULL};
 
 const GLchar YglEs20prg_vpd1_normal_f[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-      "precision highp float;                            \n"
-      "in vec4 v_texcoord;                            \n"
+      "varying vec4 v_texcoord;                            \n"
       "uniform sampler2D s_texture;                        \n"
-      "out vec4 fragColor;            \n"
       "void main()                                         \n"
       "{                                                   \n"
       "  vec2 addr = v_texcoord.st;                        \n"
       "  addr.s = addr.s / (v_texcoord.q);                 \n"
       "  addr.t = addr.t / (v_texcoord.q);                 \n"
-      "  vec4 FragColor = texture( s_texture, addr );      \n"
-      "  /*if( FragColor.a == 0.0 ) discard;*/                \n"
-      "  fragColor = FragColor;\n "
+      "  gl_FragColor = texture2D( s_texture, addr );      \n"
       "}                                                   \n";
 const GLchar * pYglEs20prg_vdp1_normal_f[] = {YglEs20prg_vpd1_normal_f, NULL};
 static int id_vdp1_normal_s_texture = -1;
@@ -238,21 +198,15 @@ int YglEs20_cleanupVdp1Normal(void * p )
  *  VDP1 GlowShading Operation
  * ----------------------------------------------------------------------------------*/
 const GLchar YglEs20prg_vdp1_gouraudshading_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
       "uniform mat4 u_mvpMatrix;                \n"
-      "uniform mat4 u_texMatrix;                \n"
-      "layout (location = 0) in vec4 a_position;               \n"
-      "layout (location = 1) in vec4 a_texcoord;               \n"
-      "layout (location = 2) in vec4 a_grcolor;                \n"
-      "out  vec4 v_texcoord;               \n"
-      "out  vec4 v_vtxcolor;               \n"
+      "attribute vec4 a_position;               \n"
+      "attribute vec4 a_texcoord;               \n"
+      "attribute vec4 a_grcolor;                \n"
+      "varying vec4 v_texcoord;               \n"
+      "varying vec4 v_vtxcolor;               \n"
       "void main() {                            \n"
       "   v_vtxcolor  = a_grcolor;              \n"
-      "   v_texcoord  = a_texcoord/*u_texMatrix*/; \n"
+      "   v_texcoord  = a_texcoord; \n"
       "   v_texcoord.s  = v_texcoord.s/2048.0; \n"
       "   v_texcoord.t  = v_texcoord.t/1024.0; \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
@@ -260,25 +214,17 @@ const GLchar YglEs20prg_vdp1_gouraudshading_v[] =
 const GLchar * pYglEs20prg_vdp1_gouraudshading_v[] = {YglEs20prg_vdp1_gouraudshading_v, NULL};
 
 const GLchar YglEs20prg_vdp1_gouraudshading_f[] =
-#if defined(_OGLES3_)
-"#version 300 es \n"
-#else
-"#version 330 \n"
-#endif
-"precision highp float;                                                 \n"
 "uniform sampler2D u_sprite;                                              \n"
-"in vec4 v_texcoord;                                                 \n"
-"in vec4 v_vtxcolor;                                                 \n"
-"out vec4 fragColor;            \n"
+"varying vec4 v_texcoord;                                                 \n"
+"varying vec4 v_vtxcolor;                                                 \n"
 "void main() {                                                            \n"
 "  vec2 addr = v_texcoord.st;                                             \n"
 "  addr.s = addr.s / (v_texcoord.q);                                      \n"
 "  addr.t = addr.t / (v_texcoord.q);                                      \n"
-"  vec4 spriteColor = texture(u_sprite,addr);                           \n"
+"  vec4 spriteColor = texture2D(u_sprite,addr);                           \n"
 "  if( spriteColor.a == 0.0 ) discard;                                      \n"
-"  fragColor   = spriteColor;                                          \n"
-"  fragColor  = clamp(spriteColor+v_vtxcolor,vec4(0.0),vec4(1.0));     \n"
-      "  fragColor.a = spriteColor.a;                                        \n"
+"  gl_FragColor  = clamp(spriteColor+v_vtxcolor,vec4(0.0),vec4(1.0));     \n"
+      "  gl_FragColor.a = spriteColor.a;                                        \n"
       "}\n";
 const GLchar * pYglEs20prg_vdp1_gouraudshading_f[] = {YglEs20prg_vdp1_gouraudshading_f, NULL};
 static int id_vdp1_normal_s_sprite = -1;
@@ -314,21 +260,15 @@ static int id_fbowidth;
 static int id_fboheight;
 
 const GLchar YglEs20prg_vdp1_gouraudshading_hf_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
       "uniform mat4 u_mvpMatrix;                \n"
-      "uniform mat4 u_texMatrix;                \n"
-      "layout (location = 0) in vec4 a_position;               \n"
-      "layout (location = 1) in vec4 a_texcoord;               \n"
-      "layout (location = 2) in vec4 a_grcolor;                \n"
-      "out  vec4 v_texcoord;               \n"
-      "out  vec4 v_vtxcolor;               \n"
+      "attribute vec4 a_position;               \n"
+      "attribute vec4 a_texcoord;               \n"
+      "attribute vec4 a_grcolor;                \n"
+      "varying vec4 v_texcoord;               \n"
+      "varying vec4 v_vtxcolor;               \n"
       "void main() {                            \n"
       "   v_vtxcolor  = a_grcolor;              \n"
-      "   v_texcoord  = a_texcoord/*u_texMatrix*/; \n"
+      "   v_texcoord  = a_texcoord; \n"
       "   v_texcoord.s  = v_texcoord.s/2048.0; \n"
       "   v_texcoord.t  = v_texcoord.t/1024.0; \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
@@ -336,34 +276,27 @@ const GLchar YglEs20prg_vdp1_gouraudshading_hf_v[] =
 const GLchar * pYglEs20prg_vdp1_gouraudshading_hf_v[] = {YglEs20prg_vdp1_gouraudshading_hf_v, NULL};
 
 const GLchar YglEs20prg_vdp1_gouraudshading_hf_f[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-      "precision highp float;                                                                     \n"
       "uniform sampler2D u_sprite;                                                                  \n"
       "uniform sampler2D u_fbo;                                                                     \n"
       "uniform int u_fbowidth;                                                                      \n"
       "uniform int u_fbohegiht;                                                                     \n"
-      "in vec4 v_texcoord;                                                                     \n"
-      "in vec4 v_vtxcolor;                                                                     \n"
-      "out vec4 fragColor; \n "
+      "varying vec4 v_texcoord;                                                                     \n"
+      "varying vec4 v_vtxcolor;                                                                     \n"
       "void main() {                                                                                \n"
       "  vec2 addr = v_texcoord.st;                                                                 \n"
       "  vec2 faddr = vec2( gl_FragCoord.x/float(u_fbowidth), gl_FragCoord.y/float(u_fbohegiht));   \n"
       "  addr.s = addr.s / (v_texcoord.q);                                                          \n"
       "  addr.t = addr.t / (v_texcoord.q);                                                          \n"
-      "  vec4 spriteColor = texture(u_sprite,addr);                                               \n"
+      "  vec4 spriteColor = texture2D(u_sprite,addr);                                               \n"
       "  if( spriteColor.a == 0.0 ) discard;                                                          \n"
-      "  vec4 fboColor    = texture(u_fbo,faddr);                                                 \n"
+      "  vec4 fboColor    = texture2D(u_fbo,faddr);                                                 \n"
       "  spriteColor += vec4(v_vtxcolor.r,v_vtxcolor.g,v_vtxcolor.b,0.0);                           \n"
       "  if( fboColor.a > 0.0 && spriteColor.a > 0.0 )                                              \n"
       "  {                                                                                          \n"
-      "    fragColor = spriteColor*0.5 + fboColor*0.5;                                           \n"
-      "    fragColor.a = fboColor.a;                                                             \n"
+      "    gl_FragColor = spriteColor*0.5 + fboColor*0.5;                                           \n"
+      "    gl_FragColor.a = fboColor.a;                                                             \n"
       "  }else{                                                                                     \n"
-      "    fragColor = spriteColor;                                                              \n"
+      "    gl_FragColor = spriteColor;                                                              \n"
       "  }                                                                                          \n"
       "}\n";
 const GLchar * pYglEs20prg_vdp1_gouraudshading_hf_f[] = {YglEs20prg_vdp1_gouraudshading_hf_f, NULL};
@@ -386,9 +319,9 @@ int YglEs20_uniformGlowShadingHalfTrans(void * p )
    glUniform1i(id_fbowidth, GlWidth);
    glUniform1i(id_fboheight, GlHeight);
    glActiveTexture(GL_TEXTURE0);
-#if !defined(_OGLES3_)
-   glTextureBarrierNV();
-#endif
+//#if !defined(_OGLES3_)
+//   glTextureBarrierNV();
+//#endif
    return 0;
 }
 
@@ -410,20 +343,12 @@ static int id_hf_fbowidth;
 static int id_hf_fboheight;
 
 const GLchar YglEs20prg_vdp1_halftrans_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
         "uniform mat4 u_mvpMatrix;                \n"
-        "layout (location = 0) in vec4 a_position;               \n"
-        "layout (location = 1) in vec4 a_texcoord;               \n"
-        "layout (location = 2) in vec4 a_grcolor;                \n"
-        "out  vec4 v_texcoord;               \n"
-        "out  vec4 v_vtxcolor;               \n"
+        "attribute vec4 a_position;               \n"
+        "attribute vec4 a_texcoord;               \n"
+        "varying vec4 v_texcoord;               \n"
         "void main() {                            \n"
-        "   v_vtxcolor  = a_grcolor;              \n"
-        "   v_texcoord  = a_texcoord/*u_texMatrix*/; \n"
+        "   v_texcoord  = a_texcoord; \n"
         "   v_texcoord.s  = v_texcoord.s/2048.0; \n"
         "   v_texcoord.t  = v_texcoord.t/1024.0; \n"
         "   gl_Position = a_position*u_mvpMatrix; \n"
@@ -432,32 +357,25 @@ const GLchar YglEs20prg_vdp1_halftrans_v[] =
 const GLchar * pYglEs20prg_vdp1_halftrans_v[] = {YglEs20prg_vdp1_halftrans_v, NULL};
 
 const GLchar YglEs20prg_vdp1_halftrans_f[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-      "precision highp float;                                                                     \n"
       "uniform sampler2D u_sprite;                                                                  \n"
       "uniform sampler2D u_fbo;                                                                     \n"
       "uniform int u_fbowidth;                                                                      \n"
       "uniform int u_fbohegiht;                                                                     \n"
-      "in vec4 v_texcoord;                                                                     \n"
-      "out vec4 fragColor; \n "
+      "varying vec4 v_texcoord;                                                                     \n"
       "void main() {                                                                                \n"
       "  vec2 addr = v_texcoord.st;                                                                 \n"
       "  vec2 faddr = vec2( gl_FragCoord.x/float(u_fbowidth), gl_FragCoord.y/float(u_fbohegiht));   \n"
       "  addr.s = addr.s / (v_texcoord.q);                                                          \n"
       "  addr.t = addr.t / (v_texcoord.q);                                                          \n"
-      "  vec4 spriteColor = texture(u_sprite,addr);                                               \n"
+      "  vec4 spriteColor = texture2D(u_sprite,addr);                                               \n"
       "  if( spriteColor.a == 0.0 ) discard;                                                          \n"
-      "  vec4 fboColor    = texture(u_fbo,faddr);                                                 \n"
+      "  vec4 fboColor    = texture2D(u_fbo,faddr);                                                 \n"
       "  if( fboColor.a > 0.0 && spriteColor.a > 0.0 )                                              \n"
       "  {                                                                                          \n"
-      "    fragColor = spriteColor*0.5 + fboColor*0.5;                                           \n"
-      "    fragColor.a = fboColor.a;                                                             \n"
+      "    gl_FragColor = spriteColor*0.5 + fboColor*0.5;                                           \n"
+      "    gl_FragColor.a = fboColor.a;                                                             \n"
       "  }else{                                                                                     \n"
-      "    fragColor = spriteColor;                                                              \n"
+      "    gl_FragColor = spriteColor;                                                              \n"
       "  }                                                                                          \n"
       "}\n";
 const GLchar * pYglEs20prg_vdp1_halftrans_f[] = {YglEs20prg_vdp1_halftrans_f, NULL};
@@ -477,9 +395,9 @@ int YglEs20_uniformHalfTrans(void * p )
    glUniform1i(id_hf_fbowidth, GlWidth);
    glUniform1i(id_hf_fboheight, GlHeight);
    glActiveTexture(GL_TEXTURE0);
-#if !defined(_OGLES3_)
-   glTextureBarrierNV();
-#endif
+//#if !defined(_OGLES3_)
+//   glTextureBarrierNV();
+//#endif
    return 0;
 }
 
@@ -659,15 +577,10 @@ static int idto;
 static int idcoloroffset;
 
 const GLchar YglEs20prg_vdp1_drawfb_v[] =
-#if defined(_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
       "uniform mat4 u_mvpMatrix;                \n"
-      "layout (location = 0) in vec4 a_position;               \n"
-      "layout (location = 1) in vec2 a_texcoord;               \n"
-      "out vec2 v_texcoord;                 \n"
+      "attribute vec4 a_position;               \n"
+      "attribute vec2 a_texcoord;               \n"
+      "varying vec2 v_texcoord;                 \n"
       "void main() {                            \n"
       "   v_texcoord  = a_texcoord;             \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
@@ -675,30 +588,23 @@ const GLchar YglEs20prg_vdp1_drawfb_v[] =
 const GLchar * pYglEs20prg_vdp2_drawfb_v[] = {YglEs20prg_vdp1_drawfb_v, NULL};
 
 const GLchar YglEs20prg_vdp2_drawfb_f[] =
-#if defined(_OGLES3_)
-"#version 300 es \n"
-#else
-"#version 330 \n"
-#endif
-"precision highp float;\n"
-"in vec2 v_texcoord;\n"
+"varying vec2 v_texcoord;\n"
 "uniform sampler2D s_vdp1FrameBuffer;\n"
 "uniform float u_from;\n"
 "uniform float u_to;\n"
 "uniform vec4 u_coloroffset;\n"
-"out vec4 fragColor;\n"
 "void main()\n"
 "{\n"
 "  vec2 addr = v_texcoord;\n"
-"  highp vec4 fbColor = texture(s_vdp1FrameBuffer,addr);\n"
+"  vec4 fbColor = texture2D(s_vdp1FrameBuffer,addr);\n"
 "  int additional = int(fbColor.a * 255.0);\n"
-"  highp float alpha = float((additional/8)*8)/255.0;\n"
-"  highp float depth = (float(additional&0x07)/10.0) + 0.05;\n"
+"  float alpha = float((additional/8)*8)/255.0;\n"
+"  float depth = (mod(additional,8.0)/10.0) + 0.05;\n"
 "  if( depth < u_from || depth > u_to ){ discard;return;}\n"
 "  if( alpha > 0.0){\n"
-"     fragColor = fbColor;\n"
-"     fragColor += u_coloroffset;  \n"
-"     fragColor.a = alpha + 7.0/255.0;\n"
+"     gl_FragColor = fbColor;\n"
+"     gl_FragColor += u_coloroffset;  \n"
+"     gl_FragColor.a = alpha + 7.0/255.0;\n"
 "     gl_FragDepth =  (depth+1.0)/2.0;\n"
 "  } else { \n"
 "     discard;\n"
@@ -737,13 +643,7 @@ static int id_fblinecol_vheight;
 const GLchar * pYglEs20prg_vdp2_drawfb_linecolor_v[] = { YglEs20prg_vdp1_drawfb_v, NULL };
 
 const GLchar YglEs20prg_vdp2_drawfb_linecolor_f[] =
-#if defined(_OGLES3_)
-"#version 300 es \n"
-#else
-"#version 330 \n"
-#endif
-"precision highp float;                             \n"
-"in vec2 v_texcoord;                             \n"
+"varying vec2 v_texcoord;                             \n"
 "uniform sampler2D s_vdp1FrameBuffer;                 \n"
 "uniform float u_from;                                  \n"
 "uniform float u_to;                                    \n"
@@ -751,24 +651,24 @@ const GLchar YglEs20prg_vdp2_drawfb_linecolor_f[] =
 "uniform float u_emu_height;    \n"
 "uniform sampler2D s_line;                        \n"
 "uniform float u_vheight; \n"
-"out vec4 fragColor;            \n"
 "void main()                                          \n"
 "{                                                    \n"
 "  vec2 addr = v_texcoord;                         \n"
-"  highp vec4 fbColor = texture(s_vdp1FrameBuffer,addr);  \n"
+"  vec4 fbColor = texture2D(s_vdp1FrameBuffer,addr);  \n"
 "  int additional = int(fbColor.a * 255.0);           \n"
-"  highp float alpha = float((additional/8)*8)/255.0;  \n"
-"  highp float depth = (float(additional&0x07)/10.0) + 0.05; \n"
+"  float alpha = float((additional/8)*8)/255.0;  \n"
+"  float depth = (mod(additional,8.0)/10.0) + 0.05; \n"
 "  if( depth < u_from || depth > u_to ){ discard;return;} \n"
 "  ivec2 linepos; \n "
 "  linepos.y = 0; \n "
 "  linepos.x = int((u_vheight - gl_FragCoord.y) * u_emu_height);\n"
-"  vec4 lncol = texelFetch( s_line, linepos,0 );      \n"
+//"  vec4 lncol = texelFetch( s_line, linepos,0 );      \n"
+"  vec4 lncol = texture2D( s_line, linepos);      \n"
 "  if( alpha > 0.0){ \n"
-"     fragColor = fbColor;                            \n"
-"     fragColor += u_coloroffset;  \n"
-"     fragColor += lncol; \n"
-"     fragColor.a = 1.0; \n"
+"     gl_FragColor = fbColor;                            \n"
+"     gl_FragColor += u_coloroffset;  \n"
+"     gl_FragColor += lncol; \n"
+"     gl_FragColor.a = 1.0; \n"
 "     gl_FragDepth =  (depth+1.0)/2.0;\n"
 "  } else { \n"
 "     discard;\n"
@@ -803,37 +703,30 @@ void YglEs20_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float to
 }
 
 const GLchar YglEs20prg_vdp2_drawfb_addcolor_f[] =
-#if defined(_OGLES3_)
-"#version 300 es \n"
-#else
-"#version 330 \n"
-#endif
-"precision highp float;\n"
-"in vec2 v_texcoord;\n"
+"varying vec2 v_texcoord;\n"
 "uniform sampler2D s_vdp1FrameBuffer;\n"
 "uniform float u_from;\n"
 "uniform float u_to;\n"
 "uniform vec4 u_coloroffset;\n"
-"out vec4 fragColor;\n"
 "void main()\n"
 "{\n"
 "  vec2 addr = v_texcoord;\n"
-"  highp vec4 fbColor = texture(s_vdp1FrameBuffer,addr);\n"
+"  vec4 fbColor = texture2D(s_vdp1FrameBuffer,addr);\n"
 "  int additional = int(fbColor.a * 255.0);\n"
-"  highp float alpha = float((additional/8)*8)/255.0;\n"
-"  highp float depth = (float(additional&0x07)/10.0) + 0.05;\n"
+"  float alpha = float((additional/8)*8)/255.0;\n"
+"  float depth = (mod(additional, 8.0)/10.0) + 0.05;\n"
 "  if( depth < u_from || depth > u_to ){ discard;return;}\n"
 "  if( alpha <= 0.0){\n"
 "     discard;\n"
 "  }else if( alpha >= 0.75){\n"
-"     fragColor = fbColor;\n"
-"     fragColor += u_coloroffset;  \n"
-"     fragColor.a = 0.0;\n"
+"     gl_FragColor = fbColor;\n"
+"     gl_FragColor += u_coloroffset;  \n"
+"     gl_FragColor.a = 0.0;\n"
 "     gl_FragDepth =  (depth+1.0)/2.0;\n"
 "  }else{\n"
-"     fragColor = fbColor;\n"
-"     fragColor += u_coloroffset;\n"
-"     fragColor.a = 1.0;\n"
+"     gl_FragColor = fbColor;\n"
+"     gl_FragColor += u_coloroffset;\n"
+"     gl_FragColor.a = 1.0;\n"
 "     gl_FragDepth =  (depth+1.0)/2.0;\n"
 "  }\n " 
 "}\n";
@@ -896,19 +789,12 @@ int YglEs20_cleanupAddBlend(void * p )
 const GLchar * pYglEs20prg_linecol_v[] = { YglEs20prg_normal_v, NULL };
 
 const GLchar YglEs20prg_linecol_f[] =
-#if defined(_OGLES3_)
-"#version 300 es \n"
-#else
-"#version 330 \n"
-#endif
-"precision highp float;                            \n"
-"in highp vec4 v_texcoord;                            \n"
+"varying vec4 v_texcoord;                            \n"
 "uniform vec4 u_color_offset;    \n"
 "uniform float u_emu_height;    \n"
 "uniform float u_vheight; \n"
 "uniform sampler2D s_texture;                        \n"
 "uniform sampler2D s_line;                        \n"
-"out vec4 fragColor;            \n"
 "void main()                                         \n"
 "{                                                   \n"
 "  ivec2 addr; \n"
@@ -917,11 +803,13 @@ const GLchar YglEs20prg_linecol_f[] =
 "  ivec2 linepos; \n "
 "  linepos.y = 0; \n "
 "  linepos.x = int( (u_vheight-gl_FragCoord.y) * u_emu_height);\n"
-"  vec4 txcol = texelFetch( s_texture, addr,0 );      \n"
-"  vec4 lncol = texelFetch( s_line, linepos,0 );      \n"
+//"  vec4 txcol = texelFetch( s_texture, addr,0 );      \n"
+//"  vec4 lncol = texelFetch( s_line, linepos,0 );      \n"
+"  vec4 txcol = texture2D( s_texture, addr);      \n"
+"  vec4 lncol = texture2D( s_line, linepos);      \n"
 "  if(txcol.a > 0.0){\n                                 "
-"     fragColor = txcol+u_color_offset+lncol;\n       "
-"     fragColor.a = 1.0;\n                             "
+"     gl_FragColor = txcol+u_color_offset+lncol;\n       "
+"     gl_FragColor.a = 1.0;\n                             "
 "  }else{ \n                                            "
 "     discard;\n                                      "
 "  }                                                   \n"
@@ -991,7 +879,7 @@ int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
     glCompileShader(vshader);
     glGetShaderiv(vshader, GL_COMPILE_STATUS, &compiled);
     if (compiled == GL_FALSE) {
-       YGLLOG( "Compile error in vertex shader.\n");
+       perror( "Compile error in vertex shader.\n");
        YglEs20_printShaderError(vshader);
        _prgid[id] = 0;
        return -1;
@@ -1001,7 +889,7 @@ int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
     glCompileShader(fshader);
     glGetShaderiv(fshader, GL_COMPILE_STATUS, &compiled);
     if (compiled == GL_FALSE) {
-       YGLLOG( "Compile error in fragment shader.\n");
+       perror( "Compile error in fragment shader.\n");
        YglEs20_printShaderError(fshader);
        _prgid[id] = 0;
        return -1;
@@ -1012,7 +900,7 @@ int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
     glLinkProgram(_prgid[id]);
     glGetProgramiv(_prgid[id], GL_LINK_STATUS, &linked);
     if (linked == GL_FALSE) {
-       YGLLOG("Link error..\n");
+       perror("Link error..\n");
        YglEs20_printShaderError(_prgid[id]);
        _prgid[id] = 0;
        return -1;
@@ -1024,8 +912,9 @@ int YglEs20ProgramInit()
 {
    YGLLOG("PG_NORMAL\n");
    //
-   if( YglEs20InitShader( PG_NORMAL, pYglEs20prg_normal_v, pYglEs20prg_normal_f ) != 0 )
+   if( YglEs20InitShader( PG_NORMAL, pYglEs20prg_normal_v, pYglEs20prg_normal_f ) != 0 ) {
       return -1;
+   }
 
     id_normal_s_texture = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"s_texture");
    //
@@ -1035,6 +924,7 @@ int YglEs20ProgramInit()
 
    YGLLOG("PG_VDP1_NORMAL\n");
    //
+
    if( YglEs20InitShader( PG_VDP1_NORMAL, pYglEs20prg_vdp1_normal_v, pYglEs20prg_vdp1_normal_f ) != 0 )
       return -1;
 
@@ -1116,9 +1006,11 @@ int YglEs20ProgramInit()
    id_linecol_emu_height =   glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_emu_height");
    id_linecol_vheight = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_vheight");
 
+   YGLLOG("PG_VDP2_DRAWFRAMEBUFF_LINECOLOR\n");
    //
    if (YglEs20InitShader(PG_VDP2_DRAWFRAMEBUFF_LINECOLOR, pYglEs20prg_vdp2_drawfb_linecolor_v, pYglEs20prg_vdp2_drawfb_linecolor_f) != 0)
      return -1;
+
 
    idvdp1FrameBuffer_linecolor = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR], (const GLchar *)"s_vdp1FrameBuffer");;
    idfrom_linecolor = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR], (const GLchar *)"u_from");
@@ -1128,9 +1020,10 @@ int YglEs20ProgramInit()
    id_fblinecol_emu_height = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR], (const GLchar *)"u_emu_height");
    id_fblinecol_vheight = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_vheight");
 
+   YGLLOG("PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR\n");
    //
    if (YglEs20InitShader(PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR, pYglEs20prg_vdp2_drawfb_v, pYglEs20prg_vdp2_drawfb_addcolor_f) != 0)
-	   return -1;
+     return -1;
 
    idvdp1FrameBuffer_addcolor = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR], (const GLchar *)"s_vdp1FrameBuffer");;
    idfrom_addcolor = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR], (const GLchar *)"u_from");
@@ -1146,9 +1039,6 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
 {
    YglProgram* tmp;
    YglProgram* current;
-#if  USEVBO
-   int maxsize;
-#endif
 
    level->prgcurrent++;
 
@@ -1162,20 +1052,6 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
       level->prg = tmp;
 
       level->prg[level->prgcurrent].currentQuad = 0;
-#if  USEVBO
-       level->prg[level->prgcurrent].maxQuad = 14692;
-      maxsize = level->prg[level->prgcurrent].maxQuad;
-      if( YglGetVertexBuffer(maxsize,
-                             (void**)&level->prg[level->prgcurrent].quads,
-                             (void**)&level->prg[level->prgcurrent].textcoords,
-                             (void**)&level->prg[level->prgcurrent].vertexAttribute  ) != 0 ) {
-          return -1;
-      }
-      if( level->prg[level->prgcurrent].quads == 0 )
-      {
-          int a=0;
-      }
-#else
       level->prg[level->prgcurrent].maxQuad = 12*64;
       if ((level->prg[level->prgcurrent].quads = (float *) malloc(level->prg[level->prgcurrent].maxQuad * sizeof(float))) == NULL)
          return -1;
@@ -1185,7 +1061,6 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
 
        if ((level->prg[level->prgcurrent].vertexAttribute = (float *) malloc(level->prg[level->prgcurrent].maxQuad * sizeof(float)*2)) == NULL)
          return -1;
-#endif
    }
 
    current = &level->prg[level->prgcurrent];
@@ -1197,10 +1072,9 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
    {
       current->setupUniform    = YglEs20_uniformNormal;
       current->cleanupUniform  = YglEs20_cleanupNormal;
-      current->vertexp = 0;
-      current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_texMatrix");
       current->color_offset    = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"u_color_offset");
       current->tex0 = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"s_texture");
 
@@ -1208,98 +1082,88 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
    {
       current->setupUniform    = YglEs20_uniformVdp1Normal;
       current->cleanupUniform  = YglEs20_cleanupVdp1Normal;
-      current->vertexp = 0;
-      current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"u_texMatrix");
       current->tex0 = glGetUniformLocation(_prgid[PG_VDP1_NORMAL], (const GLchar *)"s_texture");
 
    }else if( prgid == PG_VFP1_GOURAUDSAHDING )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformGlowShading;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupGlowShading;
-      current->vertexp = 0; 
-      current->texcoordp = 1; 
-      level->prg[level->prgcurrent].vaid = 2;
+      current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"a_texcoord");
+      level->prg[level->prgcurrent].vaid = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"a_grcolor");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"u_texMatrix");
-      current->tex0 = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING], (const GLchar *)"s_texture");
+      current->tex0 = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING], (const GLchar *)"u_sprite");
    }
    else if( prgid == PG_VFP1_STARTUSERCLIP )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformStartUserClip;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupStartUserClip;
-      current->vertexp         = 0;
-      current->texcoordp       = -1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = -1; //glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_texMatrix");
       
    }
    else if( prgid == PG_VFP1_ENDUSERCLIP )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformEndUserClip;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupEndUserClip;
-      current->vertexp = 0;
-      current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_ENDUSERCLIP],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_ENDUSERCLIP],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_texMatrix");
       current->tex0 = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"s_texture");
    }
    else if( prgid == PG_VFP1_HALFTRANS )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformHalfTrans;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupHalfTrans;
-      current->vertexp = 0;
-      current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"u_texMatrix");
 
    }
    else if( prgid == PG_VFP1_GOURAUDSAHDING_HALFTRANS )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformGlowShadingHalfTrans;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupGlowShadingHalfTrans;
-      current->vertexp = 0;
-      current->texcoordp = 1;
-      level->prg[level->prgcurrent].vaid = 2;
+      current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"a_texcoord");
+      level->prg[level->prgcurrent].vaid = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"a_grcolor");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"u_texMatrix");
 
 
    }else if( prgid == PG_VDP2_ADDBLEND )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformAddBlend;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupAddBlend;
-      current->vertexp = 0;
-      current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_texMatrix");
    }else if( prgid == PG_VDP2_STARTWINDOW )
    {
       level->prg[level->prgcurrent].setupUniform = YglEs20_uniformStartVDP2Window;
       level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupStartVDP2Window;
-      current->vertexp         = 0;
-      current->texcoordp       = -1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
-      current->mtxTexture      = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_texMatrix");
    }
    else if (prgid == PG_VDP2_ENDWINDOW)
    {
      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformEndVDP2Window;
      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupEndVDP2Window;
-     current->vertexp = 0;
-     current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
      current->mtxModelView = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"u_mvpMatrix");
-     current->mtxTexture = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"u_texMatrix");
    }
    else if (prgid == PG_LINECOLOR_INSERT)
    {
 	   current->setupUniform = YglEs20_uniformLinecolorInsert;
 	   current->cleanupUniform = YglEs20_cleanupLinecolorInsert;
-	   current->vertexp = 0;
-	   current->texcoordp = 1;
+      current->vertexp = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT],(const GLchar *)"a_position");
+      current->texcoordp = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT],(const GLchar *)"a_texcoord");
 	   current->mtxModelView = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_mvpMatrix");
-	   current->mtxTexture = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_texMatrix");
 	   current->color_offset = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_color_offset");
 	   current->tex0 = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"s_texture");
       
@@ -1316,16 +1180,11 @@ static int u_w;
 static int u_h;
 
 static const char vblit_img[] =
-#if defined (_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-"layout (location = 0) in vec2 a_Position; \n"
-"layout (location = 1) in vec2 a_Uv;       \n"
+"attribute vec2 a_Position; \n"
+"attribute vec2 a_Uv;       \n"
 "uniform float u_w; \n"
 "uniform float u_h; \n"
-"out vec2	v_Uv;                    \n"  
+"varying vec2	v_Uv;                    \n"  
 "void main()                              \n"
 "{                                        \n"
 "   gl_Position = vec4((a_Position.x*u_w)-1.0, (a_Position.y*u_h)-1.0, 0.0, 1.0);  \n" 
@@ -1333,19 +1192,12 @@ static const char vblit_img[] =
 "}";
 
 static const char fblit_img[] =
-#if defined (_OGLES3_)
-      "#version 300 es \n"
-#else
-      "#version 330 \n"
-#endif
-"precision mediump float;     \n"
 "uniform sampler2D u_Src; \n"
-"in vec2  v_Uv;          \n"
-"out vec4 fragColor;            \n"
+"varying vec2  v_Uv;          \n"
 "void main () \n"
 "{ \n"
 "  vec4 src = texture2D( u_Src, v_Uv ); \n"
-"  fragColor = src; \n"
+"  gl_FragColor = src; \n"
 "}\n";
 
 
