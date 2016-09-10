@@ -19,6 +19,11 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifdef HAVE_LIBGL
+//SDL Port does not support OGL3 or OGLES3 so we need to fore SOFT CORE in that case
+#define FORCE_CORE_SOFT
+#endif
+
 #include <SDL2/SDL.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
@@ -29,7 +34,12 @@
 #include "../peripheral.h"
 #include "../sh2core.h"
 #include "../sh2int.h"
+#ifdef HAVE_LIBGLES
+#include "../vidogles.h"
+#endif
+#ifdef HAVE_LIBGL
 #include "../vidogl.h"
+#endif
 #include "../vidsoftnogl.h"
 #include "../cs0.h"
 #include "../cs2.h"
@@ -108,11 +118,11 @@ NULL
 
 VideoInterface_struct *VIDCoreList[] = {
 &VIDDummy,
-#ifdef HAVE_LIBGL
-&VIDOGL,
-#endif
 #ifdef HAVE_LIBGLES
 &VIDOGLES,
+#endif
+#ifdef HAVE_LIBGL
+&VIDOGL,
 #endif
 &VIDSoft,
 NULL
@@ -150,6 +160,7 @@ void YuiErrorMsg(const char * string) {
 	fprintf(stderr, "%s\n\r", string);
 }
 
+#ifdef HAVE_LIBGLES
 void YuiDrawSoftwareBuffer() {
 
     int buf_width, buf_height;
@@ -226,14 +237,17 @@ glViewport(0, 0, screen_width, screen_height);
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
+#endif
 
 void YuiSwapBuffers(void) {
    if( window == NULL ){
       return;
    }
+#ifdef HAVE_LIBGLES
    if( yinit.vidcoretype == VIDCORE_SOFT ){
        YuiDrawSoftwareBuffer();
    }
+#endif
    SDL_GL_SwapWindow(window);
 }
 
@@ -241,7 +255,11 @@ void YuiInit() {
 	yinit.m68kcoretype = M68KCORE_MUSASHI;
 	yinit.percoretype = PERCORE_SDLJOY;
 	yinit.sh2coretype = SH2CORE_DEFAULT;
-	yinit.vidcoretype = VIDCORE_SOFT; //VIDCORE_OGL
+#ifdef FORCE_CORE_SOFT
+        yinit.vidcoretype = VIDCORE_SOFT;
+#else
+	yinit.vidcoretype = VIDCORE_OGL; //VIDCORE_SOFT  
+#endif
 	yinit.sndcoretype = SNDCORE_SDL;
 	yinit.cdcoretype = CDCORE_DEFAULT;
 	yinit.carttype = CART_NONE;
@@ -267,9 +285,11 @@ void SDLInit(void) {
 
 	SDL_InitSubSystem(SDL_INIT_VIDEO);
 
+#if HAVE_LIBGLES
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#endif
 
 	SDL_GL_SetSwapInterval(1);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -511,13 +531,14 @@ int main(int argc, char *argv[]) {
       }
    }
         SDLInit();
-
+#ifdef HAVE_LIBGLES
         if (yinit.vidcoretype == VIDCORE_SOFT) {
             if( YuiInitProgramForSoftwareRendering() != GL_TRUE ){
                 fprintf(stderr, "Fail to YuiInitProgramForSoftwareRendering\n");
                 return -1;
             }
         }
+#endif
 
 	YabauseDeInit();
 

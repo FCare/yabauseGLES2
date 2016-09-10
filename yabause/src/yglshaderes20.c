@@ -21,10 +21,9 @@
 
 #ifdef HAVE_LIBGLES
 
-//#ifdef __ANDROID__
 #include <stdlib.h>
 #include <math.h>
-#include "ygl.h"
+#include "ygles2.h"
 #include "yui.h"
 #include "vidshared.h"
 
@@ -33,7 +32,7 @@ extern float vdp1hratio;
 extern int GlHeight;
 extern int GlWidth;
 
-static void YglEs20_printShaderError( GLuint shader )
+static void YglEs_printShaderError( GLuint shader )
 {
   GLsizei bufSize;
 
@@ -57,7 +56,7 @@ static GLuint _prgid[PG_MAX] ={0};
 /*------------------------------------------------------------------------------------
  *  Normal Draw
  * ----------------------------------------------------------------------------------*/
-const GLchar YglEs20prg_normal_v[] =
+const GLchar YglEsprg_normal_v[] =
       "uniform mat4 u_mvpMatrix;    \n"
       "uniform mat4 u_texMatrix;    \n"
       "attribute vec4 a_position;   \n"
@@ -68,9 +67,9 @@ const GLchar YglEs20prg_normal_v[] =
       "   gl_Position = a_position*u_mvpMatrix; \n"
       "   v_texcoord  = a_texcoord; \n"
       "} ";
-const GLchar * pYglEs20prg_normal_v[] = {YglEs20prg_normal_v, NULL};
+const GLchar * pYglEsprg_normal_v[] = {YglEsprg_normal_v, NULL};
 
-const GLchar YglEs20prg_normal_f[] =
+const GLchar YglEsprg_normal_f[] =
       "varying vec4 v_texcoord;                            \n"
       "uniform vec4 u_color_offset;    \n"
       "uniform sampler2D s_texture;                        \n"
@@ -85,13 +84,13 @@ const GLchar YglEs20prg_normal_f[] =
       "  else \n                                            "
       "     discard;\n                                      "
       "}                                                   \n";
-const GLchar * pYglEs20prg_normal_f[] = {YglEs20prg_normal_f, NULL};
+const GLchar * pYglEsprg_normal_f[] = {YglEsprg_normal_f, NULL};
 static int id_normal_s_texture = -1;
 
-int YglEs20_uniformNormal(void * p )
+int YglEs_uniformNormal(void * p )
 {
 
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glEnableVertexAttribArray(prg->vertexp);
    glEnableVertexAttribArray(prg->texcoordp);
@@ -100,9 +99,9 @@ int YglEs20_uniformNormal(void * p )
    return 0;
 }
 
-int YglEs20_cleanupNormal(void * p )
+int YglEs_cleanupNormal(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    return 0;
 }
@@ -110,25 +109,25 @@ int YglEs20_cleanupNormal(void * p )
 /*------------------------------------------------------------------------------------
  *  Window Operation
  * ----------------------------------------------------------------------------------*/
-const GLchar YglEs20prg_window_v[] =
+const GLchar YglEsprg_window_v[] =
       "uniform mat4 u_mvpMatrix;    \n"
       "attribute vec4 a_position;               \n"
       "void main()                  \n"
       "{                            \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
       "} ";
-const GLchar * pYglEs20prg_window_v[] = {YglEs20prg_window_v, NULL};
+const GLchar * pYglEsprg_window_v[] = {YglEsprg_window_v, NULL};
 
-const GLchar YglEs20prg_window_f[] =
+const GLchar YglEsprg_window_f[] =
       "void main()                                         \n"
       "{                                                   \n"
       "  gl_FragColor = vec4( 1.0,1.0,1.0,1.0 );\n"
       "}                                                   \n";
-const GLchar * pYglEs20prg_window_f[] = {YglEs20prg_window_f, NULL};
+const GLchar * pYglEsprg_window_f[] = {YglEsprg_window_f, NULL};
 
-int YglEs20_uniformWindow(void * p )
+int YglEs_uniformWindow(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glUseProgram(prg->prgid );
    glUniform1i(prg->tex0, 0);
@@ -138,9 +137,9 @@ int YglEs20_uniformWindow(void * p )
    return 0;
 }
 
-int YglEs20_cleanupWindow(void * p )
+int YglEs_cleanupWindow(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    return 0;
 }
@@ -148,7 +147,7 @@ int YglEs20_cleanupWindow(void * p )
 /*------------------------------------------------------------------------------------
  *  VDP1 Normal Draw
  * ----------------------------------------------------------------------------------*/
-const GLchar YglEs20prg_vdp1_normal_v[] =
+const GLchar YglEsprg_vdp1_normal_v[] =
       "uniform mat4 u_mvpMatrix;    \n"
       "attribute vec4 a_position;   \n"
       "attribute vec4 a_texcoord;   \n"
@@ -160,9 +159,9 @@ const GLchar YglEs20prg_vdp1_normal_v[] =
       "   v_texcoord.s  = v_texcoord.s/2048.0; \n"
       "   v_texcoord.t  = v_texcoord.t/1024.0; \n"
       "} ";
-const GLchar * pYglEs20prg_vdp1_normal_v[] = {YglEs20prg_vdp1_normal_v, NULL};
+const GLchar * pYglEsprg_vdp1_normal_v[] = {YglEsprg_vdp1_normal_v, NULL};
 
-const GLchar YglEs20prg_vpd1_normal_f[] =
+const GLchar YglEsprg_vpd1_normal_f[] =
       "varying vec4 v_texcoord;                            \n"
       "uniform sampler2D s_texture;                        \n"
       "void main()                                         \n"
@@ -172,12 +171,12 @@ const GLchar YglEs20prg_vpd1_normal_f[] =
       "  addr.t = addr.t / (v_texcoord.q);                 \n"
       "  gl_FragColor = texture2D( s_texture, addr );      \n"
       "}                                                   \n";
-const GLchar * pYglEs20prg_vdp1_normal_f[] = {YglEs20prg_vpd1_normal_f, NULL};
+const GLchar * pYglEsprg_vdp1_normal_f[] = {YglEsprg_vpd1_normal_f, NULL};
 static int id_vdp1_normal_s_texture = -1;
 
-int YglEs20_uniformVdp1Normal(void * p )
+int YglEs_uniformVdp1Normal(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glEnableVertexAttribArray(prg->vertexp);
    glEnableVertexAttribArray(prg->texcoordp);
@@ -185,9 +184,9 @@ int YglEs20_uniformVdp1Normal(void * p )
    return 0;
 }
 
-int YglEs20_cleanupVdp1Normal(void * p )
+int YglEs_cleanupVdp1Normal(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    return 0;
 }
@@ -197,7 +196,7 @@ int YglEs20_cleanupVdp1Normal(void * p )
 /*------------------------------------------------------------------------------------
  *  VDP1 GlowShading Operation
  * ----------------------------------------------------------------------------------*/
-const GLchar YglEs20prg_vdp1_gouraudshading_v[] =
+const GLchar YglEsprg_vdp1_gouraudshading_v[] =
       "uniform mat4 u_mvpMatrix;                \n"
       "attribute vec4 a_position;               \n"
       "attribute vec4 a_texcoord;               \n"
@@ -211,9 +210,9 @@ const GLchar YglEs20prg_vdp1_gouraudshading_v[] =
       "   v_texcoord.t  = v_texcoord.t/1024.0; \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
       "}\n";
-const GLchar * pYglEs20prg_vdp1_gouraudshading_v[] = {YglEs20prg_vdp1_gouraudshading_v, NULL};
+const GLchar * pYglEsprg_vdp1_gouraudshading_v[] = {YglEsprg_vdp1_gouraudshading_v, NULL};
 
-const GLchar YglEs20prg_vdp1_gouraudshading_f[] =
+const GLchar YglEsprg_vdp1_gouraudshading_f[] =
 "uniform sampler2D u_sprite;                                              \n"
 "varying vec4 v_texcoord;                                                 \n"
 "varying vec4 v_vtxcolor;                                                 \n"
@@ -226,12 +225,12 @@ const GLchar YglEs20prg_vdp1_gouraudshading_f[] =
 "  gl_FragColor  = clamp(spriteColor+v_vtxcolor,vec4(0.0),vec4(1.0));     \n"
       "  gl_FragColor.a = spriteColor.a;                                        \n"
       "}\n";
-const GLchar * pYglEs20prg_vdp1_gouraudshading_f[] = {YglEs20prg_vdp1_gouraudshading_f, NULL};
+const GLchar * pYglEsprg_vdp1_gouraudshading_f[] = {YglEsprg_vdp1_gouraudshading_f, NULL};
 static int id_vdp1_normal_s_sprite = -1;
 
-int YglEs20_uniformGlowShading(void * p )
+int YglEs_uniformGlowShading(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glEnableVertexAttribArray(prg->vertexp);
    glEnableVertexAttribArray(prg->texcoordp);
@@ -243,9 +242,9 @@ int YglEs20_uniformGlowShading(void * p )
    return 0;
 }
 
-int YglEs20_cleanupGlowShading(void * p )
+int YglEs_cleanupGlowShading(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glDisableVertexAttribArray(prg->vaid);
    return 0;
@@ -259,7 +258,7 @@ static int id_fbo;
 static int id_fbowidth;
 static int id_fboheight;
 
-const GLchar YglEs20prg_vdp1_gouraudshading_hf_v[] =
+const GLchar YglEsprg_vdp1_gouraudshading_hf_v[] =
       "uniform mat4 u_mvpMatrix;                \n"
       "attribute vec4 a_position;               \n"
       "attribute vec4 a_texcoord;               \n"
@@ -273,9 +272,9 @@ const GLchar YglEs20prg_vdp1_gouraudshading_hf_v[] =
       "   v_texcoord.t  = v_texcoord.t/1024.0; \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
       "}\n";
-const GLchar * pYglEs20prg_vdp1_gouraudshading_hf_v[] = {YglEs20prg_vdp1_gouraudshading_hf_v, NULL};
+const GLchar * pYglEsprg_vdp1_gouraudshading_hf_v[] = {YglEsprg_vdp1_gouraudshading_hf_v, NULL};
 
-const GLchar YglEs20prg_vdp1_gouraudshading_hf_f[] =
+const GLchar YglEsprg_vdp1_gouraudshading_hf_f[] =
       "uniform sampler2D u_sprite;                                                                  \n"
       "uniform sampler2D u_fbo;                                                                     \n"
       "uniform int u_fbowidth;                                                                      \n"
@@ -299,11 +298,11 @@ const GLchar YglEs20prg_vdp1_gouraudshading_hf_f[] =
       "    gl_FragColor = spriteColor;                                                              \n"
       "  }                                                                                          \n"
       "}\n";
-const GLchar * pYglEs20prg_vdp1_gouraudshading_hf_f[] = {YglEs20prg_vdp1_gouraudshading_hf_f, NULL};
+const GLchar * pYglEsprg_vdp1_gouraudshading_hf_f[] = {YglEsprg_vdp1_gouraudshading_hf_f, NULL};
 
-int YglEs20_uniformGlowShadingHalfTrans(void * p )
+int YglEs_uniformGlowShadingHalfTrans(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glEnableVertexAttribArray(prg->vertexp);
    glEnableVertexAttribArray(prg->texcoordp);
@@ -315,7 +314,7 @@ int YglEs20_uniformGlowShadingHalfTrans(void * p )
    glUniform1i(id_sprite, 0);
    glUniform1i(id_fbo, 1);
    glActiveTexture(GL_TEXTURE1);
-   glBindTexture(GL_TEXTURE_2D,_Ygl->vdp1FrameBuff[_Ygl->drawframe]);
+   glBindTexture(GL_TEXTURE_2D,_YglEs->vdp1FrameBuff[_YglEs->drawframe]);
    glUniform1i(id_fbowidth, GlWidth);
    glUniform1i(id_fboheight, GlHeight);
    glActiveTexture(GL_TEXTURE0);
@@ -325,9 +324,9 @@ int YglEs20_uniformGlowShadingHalfTrans(void * p )
    return 0;
 }
 
-int YglEs20_cleanupGlowShadingHalfTrans(void * p )
+int YglEs_cleanupGlowShadingHalfTrans(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glDisableVertexAttribArray(prg->vaid);
    return 0;
@@ -342,7 +341,7 @@ static int id_hf_fbo;
 static int id_hf_fbowidth;
 static int id_hf_fboheight;
 
-const GLchar YglEs20prg_vdp1_halftrans_v[] =
+const GLchar YglEsprg_vdp1_halftrans_v[] =
         "uniform mat4 u_mvpMatrix;                \n"
         "attribute vec4 a_position;               \n"
         "attribute vec4 a_texcoord;               \n"
@@ -354,9 +353,9 @@ const GLchar YglEs20prg_vdp1_halftrans_v[] =
         "   gl_Position = a_position*u_mvpMatrix; \n"
         "}\n";
 
-const GLchar * pYglEs20prg_vdp1_halftrans_v[] = {YglEs20prg_vdp1_halftrans_v, NULL};
+const GLchar * pYglEsprg_vdp1_halftrans_v[] = {YglEsprg_vdp1_halftrans_v, NULL};
 
-const GLchar YglEs20prg_vdp1_halftrans_f[] =
+const GLchar YglEsprg_vdp1_halftrans_f[] =
       "uniform sampler2D u_sprite;                                                                  \n"
       "uniform sampler2D u_fbo;                                                                     \n"
       "uniform int u_fbowidth;                                                                      \n"
@@ -378,11 +377,11 @@ const GLchar YglEs20prg_vdp1_halftrans_f[] =
       "    gl_FragColor = spriteColor;                                                              \n"
       "  }                                                                                          \n"
       "}\n";
-const GLchar * pYglEs20prg_vdp1_halftrans_f[] = {YglEs20prg_vdp1_halftrans_f, NULL};
+const GLchar * pYglEsprg_vdp1_halftrans_f[] = {YglEsprg_vdp1_halftrans_f, NULL};
 
-int YglEs20_uniformHalfTrans(void * p )
+int YglEs_uniformHalfTrans(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
 
    glEnableVertexAttribArray(prg->vertexp);
@@ -391,7 +390,7 @@ int YglEs20_uniformHalfTrans(void * p )
    glUniform1i(id_hf_sprite, 0);
    glUniform1i(id_hf_fbo, 1);
    glActiveTexture(GL_TEXTURE1);
-   glBindTexture(GL_TEXTURE_2D,_Ygl->vdp1FrameBuff[_Ygl->drawframe]);
+   glBindTexture(GL_TEXTURE_2D,_YglEs->vdp1FrameBuff[_YglEs->drawframe]);
    glUniform1i(id_hf_fbowidth, GlWidth);
    glUniform1i(id_hf_fboheight, GlHeight);
    glActiveTexture(GL_TEXTURE0);
@@ -401,9 +400,9 @@ int YglEs20_uniformHalfTrans(void * p )
    return 0;
 }
 
-int YglEs20_cleanupHalfTrans(void * p )
+int YglEs_cleanupHalfTrans(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    return 0;
 }
@@ -411,9 +410,9 @@ int YglEs20_cleanupHalfTrans(void * p )
 /*------------------------------------------------------------------------------------
  *  VDP1 UserClip Operation
  * ----------------------------------------------------------------------------------*/
-int YglEs20_uniformStartUserClip(void * p )
+int YglEs_uniformStartUserClip(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
 
    glEnableVertexAttribArray(0);
@@ -447,7 +446,7 @@ int YglEs20_uniformStartUserClip(void * p )
       vertices[10] = (int)((float)prg->ux1 * vdp1wratio);
       vertices[11] = (int)((float)(prg->uy2+1) * vdp1hratio);
 
-      glUniformMatrix4fv( prg->mtxModelView, 1, GL_FALSE, (GLfloat*) &_Ygl->mtxModelView.m[0][0]  );
+      glUniformMatrix4fv( prg->mtxModelView, 1, GL_FALSE, (GLfloat*) &_YglEs->mtxModelView.m[0][0]  );
       glVertexAttribPointer(prg->vertexp,2, GL_INT,GL_FALSE, 0, (GLvoid*)vertices );
 
       glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -478,12 +477,12 @@ int YglEs20_uniformStartUserClip(void * p )
    return 0;
 }
 
-int YglEs20_cleanupStartUserClip(void * p ){return 0;}
+int YglEs_cleanupStartUserClip(void * p ){return 0;}
 
-int YglEs20_uniformEndUserClip(void * p )
+int YglEs_uniformEndUserClip(void * p )
 {
 
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glDisable(GL_STENCIL_TEST);
    glStencilFunc(GL_ALWAYS,0,0xFF);
@@ -491,12 +490,12 @@ int YglEs20_uniformEndUserClip(void * p )
    return 0;
 }
 
-int YglEs20_cleanupEndUserClip(void * p ){return 0;}
+int YglEs_cleanupEndUserClip(void * p ){return 0;}
 
 
-int YglEs20_uniformStartVDP2Window(void * p )
+int YglEs_uniformStartVDP2Window(void * p )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
 
    glEnable(GL_STENCIL_TEST);
@@ -552,12 +551,12 @@ int YglEs20_uniformStartVDP2Window(void * p )
    return 0;
 }
 
-int YglEs20_cleanupStartVDP2Window(void * p ){return 0;}
+int YglEs_cleanupStartVDP2Window(void * p ){return 0;}
 
-int YglEs20_uniformEndVDP2Window(void * p )
+int YglEs_uniformEndVDP2Window(void * p )
 {
 
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
    glDisable(GL_STENCIL_TEST);
    glStencilFunc(GL_ALWAYS,0,0xFF);
@@ -565,7 +564,7 @@ int YglEs20_uniformEndVDP2Window(void * p )
    return 0;
 }
 
-int YglEs20_cleanupEndVDP2Window(void * p ){return 0;}
+int YglEs_cleanupEndVDP2Window(void * p ){return 0;}
 
 
 /*------------------------------------------------------------------------------------
@@ -576,7 +575,7 @@ static int idfrom;
 static int idto;
 static int idcoloroffset;
 
-const GLchar YglEs20prg_vdp1_drawfb_v[] =
+const GLchar YglEsprg_vdp1_drawfb_v[] =
       "uniform mat4 u_mvpMatrix;                \n"
       "attribute vec4 a_position;               \n"
       "attribute vec2 a_texcoord;               \n"
@@ -585,9 +584,9 @@ const GLchar YglEs20prg_vdp1_drawfb_v[] =
       "   v_texcoord  = a_texcoord;             \n"
       "   gl_Position = a_position*u_mvpMatrix; \n"
       "}\n";
-const GLchar * pYglEs20prg_vdp2_drawfb_v[] = {YglEs20prg_vdp1_drawfb_v, NULL};
+const GLchar * pYglEsprg_vdp2_drawfb_v[] = {YglEsprg_vdp1_drawfb_v, NULL};
 
-const GLchar YglEs20prg_vdp2_drawfb_f[] =
+const GLchar YglEsprg_vdp2_drawfb_f[] =
 "varying vec2 v_texcoord;\n"
 "uniform sampler2D s_vdp1FrameBuffer;\n"
 "uniform float u_from;\n"
@@ -611,11 +610,11 @@ const GLchar YglEs20prg_vdp2_drawfb_f[] =
 "  }\n"
 "}\n";
 
-const GLchar * pYglEs20prg_vdp2_drawfb_f[] = {YglEs20prg_vdp2_drawfb_f, NULL};
+const GLchar * pYglEsprg_vdp2_drawfb_f[] = {YglEsprg_vdp2_drawfb_f, NULL};
 
-void YglEs20_uniformVDP2DrawFramebuffer( void * p, float from, float to , float * offsetcol )
+void YglEs_uniformVDP2DrawFramebuffer( void * p, float from, float to , float * offsetcol )
 {
-   YglProgram * prg;
+   YglEsProgram * prg;
    prg = p;
 
    glUseProgram(_prgid[PG_VDP2_DRAWFRAMEBUFF]);
@@ -626,7 +625,7 @@ void YglEs20_uniformVDP2DrawFramebuffer( void * p, float from, float to , float 
    glUniform4fv(idcoloroffset,1,offsetcol);
    glEnableVertexAttribArray(prg->vertexp);
    glEnableVertexAttribArray(prg->texcoordp);
-   _Ygl->renderfb.mtxModelView = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF], (const GLchar *)"u_mvpMatrix");
+   _YglEs->renderfb.mtxModelView = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF], (const GLchar *)"u_mvpMatrix");
 }
 
 /*------------------------------------------------------------------------------------
@@ -640,9 +639,9 @@ static int id_fblinecol_s_line;
 static int id_fblinecol_emu_height;
 static int id_fblinecol_vheight;
 
-const GLchar * pYglEs20prg_vdp2_drawfb_linecolor_v[] = { YglEs20prg_vdp1_drawfb_v, NULL };
+const GLchar * pYglEsprg_vdp2_drawfb_linecolor_v[] = { YglEsprg_vdp1_drawfb_v, NULL };
 
-const GLchar YglEs20prg_vdp2_drawfb_linecolor_f[] =
+const GLchar YglEsprg_vdp2_drawfb_linecolor_f[] =
 "varying vec2 v_texcoord;                             \n"
 "uniform sampler2D s_vdp1FrameBuffer;                 \n"
 "uniform float u_from;                                  \n"
@@ -675,11 +674,11 @@ const GLchar YglEs20prg_vdp2_drawfb_linecolor_f[] =
 "  }\n"
 "}                                                    \n";
 
-const GLchar * pYglEs20prg_vdp2_drawfb_linecolor_f[] = { YglEs20prg_vdp2_drawfb_linecolor_f, NULL };
+const GLchar * pYglEsprg_vdp2_drawfb_linecolor_f[] = { YglEsprg_vdp2_drawfb_linecolor_f, NULL };
 
-void YglEs20_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float to, float * offsetcol)
+void YglEs_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float to, float * offsetcol)
 {
-  YglProgram * prg;
+  YglEsProgram * prg;
   prg = p;
 
   glUseProgram(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR]);
@@ -692,17 +691,17 @@ void YglEs20_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float to
   glEnableVertexAttribArray(1);
 
   glUniform1i(id_fblinecol_s_line, 1);
-  glUniform1f(id_fblinecol_emu_height, (float)_Ygl->rheight/(float)_Ygl->height);
-  glUniform1f(id_fblinecol_vheight, (float)_Ygl->height);
+  glUniform1f(id_fblinecol_emu_height, (float)_YglEs->rheight/(float)_YglEs->height);
+  glUniform1f(id_fblinecol_vheight, (float)_YglEs->height);
   glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, _Ygl->lincolor_tex);
+  glBindTexture(GL_TEXTURE_2D, _YglEs->lincolor_tex);
   glActiveTexture(GL_TEXTURE0);
   glDisable(GL_BLEND);
-  _Ygl->renderfb.mtxModelView = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR], (const GLchar *)"u_mvpMatrix");
+  _YglEs->renderfb.mtxModelView = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_LINECOLOR], (const GLchar *)"u_mvpMatrix");
 
 }
 
-const GLchar YglEs20prg_vdp2_drawfb_addcolor_f[] =
+const GLchar YglEsprg_vdp2_drawfb_addcolor_f[] =
 "varying vec2 v_texcoord;\n"
 "uniform sampler2D s_vdp1FrameBuffer;\n"
 "uniform float u_from;\n"
@@ -731,7 +730,7 @@ const GLchar YglEs20prg_vdp2_drawfb_addcolor_f[] =
 "  }\n " 
 "}\n";
 
-const GLchar * pYglEs20prg_vdp2_drawfb_addcolor_f[] = { YglEs20prg_vdp2_drawfb_addcolor_f, NULL };
+const GLchar * pYglEsprg_vdp2_drawfb_addcolor_f[] = { YglEsprg_vdp2_drawfb_addcolor_f, NULL };
 
 /*------------------------------------------------------------------------------------
 *  VDP2 Draw Frame buffer Operation( with add color operation )
@@ -741,9 +740,9 @@ static int idfrom_addcolor;
 static int idto_addcolor;
 static int idcoloroffset_addcolor;
 
-int YglEs20_uniformVDP2DrawFramebuffer_addcolor(void * p, float from, float to, float * offsetcol)
+int YglEs_uniformVDP2DrawFramebuffer_addcolor(void * p, float from, float to, float * offsetcol)
 {
-	YglProgram * prg;
+	YglEsProgram * prg;
 	prg = p;
 
 	glUseProgram(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR]);
@@ -754,14 +753,14 @@ int YglEs20_uniformVDP2DrawFramebuffer_addcolor(void * p, float from, float to, 
 	glUniform4fv(idcoloroffset_addcolor, 1, offsetcol);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
-	_Ygl->renderfb.mtxModelView = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR], (const GLchar *)"u_mvpMatrix");
+	_YglEs->renderfb.mtxModelView = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR], (const GLchar *)"u_mvpMatrix");
 
 	glBlendFunc(GL_ONE, GL_SRC_ALPHA);
 
    return 0;
 }
 
-int YglEs20_cleanupVDP2DrawFramebuffer_addcolor(void * p){
+int YglEs_cleanupVDP2DrawFramebuffer_addcolor(void * p){
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
    return 0;
@@ -770,13 +769,13 @@ int YglEs20_cleanupVDP2DrawFramebuffer_addcolor(void * p){
 /*------------------------------------------------------------------------------------
  *  VDP2 Add Blend operaiotn
  * ----------------------------------------------------------------------------------*/
-int YglEs20_uniformAddBlend(void * p )
+int YglEs_uniformAddBlend(void * p )
 {
    glBlendFunc(GL_ONE,GL_ONE);
    return 0;
 }
 
-int YglEs20_cleanupAddBlend(void * p )
+int YglEs_cleanupAddBlend(void * p )
 {
    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
    return 0;
@@ -786,9 +785,9 @@ int YglEs20_cleanupAddBlend(void * p )
 /*------------------------------------------------------------------------------------
 *  11.3 Line Color Insertion
 * ----------------------------------------------------------------------------------*/
-const GLchar * pYglEs20prg_linecol_v[] = { YglEs20prg_normal_v, NULL };
+const GLchar * pYglEsprg_linecol_v[] = { YglEsprg_normal_v, NULL };
 
-const GLchar YglEs20prg_linecol_f[] =
+const GLchar YglEsprg_linecol_f[] =
 "varying vec4 v_texcoord;                            \n"
 "uniform vec4 u_color_offset;    \n"
 "uniform float u_emu_height;    \n"
@@ -814,28 +813,28 @@ const GLchar YglEs20prg_linecol_f[] =
 "     discard;\n                                      "
 "  }                                                   \n"
 "}                                                   \n";
-const GLchar * pYglEs20prg_linecol_f[] = { YglEs20prg_linecol_f, NULL };
+const GLchar * pYglEsprg_linecol_f[] = { YglEsprg_linecol_f, NULL };
 static int id_linecol_s_texture = -1;
 static int id_linecol_s_line = -1;
 static int id_linecol_color_offset = -1;
 static int id_linecol_emu_height = -1;
 static int id_linecol_vheight = -1;
 
-int YglEs20_uniformLinecolorInsert(void * p)
+int YglEs_uniformLinecolorInsert(void * p)
 {
 
-  YglProgram * prg;
+  YglEsProgram * prg;
   prg = p;
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glUniform1i(id_linecol_s_texture, 0);
   glUniform1i(id_linecol_s_line, 1);
   glUniform4fv(id_linecol_color_offset, 1, prg->color_offset_val);
-  glUniform1f(id_linecol_emu_height, (float)_Ygl->rheight / (float)_Ygl->height);
-  glUniform1f(id_linecol_vheight, (float)_Ygl->height);
+  glUniform1f(id_linecol_emu_height, (float)_YglEs->rheight / (float)_YglEs->height);
+  glUniform1f(id_linecol_vheight, (float)_YglEs->height);
 
   glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, _Ygl->lincolor_tex);
+  glBindTexture(GL_TEXTURE_2D, _YglEs->lincolor_tex);
 
   glActiveTexture(GL_TEXTURE0);
 
@@ -844,9 +843,9 @@ int YglEs20_uniformLinecolorInsert(void * p)
   return 0;
 }
 
-int YglEs20_cleanupLinecolorInsert(void * p)
+int YglEs_cleanupLinecolorInsert(void * p)
 {
-  YglProgram * prg;
+  YglEsProgram * prg;
   prg = p;
   
   glActiveTexture(GL_TEXTURE1);
@@ -858,12 +857,12 @@ int YglEs20_cleanupLinecolorInsert(void * p)
 }
 
 
-int YglEs20GetProgramId( int prg )
+int YglEsGetProgramId( int prg )
 {
    return _prgid[prg];
 }
 
-int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
+int YglEsInitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
 {
     GLint compiled,linked;
     GLuint vshader;
@@ -880,7 +879,7 @@ int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
     glGetShaderiv(vshader, GL_COMPILE_STATUS, &compiled);
     if (compiled == GL_FALSE) {
        perror( "Compile error in vertex shader.\n");
-       YglEs20_printShaderError(vshader);
+       YglEs_printShaderError(vshader);
        _prgid[id] = 0;
        return -1;
     }
@@ -890,7 +889,7 @@ int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
     glGetShaderiv(fshader, GL_COMPILE_STATUS, &compiled);
     if (compiled == GL_FALSE) {
        perror( "Compile error in fragment shader.\n");
-       YglEs20_printShaderError(fshader);
+       YglEs_printShaderError(fshader);
        _prgid[id] = 0;
        return -1;
      }
@@ -901,18 +900,18 @@ int YglEs20InitShader( int id, const GLchar * vertex[], const GLchar * frag[] )
     glGetProgramiv(_prgid[id], GL_LINK_STATUS, &linked);
     if (linked == GL_FALSE) {
        perror("Link error..\n");
-       YglEs20_printShaderError(_prgid[id]);
+       YglEs_printShaderError(_prgid[id]);
        _prgid[id] = 0;
        return -1;
     }
     return 0;
 }
 
-int YglEs20ProgramInit()
+int YglEsProgramInit()
 {
    YGLLOG("PG_NORMAL\n");
    //
-   if( YglEs20InitShader( PG_NORMAL, pYglEs20prg_normal_v, pYglEs20prg_normal_f ) != 0 ) {
+   if( YglEsInitShader( PG_NORMAL, pYglEsprg_normal_v, pYglEsprg_normal_f ) != 0 ) {
       return -1;
    }
 
@@ -925,7 +924,7 @@ int YglEs20ProgramInit()
    YGLLOG("PG_VDP1_NORMAL\n");
    //
 
-   if( YglEs20InitShader( PG_VDP1_NORMAL, pYglEs20prg_vdp1_normal_v, pYglEs20prg_vdp1_normal_f ) != 0 )
+   if( YglEsInitShader( PG_VDP1_NORMAL, pYglEsprg_vdp1_normal_v, pYglEsprg_vdp1_normal_f ) != 0 )
       return -1;
 
    id_vdp1_normal_s_texture = glGetUniformLocation(_prgid[PG_VDP1_NORMAL], (const GLchar *)"s_texture");
@@ -934,7 +933,7 @@ int YglEs20ProgramInit()
    YGLLOG("PG_VFP1_GOURAUDSAHDING\n");
 
    //
-   if( YglEs20InitShader( PG_VFP1_GOURAUDSAHDING, pYglEs20prg_vdp1_gouraudshading_v, pYglEs20prg_vdp1_gouraudshading_f ) != 0 )
+   if( YglEsInitShader( PG_VFP1_GOURAUDSAHDING, pYglEsprg_vdp1_gouraudshading_v, pYglEsprg_vdp1_gouraudshading_f ) != 0 )
       return -1;
 
    id_vdp1_normal_s_sprite = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING], (const GLchar *)"u_sprite");
@@ -942,7 +941,7 @@ int YglEs20ProgramInit()
    YGLLOG("PG_VDP2_DRAWFRAMEBUFF --START--\n");
 
    //
-   if( YglEs20InitShader( PG_VDP2_DRAWFRAMEBUFF, pYglEs20prg_vdp2_drawfb_v, pYglEs20prg_vdp2_drawfb_f ) != 0 )
+   if( YglEsInitShader( PG_VDP2_DRAWFRAMEBUFF, pYglEsprg_vdp2_drawfb_v, pYglEsprg_vdp2_drawfb_f ) != 0 )
       return -1;
 
    YGLLOG("PG_VDP2_DRAWFRAMEBUFF --END--\n");
@@ -954,17 +953,17 @@ int YglEs20ProgramInit()
 
 
 
-   _Ygl->renderfb.prgid=_prgid[PG_VDP2_DRAWFRAMEBUFF];
-   _Ygl->renderfb.setupUniform    = YglEs20_uniformNormal;
-   _Ygl->renderfb.cleanupUniform  = YglEs20_cleanupNormal;
-   _Ygl->renderfb.vertexp         = glGetAttribLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF],(const GLchar *)"a_position");
-   _Ygl->renderfb.texcoordp       = glGetAttribLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF],(const GLchar *)"a_texcoord");
-   _Ygl->renderfb.mtxModelView    = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF],(const GLchar *)"u_mvpMatrix");
+   _YglEs->renderfb.prgid=_prgid[PG_VDP2_DRAWFRAMEBUFF];
+   _YglEs->renderfb.setupUniform    = YglEs_uniformNormal;
+   _YglEs->renderfb.cleanupUniform  = YglEs_cleanupNormal;
+   _YglEs->renderfb.vertexp         = glGetAttribLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF],(const GLchar *)"a_position");
+   _YglEs->renderfb.texcoordp       = glGetAttribLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF],(const GLchar *)"a_texcoord");
+   _YglEs->renderfb.mtxModelView    = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF],(const GLchar *)"u_mvpMatrix");
 
    YGLLOG("PG_VFP1_HALFTRANS\n");
 
    //
-   if( YglEs20InitShader( PG_VFP1_HALFTRANS, pYglEs20prg_vdp1_halftrans_v, pYglEs20prg_vdp1_halftrans_f ) != 0 )
+   if( YglEsInitShader( PG_VFP1_HALFTRANS, pYglEsprg_vdp1_halftrans_v, pYglEsprg_vdp1_halftrans_f ) != 0 )
       return -1;
 
    id_hf_sprite = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS], (const GLchar *)"u_sprite");
@@ -974,7 +973,7 @@ int YglEs20ProgramInit()
 
    YGLLOG("PG_VFP1_GOURAUDSAHDING_HALFTRANS\n");
 
-   if( YglEs20InitShader( PG_VFP1_GOURAUDSAHDING_HALFTRANS, pYglEs20prg_vdp1_gouraudshading_hf_v, pYglEs20prg_vdp1_gouraudshading_hf_f ) != 0 )
+   if( YglEsInitShader( PG_VFP1_GOURAUDSAHDING_HALFTRANS, pYglEsprg_vdp1_gouraudshading_hf_v, pYglEsprg_vdp1_gouraudshading_hf_f ) != 0 )
       return -1;
 
    id_sprite = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS], (const GLchar *)"u_sprite");
@@ -984,20 +983,20 @@ int YglEs20ProgramInit()
 
    YGLLOG("PG_WINDOW\n");
    //
-   if( YglEs20InitShader( PG_WINDOW, pYglEs20prg_window_v, pYglEs20prg_window_f ) != 0 )
+   if( YglEsInitShader( PG_WINDOW, pYglEsprg_window_v, pYglEsprg_window_f ) != 0 )
       return -1;
 
-   _Ygl->windowpg.prgid=_prgid[PG_WINDOW];
-   _Ygl->windowpg.setupUniform    = YglEs20_uniformNormal;
-   _Ygl->windowpg.cleanupUniform  = YglEs20_cleanupNormal;
-   _Ygl->windowpg.vertexp         = glGetAttribLocation(_prgid[PG_WINDOW],(const GLchar *)"a_position");
-   _Ygl->windowpg.mtxModelView    = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"u_mvpMatrix");
+   _YglEs->windowpg.prgid=_prgid[PG_WINDOW];
+   _YglEs->windowpg.setupUniform    = YglEs_uniformNormal;
+   _YglEs->windowpg.cleanupUniform  = YglEs_cleanupNormal;
+   _YglEs->windowpg.vertexp         = glGetAttribLocation(_prgid[PG_WINDOW],(const GLchar *)"a_position");
+   _YglEs->windowpg.mtxModelView    = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"u_mvpMatrix");
 
    _prgid[PG_VFP1_STARTUSERCLIP] = _prgid[PG_WINDOW];
 
    YGLLOG("PG_LINECOLOR_INSERT\n");
    //
-   if (YglEs20InitShader(PG_LINECOLOR_INSERT, pYglEs20prg_linecol_v, pYglEs20prg_linecol_f) != 0)
+   if (YglEsInitShader(PG_LINECOLOR_INSERT, pYglEsprg_linecol_v, pYglEsprg_linecol_f) != 0)
      return -1;
 
    id_linecol_s_texture = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"s_texture");
@@ -1008,7 +1007,7 @@ int YglEs20ProgramInit()
 
    YGLLOG("PG_VDP2_DRAWFRAMEBUFF_LINECOLOR\n");
    //
-   if (YglEs20InitShader(PG_VDP2_DRAWFRAMEBUFF_LINECOLOR, pYglEs20prg_vdp2_drawfb_linecolor_v, pYglEs20prg_vdp2_drawfb_linecolor_f) != 0)
+   if (YglEsInitShader(PG_VDP2_DRAWFRAMEBUFF_LINECOLOR, pYglEsprg_vdp2_drawfb_linecolor_v, pYglEsprg_vdp2_drawfb_linecolor_f) != 0)
      return -1;
 
 
@@ -1022,7 +1021,7 @@ int YglEs20ProgramInit()
 
    YGLLOG("PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR\n");
    //
-   if (YglEs20InitShader(PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR, pYglEs20prg_vdp2_drawfb_v, pYglEs20prg_vdp2_drawfb_addcolor_f) != 0)
+   if (YglEsInitShader(PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR, pYglEsprg_vdp2_drawfb_v, pYglEsprg_vdp2_drawfb_addcolor_f) != 0)
      return -1;
 
    idvdp1FrameBuffer_addcolor = glGetUniformLocation(_prgid[PG_VDP2_DRAWFRAMEBUFF_ADDCOLOR], (const GLchar *)"s_vdp1FrameBuffer");;
@@ -1035,20 +1034,20 @@ int YglEs20ProgramInit()
 
 
 
-int YglEs20ProgramChange( YglLevel * level, int prgid )
+int YglEsProgramChange( YglEsLevel * level, int prgid )
 {
-   YglProgram* tmp;
-   YglProgram* current;
+   YglEsProgram* tmp;
+   YglEsProgram* current;
 
    level->prgcurrent++;
 
    if( level->prgcurrent >= level->prgcount)
    {
       level->prgcount++;
-      tmp = (YglProgram*)malloc(sizeof(YglProgram)*level->prgcount);
+      tmp = (YglEsProgram*)malloc(sizeof(YglEsProgram)*level->prgcount);
       if( tmp == NULL ) return -1;
-      memset(tmp,0,sizeof(YglProgram)*level->prgcount);
-      memcpy(tmp,level->prg,sizeof(YglProgram)*(level->prgcount-1));
+      memset(tmp,0,sizeof(YglEsProgram)*level->prgcount);
+      memcpy(tmp,level->prg,sizeof(YglEsProgram)*(level->prgcount-1));
       level->prg = tmp;
 
       level->prg[level->prgcurrent].currentQuad = 0;
@@ -1070,8 +1069,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
 
    if( prgid == PG_NORMAL )
    {
-      current->setupUniform    = YglEs20_uniformNormal;
-      current->cleanupUniform  = YglEs20_cleanupNormal;
+      current->setupUniform    = YglEs_uniformNormal;
+      current->cleanupUniform  = YglEs_cleanupNormal;
       current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
@@ -1080,8 +1079,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
 
    }else if( prgid == PG_VDP1_NORMAL )
    {
-      current->setupUniform    = YglEs20_uniformVdp1Normal;
-      current->cleanupUniform  = YglEs20_cleanupVdp1Normal;
+      current->setupUniform    = YglEs_uniformVdp1Normal;
+      current->cleanupUniform  = YglEs_cleanupVdp1Normal;
       current->vertexp = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_VDP1_NORMAL],(const GLchar *)"u_mvpMatrix");
@@ -1089,8 +1088,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
 
    }else if( prgid == PG_VFP1_GOURAUDSAHDING )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformGlowShading;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupGlowShading;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformGlowShading;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupGlowShading;
       current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"a_texcoord");
       level->prg[level->prgcurrent].vaid = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING],(const GLchar *)"a_grcolor");
@@ -1099,8 +1098,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
    }
    else if( prgid == PG_VFP1_STARTUSERCLIP )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformStartUserClip;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupStartUserClip;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformStartUserClip;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupStartUserClip;
       current->vertexp = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_WINDOW],(const GLchar *)"u_mvpMatrix");
@@ -1108,8 +1107,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
    }
    else if( prgid == PG_VFP1_ENDUSERCLIP )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformEndUserClip;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupEndUserClip;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformEndUserClip;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupEndUserClip;
       current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_ENDUSERCLIP],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_ENDUSERCLIP],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
@@ -1117,8 +1116,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
    }
    else if( prgid == PG_VFP1_HALFTRANS )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformHalfTrans;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupHalfTrans;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformHalfTrans;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupHalfTrans;
       current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_VFP1_HALFTRANS],(const GLchar *)"u_mvpMatrix");
@@ -1126,8 +1125,8 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
    }
    else if( prgid == PG_VFP1_GOURAUDSAHDING_HALFTRANS )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformGlowShadingHalfTrans;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupGlowShadingHalfTrans;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformGlowShadingHalfTrans;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupGlowShadingHalfTrans;
       current->vertexp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"a_texcoord");
       level->prg[level->prgcurrent].vaid = glGetUniformLocation(_prgid[PG_VFP1_GOURAUDSAHDING_HALFTRANS],(const GLchar *)"a_grcolor");
@@ -1136,31 +1135,31 @@ int YglEs20ProgramChange( YglLevel * level, int prgid )
 
    }else if( prgid == PG_VDP2_ADDBLEND )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformAddBlend;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupAddBlend;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformAddBlend;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupAddBlend;
       current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
    }else if( prgid == PG_VDP2_STARTWINDOW )
    {
-      level->prg[level->prgcurrent].setupUniform = YglEs20_uniformStartVDP2Window;
-      level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupStartVDP2Window;
+      level->prg[level->prgcurrent].setupUniform = YglEs_uniformStartVDP2Window;
+      level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupStartVDP2Window;
       current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
       current->mtxModelView    = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"u_mvpMatrix");
    }
    else if (prgid == PG_VDP2_ENDWINDOW)
    {
-     level->prg[level->prgcurrent].setupUniform = YglEs20_uniformEndVDP2Window;
-     level->prg[level->prgcurrent].cleanupUniform = YglEs20_cleanupEndVDP2Window;
+     level->prg[level->prgcurrent].setupUniform = YglEs_uniformEndVDP2Window;
+     level->prg[level->prgcurrent].cleanupUniform = YglEs_cleanupEndVDP2Window;
       current->vertexp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_NORMAL],(const GLchar *)"a_texcoord");
      current->mtxModelView = glGetUniformLocation(_prgid[PG_NORMAL], (const GLchar *)"u_mvpMatrix");
    }
    else if (prgid == PG_LINECOLOR_INSERT)
    {
-	   current->setupUniform = YglEs20_uniformLinecolorInsert;
-	   current->cleanupUniform = YglEs20_cleanupLinecolorInsert;
+	   current->setupUniform = YglEs_uniformLinecolorInsert;
+	   current->cleanupUniform = YglEs_cleanupLinecolorInsert;
       current->vertexp = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT],(const GLchar *)"a_position");
       current->texcoordp = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT],(const GLchar *)"a_texcoord");
 	   current->mtxModelView = glGetUniformLocation(_prgid[PG_LINECOLOR_INSERT], (const GLchar *)"u_mvpMatrix");
@@ -1203,7 +1202,7 @@ static const char fblit_img[] =
 
 
 
-int YglEs20BlitFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h) {
+int YglEsBlitFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h) {
 
   float vb[] = { 0, 0, 
     2.0, 0.0, 
@@ -1237,7 +1236,7 @@ int YglEs20BlitFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h) {
     glGetShaderiv(vshader, GL_COMPILE_STATUS, &compiled);
     if (compiled == GL_FALSE) {
       YGLLOG("Compile error in vertex shader.\n");
-      YglEs20_printShaderError(vshader);
+      YglEs_printShaderError(vshader);
       blit_prg = -1;
       return -1;
     }
@@ -1247,7 +1246,7 @@ int YglEs20BlitFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h) {
     glGetShaderiv(fshader, GL_COMPILE_STATUS, &compiled);
     if (compiled == GL_FALSE) {
       YGLLOG("Compile error in fragment shader.\n");
-      YglEs20_printShaderError(fshader);
+      YglEs_printShaderError(fshader);
       blit_prg = -1;
       return -1;
     }
@@ -1258,7 +1257,7 @@ int YglEs20BlitFramebuffer(u32 srcTexture, u32 targetFbo, float w, float h) {
     glGetProgramiv(blit_prg, GL_LINK_STATUS, &linked);
     if (linked == GL_FALSE) {
       YGLLOG("Link error..\n");
-      YglEs20_printShaderError(blit_prg);
+      YglEs_printShaderError(blit_prg);
       blit_prg = -1;
       return -1;
     }

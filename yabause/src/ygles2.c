@@ -485,7 +485,7 @@ void YglEsTMInit(unsigned int w, unsigned int h) {
 void YglEsTMDeInit(void) {
    //free(YglEsTM->texture);
     if( YglEsTM->texture != NULL ) {
-        glUnmapBuffer (GL_PIXEL_UNPACK_BUFFER);
+//        glUnmapBufferOES (GL_PIXEL_UNPACK_BUFFER);
         YglEsTM->texture = NULL;
     }
 
@@ -536,7 +536,7 @@ void YglEsTMAllocate(YglEsTexture * output, unsigned int w, unsigned int h, unsi
 
 
 
-void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
+void VIDOGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
   if (_YglEs->smallfbo == 0) {
 
     glGenFramebuffers(1, &_YglEs->smallfbo);
@@ -555,9 +555,9 @@ void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
      if( _YglEs->vdp1pixelBufferID == 0 ){
         YGLLOG("Fail to glGenBuffers %X",glGetError());
      }
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, _YglEs->vdp1pixelBufferID);
-    glBufferData(GL_PIXEL_PACK_BUFFER, _YglEs->rwidth*_YglEs->rheight * 4, NULL, GL_DYNAMIC_READ);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+//    glBindBuffer(GL_PIXEL_PACK_BUFFER, _YglEs->vdp1pixelBufferID);
+//    glBufferData(GL_PIXEL_PACK_BUFFER, _YglEs->rwidth*_YglEs->rheight * 4, NULL, GL_DYNAMIC_READ);
+//    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
   }
 
@@ -572,11 +572,11 @@ void VIDOGLVdp1ReadFrameBuffer(u32 type, u32 addr, void * out) {
 	BlitFramebuffer(_YglEs->vdp1FrameBuff[_YglEs->readframe], _YglEs->smallfbo, (float)_YglEs->rwidth / (float)GlWidth, (float)_YglEs->rheight / (float)GlHeight);
 #endif
     glBindFramebuffer(GL_FRAMEBUFFER, _YglEs->smallfbo);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, _YglEs->vdp1pixelBufferID);
+//    glBindBuffer(GL_PIXEL_PACK_BUFFER, _YglEs->vdp1pixelBufferID);
     YGLLOG("glReadPixels %d\n",_YglEs->vdp1pixelBufferID);
     glReadPixels(0, 0, _YglEs->rwidth, _YglEs->rheight, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    YGLLOG("VIDOGLVdp1ReadFrameBuffer %d\n", _YglEs->drawframe);
-    _YglEs->pFrameBuffer = (unsigned int *)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, _YglEs->rwidth *  _YglEs->rheight * 4, GL_MAP_READ_BIT);
+    YGLLOG("VIDOGLESVdp1ReadFrameBuffer %d\n", _YglEs->drawframe);
+//    _YglEs->pFrameBuffer = (unsigned int *)glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, _YglEs->rwidth *  _YglEs->rheight * 4, GL_MAP_READ_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER,0);
 
     if (_YglEs->pFrameBuffer==NULL)
@@ -672,9 +672,9 @@ int YglEsGLInit(int width, int height) {
       glGenTextures(1, &_YglEs->texture);
 
   glGenBuffers(1, &_YglEs->pixelBufferID);
-  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
-  glBufferData(GL_PIXEL_UNPACK_BUFFER, width * height * 4, NULL, GL_STREAM_DRAW);
-  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+//  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
+//  glBufferData(GL_PIXEL_UNPACK_BUFFER, width * height * 4, NULL, GL_STREAM_DRAW);
+//  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
    glBindTexture(GL_TEXTURE_2D, _YglEs->texture);
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -689,15 +689,15 @@ int YglEsGLInit(int width, int height) {
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
    glBindTexture(GL_TEXTURE_2D, _YglEs->texture);
-   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
+//   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
 
-   YglEsTM->texture = (unsigned int *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, width * height * 4, GL_MAP_WRITE_BIT|GL_MAP_INVALIDATE_BUFFER_BIT);
+//   YglEsTM->texture = (unsigned int *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, width * height * 4, GL_MAP_WRITE_BIT|GL_MAP_INVALIDATE_BUFFER_BIT);
    if( (error = glGetError()) != GL_NO_ERROR )
    {
       YGLLOG("Fail to init YglEsTM->texture %04X", error);
       return -1;
    }
-   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+//   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
    if( _YglEs->vdp1FrameBuff != 0 ) glDeleteTextures(2,_YglEs->vdp1FrameBuff);
    glGenTextures(2,_YglEs->vdp1FrameBuff);
@@ -831,24 +831,24 @@ int YglEsInit(int width, int height, unsigned int depth) {
       }
    }
 
-#if defined(_USEGLEW_)
-   glewInit();
-#endif
+//#if defined(_USEGLEW_)
+//   glewInit();
+//#endif
    YglEsGLInit(width, height);
 
    if( YglEsProgramInit() != 0 )
    {
-      if (YglEsEs20ProgramInit() != 0 )
+      if (YglEsProgramInit() != 0 )
       {
           YuiErrorMsg("Fail to YglEsProgramInit\n");
           return -1;
       } else {
-          UniformWindow = YglEsEs20_uniformWindow;
-	  ProgramChange = YglEsEs20ProgramChange;
-          BlitFramebuffer = YglEsEs20BlitFramebuffer;
-          UniformVDP2DrawFramebuffer_linecolor = YglEsEs20_uniformVDP2DrawFramebuffer_linecolor;
-          UniformVDP2DrawFramebuffer_addcolor = YglEsEs20_uniformVDP2DrawFramebuffer_addcolor;
-          UniformVDP2DrawFramebuffer= YglEsEs20_uniformVDP2DrawFramebuffer;
+          UniformWindow = YglEs_uniformWindow;
+	  ProgramChange = YglEsProgramChange;
+          BlitFramebuffer = YglEsBlitFramebuffer;
+          UniformVDP2DrawFramebuffer_linecolor = YglEs_uniformVDP2DrawFramebuffer_linecolor;
+          UniformVDP2DrawFramebuffer_addcolor = YglEs_uniformVDP2DrawFramebuffer_addcolor;
+          UniformVDP2DrawFramebuffer= YglEs_uniformVDP2DrawFramebuffer;
       }
    }
 
@@ -1826,9 +1826,9 @@ void YglEsRenderVDP1(void) {
 
    if (_YglEs->pFrameBuffer != NULL) {
      _YglEs->pFrameBuffer = NULL;
-     glBindBuffer(GL_PIXEL_PACK_BUFFER, _YglEs->vdp1pixelBufferID);
-     glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+//     glBindBuffer(GL_PIXEL_PACK_BUFFER, _YglEs->vdp1pixelBufferID);
+//     glUnmapBufferOES(GL_PIXEL_PACK_BUFFER);
+//     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
    }
    YGLLOG("YglEsRenderVDP1 %d, PTMR = %d\n", _YglEs->drawframe, Vdp1Regs->PTMR);
 
@@ -1837,10 +1837,10 @@ void YglEsRenderVDP1(void) {
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _YglEs->texture);
    if (YglEsTM->texture != NULL) {
-     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
-     glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+ //    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
+ //    glUnmapBufferOES(GL_PIXEL_UNPACK_BUFFER);
      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, YglEsTM->width, YglEsTM->yMax, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+ //    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
      YglEsTM->texture = NULL;
    }
 
@@ -2237,10 +2237,10 @@ void YglEsRender(void) {
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D, _YglEs->texture);
    if (YglEsTM->texture != NULL) {
-     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
-     glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+  //   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
+  //   glUnmapBufferOES(GL_PIXEL_UNPACK_BUFFER);
      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, YglEsTM->width, YglEsTM->yMax, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+  //   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
      YglEsTM->texture = NULL;
    }
    
@@ -2341,15 +2341,15 @@ void YglEsRender(void) {
    glUseProgram(0);
    glGetError();
    glBindBuffer(GL_ARRAY_BUFFER, 0);
-   glBindBuffer(GL_PIXEL_UNPACK_BUFFER,0);
+//   glBindBuffer(GL_PIXEL_UNPACK_BUFFER,0);
    glDisableVertexAttribArray(0);
    glDisableVertexAttribArray(1);
    glDisableVertexAttribArray(2);
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_SCISSOR_TEST);
    YuiSwapBuffers();
-   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
-   YglEsTM->texture = (unsigned int*)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 2048 * 1024 * 4, GL_MAP_WRITE_BIT);
+//   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->pixelBufferID);
+//   YglEsTM->texture = (unsigned int*)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 2048 * 1024 * 4, GL_MAP_WRITE_BIT);
    if (YglEsTM->texture == NULL){
 	   abort();
    }
@@ -2407,9 +2407,9 @@ u32 * YglEsGetLineColorPointer(){
     glGenTextures(1, &_YglEs->lincolor_tex);
 
     glGenBuffers(1, &_YglEs->linecolor_pbo);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->linecolor_pbo);
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, 512 * 4, NULL, GL_STREAM_DRAW);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+//    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->linecolor_pbo);
+//    glBufferData(GL_PIXEL_UNPACK_BUFFER, 512 * 4, NULL, GL_STREAM_DRAW);
+//    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
     glBindTexture(GL_TEXTURE_2D, _YglEs->lincolor_tex);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 512, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
@@ -2426,14 +2426,14 @@ u32 * YglEsGetLineColorPointer(){
   }
 
   glBindTexture(GL_TEXTURE_2D, _YglEs->lincolor_tex);
-  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->linecolor_pbo);
-  _YglEs->lincolor_buf = (u32 *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 512 * 4, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+//  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->linecolor_pbo);
+//  _YglEs->lincolor_buf = (u32 *)glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, 512 * 4, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
   if ((error = glGetError()) != GL_NO_ERROR)
   {
     YGLLOG("Fail to init YglEsTM->texture %04X", error);
     return NULL;
   }
-  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+//  glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
   return _YglEs->lincolor_buf;
 }
@@ -2442,10 +2442,10 @@ void YglEsSetLineColor(u32 * pbuf, int size){
 
   glBindTexture(GL_TEXTURE_2D, _YglEs->lincolor_tex);
   //if (_YglEs->lincolor_buf == pbuf) {
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->linecolor_pbo);
-    glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+//    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, _YglEs->linecolor_pbo);
+//    glUnmapBufferOES(GL_PIXEL_UNPACK_BUFFER);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, 1, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+//    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     _YglEs->lincolor_buf = NULL;
   //}
   glBindTexture(GL_TEXTURE_2D, 0 );

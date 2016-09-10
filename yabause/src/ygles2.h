@@ -19,9 +19,12 @@
 */
 
 #if defined(HAVE_LIBGLES)
-
+#define GL_GLEXT_PROTOTYPES 1
+        #define GLX_GLXEXT_PROTOTYPES 1
+#include <GL/glew.h>
+//#include <GLES/gl.h>
 #include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
+//#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 
 #ifndef YGLES2_H
