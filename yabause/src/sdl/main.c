@@ -108,7 +108,12 @@ NULL
 
 VideoInterface_struct *VIDCoreList[] = {
 &VIDDummy,
+#ifdef HAVE_LIBGL
+&VIDOGL,
+#endif
+#ifdef HAVE_LIBGLES
 &VIDOGLES,
+#endif
 &VIDSoftNoGL,
 NULL
 };
