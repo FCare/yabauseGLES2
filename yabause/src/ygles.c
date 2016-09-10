@@ -842,18 +842,8 @@ int YglInit(int width, int height, unsigned int depth) {
 
    if( YglProgramInit() != 0 )
    {
-      if (YglEs20ProgramInit() != 0 )
-      {
-          YuiErrorMsg("Fail to YglProgramInit\n");
-          return -1;
-      } else {
-          UniformWindow = YglEs20_uniformWindow;
-	  ProgramChange = YglEs20ProgramChange;
-          BlitFramebuffer = YglEs20BlitFramebuffer;
-          UniformVDP2DrawFramebuffer_linecolor = YglEs20_uniformVDP2DrawFramebuffer_linecolor;
-          UniformVDP2DrawFramebuffer_addcolor = YglEs20_uniformVDP2DrawFramebuffer_addcolor;
-          UniformVDP2DrawFramebuffer= YglEs20_uniformVDP2DrawFramebuffer;
-      }
+      YuiErrorMsg("Fail to YglProgramInit\n");
+      return -1;
    }
 
    _Ygl->drawframe = 0;
