@@ -40,13 +40,6 @@ set(yabause_SOURCES
 	vdp1.c vdp2.c vdp2debug.c vidshared.c
 	yabause.c sh2cache.c sh7034.c ygr.c cd_drive.c tsunami/yab_tsunami.c tsunami/Tsunami.c mpeg_card.c)
 
-option(YAB_USE_CXX "Allow C++ in the emulation core.")
-if (YAB_USE_CXX)
-	set(yabause_SOURCES ${yabause_SOURCES} yglcache.cpp)
-else()
-	set(yabause_SOURCES ${yabause_SOURCES} yglcache.c)
-endif()
-
 option(YAB_WANT_MPEG "Enable MPEG decoding" OFF)
 if(YAB_WANT_MPEG)
   find_package(FFmpeg)
@@ -200,6 +193,23 @@ if(${GLSystem} MATCHES "Desktop OpenGL")
     find_package(OpenGL REQUIRED)
 else()
     find_package(OpenGLES REQUIRED)
+endif()
+
+option(YAB_USE_CXX "Allow C++ in the emulation core.")
+if (OPENGL_FOUND)
+	if (YAB_USE_CXX)
+		set(yabause_SOURCES ${yabause_SOURCES} yglcache.cpp)
+	else()
+		set(yabause_SOURCES ${yabause_SOURCES} yglcache.c)
+	endif()
+endif()
+
+if (OPENGLES_FOUND)
+	if (YAB_USE_CXX)
+		set(yabause_SOURCES ${yabause_SOURCES} yglescache.cpp)
+	else()
+		set(yabause_SOURCES ${yabause_SOURCES} yglescache.c)
+	endif()
 endif()
 
 
