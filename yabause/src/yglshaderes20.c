@@ -19,14 +19,14 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifdef HAVE_LIBGL
+#ifdef HAVE_LIBGLES
 
 //#ifdef __ANDROID__
 #include <stdlib.h>
 #include <math.h>
-#include "../ygl.h"
-#include "../yui.h"
-#include "../vidshared.h"
+#include "ygl.h"
+#include "yui.h"
+#include "vidshared.h"
 
 extern float vdp1wratio;
 extern float vdp1hratio;

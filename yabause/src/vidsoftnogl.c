@@ -25,13 +25,13 @@
 */
 
 #include "vidsoftnogl.h"
-#include "../vidshared.h"
-#include "../debug.h"
-#include "../vdp2.h"
-#include "../titan/titan.h"
+#include "vidshared.h"
+#include "debug.h"
+#include "vdp2.h"
+#include "titan/titan.h"
 
-#include "../yui.h"
-#include "../threads.h"
+#include "yui.h"
+#include "threads.h"
 
 #include <stdlib.h>
 #include <limits.h>

@@ -20,7 +20,7 @@
 #ifndef VIDSOFTNOGL_H
 #define VIDSOFTNOGL_H
 
-#include "../vdp1.h"
+#include "vdp1.h"
 
 #define VIDCORE_SOFT   2
 
