@@ -93,7 +93,7 @@ void VidsoftDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8* vdp1_front
 void VIDSoftGetNativeResolution(int *width, int *height, int*interlace);
 void VIDSoftVdp2DispOff(void);
 
-VideoInterface_struct VIDSoftNoGL = {
+VideoInterface_struct VIDSoft = {
 VIDCORE_SOFT,
 "Software Video Interface",
 VIDSoftInit,

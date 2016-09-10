@@ -114,7 +114,7 @@ VideoInterface_struct *VIDCoreList[] = {
 #ifdef HAVE_LIBGLES
 &VIDOGLES,
 #endif
-&VIDSoftNoGL,
+&VIDSoft,
 NULL
 };
 

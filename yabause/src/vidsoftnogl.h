@@ -24,7 +24,7 @@
 
 #define VIDCORE_SOFT   2
 
-extern VideoInterface_struct VIDSoftNoGL;
+extern VideoInterface_struct VIDSoft;
 
 extern pixel_t *dispbuffer;
 
