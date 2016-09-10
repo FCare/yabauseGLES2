@@ -34,7 +34,7 @@
 #include "debug.h"
 #include "vdp2.h"
 #include "yabause.h"
-#include "ygles.h"
+#include "ygles2.h"
 #include "yui.h"
 
 #if defined WORDS_BIGENDIAN
