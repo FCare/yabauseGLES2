@@ -9,7 +9,12 @@ LIST(APPEND CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_SOURCE_DIR}/CMake/Packages
 )
 
+option(YAB_FORCE_GLES20 "force to use OpenGLES 2.0" OFF)
+if (YAB_FORCE_GLES20)
+set(GLSystem "OpenGL ES 2.0")
+else(YAB_FORCE_GLES20)
 set(GLSystem "Desktop OpenGL")
+endif(YAB_FORCE_GLES20)
 
 #-------------------------------------------------------------------------------
 #check if we're running on Raspberry Pi
