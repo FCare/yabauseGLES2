@@ -831,9 +831,9 @@ int YglEsInit(int width, int height, unsigned int depth) {
       }
    }
 
-//#if defined(_USEGLEW_)
-//   glewInit();
-//#endif
+#if defined(_USEGLEW_)
+   glewInit();
+#endif
    YglEsGLInit(width, height);
 
    if( YglEsProgramInit() != 0 )
