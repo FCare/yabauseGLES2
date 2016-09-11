@@ -202,14 +202,14 @@ if (OPENGL_FOUND)
 	else()
 		set(yabause_SOURCES ${yabause_SOURCES} yglcache.c)
 	endif()
-endif()
-
+else()
 if (OPENGLES_FOUND)
 	if (YAB_USE_CXX)
 		set(yabause_SOURCES ${yabause_SOURCES} yglescache.cpp)
 	else()
 		set(yabause_SOURCES ${yabause_SOURCES} yglescache.c)
 	endif()
+endif()
 endif()
 
 
