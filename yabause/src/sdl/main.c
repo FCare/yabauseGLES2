@@ -393,8 +393,10 @@ int YuiInitProgramForSoftwareRendering()
    // Create the program object
    programObject = glCreateProgram ( );
 
-   if ( programObject == 0 )
+   if ( programObject == 0 ){
+      fprintf (stderr,"Can not create a program\n"");
       return 0;
+   }
 
    glAttachShader ( programObject, vertexShader );
    glAttachShader ( programObject, fragmentShader );
