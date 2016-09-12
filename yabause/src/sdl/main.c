@@ -394,7 +394,7 @@ int YuiInitProgramForSoftwareRendering()
    programObject = glCreateProgram ( );
 
    if ( programObject == 0 ){
-      fprintf (stderr,"Can not create a program\n"");
+      fprintf (stderr,"Can not create a program\n");
       return 0;
    }
 
