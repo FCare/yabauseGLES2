@@ -92,6 +92,7 @@ void VIDSoftVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer);
 void VidsoftDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram);
 void VIDSoftGetNativeResolution(int *width, int *height, int*interlace);
 void VIDSoftVdp2DispOff(void);
+static pixel_t* VIDSoftgetFramebuffer(void);
 
 VideoInterface_struct VIDSoft = {
 VIDCORE_SOFT,
@@ -124,10 +125,11 @@ VIDSoftVdp2DrawEnd,
 VIDSoftVdp2DrawScreens,
 VIDSoftGetGlSize,
 VIDSoftGetNativeResolution,
-VIDSoftVdp2DispOff
+VIDSoftVdp2DispOff,
+VIDSoftgetFramebuffer
 };
 
-pixel_t *dispbuffer=NULL;
+static pixel_t *dispbuffer=NULL;
 u8 *vdp1framebuffer[2]= { NULL, NULL };
 u8 *vdp1frontframebuffer;
 u8 *vdp1backframebuffer;
@@ -174,6 +176,10 @@ typedef struct
 } screeninfo_struct;
 
 //////////////////////////////////////////////////////////////////////////////
+
+static pixel_t* VIDSoftgetFramebuffer(void) {
+    return dispbuffer;
+}
 
 static INLINE u32 FASTCALL Vdp2ColorRamGetColor(u32 addr, u8* vdp2_color_ram)
 {

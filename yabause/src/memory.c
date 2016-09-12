@@ -1451,7 +1451,7 @@ int YabSaveStateStream(FILE *fp)
    glReadBuffer(GL_BACK);
    glReadPixels(0, 0, outputwidth, outputheight, GL_RGBA, GL_UNSIGNED_BYTE, buf);
    #else
-   memcpy(buf, dispbuffer, totalsize);
+   memcpy(buf, VIDCore->getFramebuffer(), totalsize);
    #endif
    YuiSwapBuffers();
 

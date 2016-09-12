@@ -26,8 +26,6 @@
 
 extern VideoInterface_struct VIDSoft;
 
-extern pixel_t *dispbuffer;
-
 extern VideoInterface_struct VIDSoft;
 
 void VIDSoftVdp2DrawScreen(int screen);

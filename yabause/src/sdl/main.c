@@ -35,7 +35,7 @@
 #include "../sh2core.h"
 #include "../sh2int.h"
 #ifdef HAVE_LIBGLES
-#include "../vidogles.h"
+#include "../vidsoftgles.h"
 #endif
 #ifdef HAVE_LIBGL
 #include "../vidogl.h"
@@ -119,7 +119,7 @@ NULL
 VideoInterface_struct *VIDCoreList[] = {
 &VIDDummy,
 #ifdef HAVE_LIBGLES
-&VIDOGLES,
+&VIDSoftGLES,
 #endif
 #ifdef HAVE_LIBGL
 &VIDOGL,
@@ -196,7 +196,7 @@ glViewport(0, 0, screen_width, screen_height);
     }
 
     VIDCore->GetGlSize(&buf_width, &buf_height);
-    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,dispbuffer);
+    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,VIDCore->getFramebuffer());
 
 
     if( g_VertexBuffer == 0 )
@@ -244,7 +244,7 @@ void YuiSwapBuffers(void) {
       return;
    }
 #ifdef HAVE_LIBGLES
-   if( yinit.vidcoretype == VIDCORE_SOFT ){
+   if(( yinit.vidcoretype == VIDCORE_SOFT ) || ( yinit.vidcoretype == VIDCORE_OGLES )){
        YuiDrawSoftwareBuffer();
    }
 #endif
@@ -258,7 +258,7 @@ void YuiInit() {
 #ifdef FORCE_CORE_SOFT
         yinit.vidcoretype = VIDCORE_SOFT;
 #else
-	yinit.vidcoretype = VIDCORE_OGL; //VIDCORE_SOFT  
+	yinit.vidcoretype = VIDCORE_OGLES; //VIDCORE_SOFT  
 #endif
 	yinit.sndcoretype = SNDCORE_SDL;
 	yinit.cdcoretype = CDCORE_DEFAULT;
@@ -532,7 +532,7 @@ int main(int argc, char *argv[]) {
    }
         SDLInit();
 #ifdef HAVE_LIBGLES
-        if (yinit.vidcoretype == VIDCORE_SOFT) {
+        if(( yinit.vidcoretype == VIDCORE_SOFT ) || ( yinit.vidcoretype == VIDCORE_OGLES )){
             if( YuiInitProgramForSoftwareRendering() != GL_TRUE ){
                 fprintf(stderr, "Fail to YuiInitProgramForSoftwareRendering\n");
                 return -1;
