@@ -167,13 +167,12 @@ void YuiDrawSoftwareBuffer() {
     int screen_width, screen_height;
     int error;
 
-    SDL_GetWindowSize(window, &screen_width, &screen_height);
+    
 
 glUseProgram(programObject);
-glViewport(0, 0, screen_width, screen_height);
 
-    glClearColor( 0.0f,0.0f,0.0f,1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+//    glClearColor( 0.0f,0.0f,0.0f,1.0f);
+//    glClear(GL_COLOR_BUFFER_BIT);
 
     if( g_FrameBuffer == 0 )
     {
@@ -244,7 +243,7 @@ void YuiSwapBuffers(void) {
       return;
    }
 #ifdef HAVE_LIBGLES
-   if(( yinit.vidcoretype == VIDCORE_SOFT ) || ( yinit.vidcoretype == VIDCORE_OGLES )){
+   if(VIDCore->getFramebuffer() != NULL){
        YuiDrawSoftwareBuffer();
    }
 #endif
