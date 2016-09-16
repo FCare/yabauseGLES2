@@ -21,10 +21,9 @@
 #if defined(HAVE_LIBGLES)
 #define GL_GLEXT_PROTOTYPES 1
         #define GLX_GLXEXT_PROTOTYPES 1
-#include <GL/glew.h>
 //#include <GLES/gl.h>
 #include <GLES2/gl2.h>
-//#include <GLES2/gl2ext.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 
 #ifndef YGLES2_H
@@ -269,7 +268,7 @@ void YglEsEs20_uniformVDP2DrawFramebuffer_linecolor(void * p, float from, float 
 int YglEsEs20_uniformVDP2DrawFramebuffer_addcolor(void * p, float from, float to, float * offsetcol);
 void YglEsEs20_uniformVDP2DrawFramebuffer( void * p,float from, float to , float * offsetcol );
 
-#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(_USEGLEW_) && !defined(_OGLES3_)
+#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(_OGLES3_)
 
 extern GLuint (STDCALL *glCreateProgram)(void);
 extern GLuint (STDCALL *glCreateShader)(GLenum);
@@ -317,7 +316,7 @@ extern PFNGLUNIFORM4FPROC glUniform4f;
 extern PFNGLUNIFORM1FPROC glUniform1f;
 extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
 
-#endif // !defined(__APPLE__) && !defined(__ANDROID__) && !defined(_USEGLEW_)
+#endif // !defined(__APPLE__) && !defined(__ANDROID__)
 
 #endif // YGL_H
 
