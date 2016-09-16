@@ -49,7 +49,7 @@ ELSE (WIN32)
       /opt/vc/include
     )
 
-    FIND_PATH(OPENGLES_INCLUDE_DIR GLES2/gl2.h
+    FIND_PATH(OPENGLES2_INCLUDE_DIR GLES2/gl2.h
       /usr/openwin/share/include
       /opt/graphics/OpenGL/include /usr/X11R6/include
       /usr/include
@@ -111,6 +111,7 @@ ENDIF(OPENGLES_gl2_LIBRARY)
 
 MARK_AS_ADVANCED(
   OPENGLES_INCLUDE_DIR
+  OPENGLES2_INCLUDE_DIR
   OPENGLES_gl_LIBRARY
   OPENGLES_gl2_LIBRARY
 )
