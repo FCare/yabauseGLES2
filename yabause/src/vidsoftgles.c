@@ -2281,7 +2281,6 @@ int VIDSoftGLESIsFullscreen(void) {
 
 int VIDSoftGLESVdp1Reset(void)
 {
-printf("%s\n", __FUNCTION__);
    Vdp1Regs->userclipX1 = Vdp1Regs->systemclipX1 = 0;
    Vdp1Regs->userclipY1 = Vdp1Regs->systemclipY1 = 0;
    Vdp1Regs->userclipX2 = Vdp1Regs->systemclipX2 = 512;
@@ -2294,7 +2293,6 @@ printf("%s\n", __FUNCTION__);
 
 void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 {
-printf("%s\n", __FUNCTION__);
    if (regs->FBCR & 8)
       vdp1interlace = 2;
    else
@@ -2334,7 +2332,6 @@ printf("%s\n", __FUNCTION__);
 
 void VIDSoftGLESVdp1DrawStart()
 {
-printf("%s\n", __FUNCTION__);
       VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1backframebuffer);
       Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
 }
@@ -2343,7 +2340,6 @@ printf("%s\n", __FUNCTION__);
 
 void VIDSoftGLESVdp1DrawEnd(void)
 {
-printf("%s\n", __FUNCTION__);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3093,7 +3089,6 @@ static void drawQuad(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 tr_y,
 }
 
 void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
-printf("%s\n", __FUNCTION__);
 	s16 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
 	int spriteWidth;
 	int spriteHeight;
@@ -3116,7 +3111,6 @@ printf("%s\n", __FUNCTION__);
 }
 
 void VIDSoftGLESVdp1ScaledSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer){
-printf("%s\n", __FUNCTION__);
 	s32 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
 	int x0,y0,x1,y1;
    vdp1cmd_struct cmd;
@@ -3214,7 +3208,6 @@ printf("%s\n", __FUNCTION__);
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
-printf("%s\n", __FUNCTION__);
 	s32 xa,ya,xb,yb,xc,yc,xd,yd;
    vdp1cmd_struct cmd;
 
@@ -3250,7 +3243,6 @@ static void gouraudLineSetup(double * redstep, double * greenstep, double * blue
 
 void VIDSoftGLESVdp1PolylineDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer)
 {
-printf("%s\n", __FUNCTION__);
 	int X[4];
 	int Y[4];
 	double redstep = 0, greenstep = 0, bluestep = 0;
@@ -3287,7 +3279,6 @@ printf("%s\n", __FUNCTION__);
 
 void VIDSoftGLESVdp1LineDraw(u8* ram, Vdp1*regs, u8* back_framebuffer)
 {
-printf("%s\n", __FUNCTION__);
 	int x1, y1, x2, y2;
 	double redstep = 0, greenstep = 0, bluestep = 0;
 	int length;
@@ -3337,7 +3328,6 @@ void VIDSoftGLESVdp1LocalCoordinate(u8* ram, Vdp1*regs)
 
 void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
 {
-printf("%s\n", __FUNCTION__);
    u32 val;
 
    switch (type)
@@ -3374,7 +3364,6 @@ printf("%s\n", __FUNCTION__);
 
 void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
 {
-printf("%s\n", __FUNCTION__);
 
    switch (type)
    {
@@ -3411,7 +3400,6 @@ int VIDSoftGLESVdp2Reset(void)
 
 void VIDSoftGLESVdp2DrawStart(void)
 {
-printf("%s\n", __FUNCTION__);
    int titanblendmode = TITAN_BLEND_TOP;
 
    if (Vdp2Regs->CCCTL & 0x100) titanblendmode = TITAN_BLEND_ADD;
@@ -3442,7 +3430,6 @@ printf("%s\n", __FUNCTION__);
 
 static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram)
 {
-printf("%s\n", __FUNCTION__);
    int i, i2;
    u16 pixel;
    u8 prioritytable[8];
@@ -3788,7 +3775,6 @@ printf("%s\n", __FUNCTION__);
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
-printf("%s\n", __FUNCTION__);
 
    TitanRender(dispbuffergles);
 
@@ -3816,7 +3802,6 @@ static int IsSpriteWindowEnabled(u16 wtcl)
 
 static void VIDSoftGLESVdp2DrawScreens(void)
 {
-printf("%s\n", __FUNCTION__);
    int draw_priority_0[6] = { 0 };
    int layer_priority[6] = { 0 };
    
@@ -3847,6 +3832,7 @@ printf("%s\n", __FUNCTION__);
    Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
 
 }
+
 
 static pixel_t* VIDSoftGLESgetFramebuffer(void) {
     return dispbuffergles;
@@ -3959,7 +3945,6 @@ static void VIDSoftGLESVdp2SetResolution(u16 TVMD)
 
 static void VIDSoftGLESVdp1SwapFrameBuffer(void)
 {
-printf("%s\n", __FUNCTION__);
    if (((Vdp1Regs->FBCR & 2) == 0) || Vdp1External.manualchange)
    {
 		u8 *temp;
@@ -3977,7 +3962,6 @@ static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer)
 {   
    int i,i2;
    int w,h;
-printf("%s\n", __FUNCTION__);
    if (((regs->FBCR & 2) == 0) || Vdp1External.manualerase)
    {
       h = (regs->EWRR & 0x1FF) + 1;
