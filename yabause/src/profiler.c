@@ -36,6 +36,7 @@ void resetProfiler(unsigned long d) {
 static void stopProfiler() {
     profiler.duration = getCurrentTimeMs(glob_start);
     printf("FPS = %f\n", profiler.nb_frames * 1000.0 / profiler.duration);
+    printf("\t Profile %d : %f %\n", 0, 100.0 * (float) profiler.entry[0]/(float) profiler.duration);
     profiler.started = 0;
 }
 

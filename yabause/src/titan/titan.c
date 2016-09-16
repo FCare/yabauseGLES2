@@ -534,6 +534,8 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
       return;
    }
 
+startLocalProfile(0);
+
    Vdp2GetInterlaceInfo(&interlace_line, &line_increment);
 
    set_layer_y(start_line, &layer_y);
@@ -557,6 +559,8 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
 
       layer_y++;
    }
+
+stopLocalProfile(0);
 }
 
 //num + 1 needs to be an even number to avoid issues with interlace modes
