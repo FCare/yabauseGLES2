@@ -27,6 +27,8 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include "../profiler.h"
+
 #include "vidsoftgles.h"
 #include "ygl.h"
 #include "vidshared.h"
@@ -3786,6 +3788,10 @@ void VIDSoftGLESVdp2DrawEnd(void)
 //VIDSoftGLESDrawSoftwareBuffer();
 
    YuiSwapBuffers();
+
+   if (updateProfiler()) {
+       resetProfiler(3*1000);
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////
