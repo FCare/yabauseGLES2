@@ -265,6 +265,8 @@ endif ()
 
 if(DEFINED RPI)
     add_definitions(-D_RPI_)
+    include_directories(/opt/vc/include/interface/vcos/pthreads)
+    include_directories(/opt/vc/include/interface/vmcs_host/linux)
 endif()
 
 # SDL
