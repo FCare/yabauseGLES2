@@ -707,11 +707,23 @@ if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv5tel")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${YAB_OPTIMIZATION}")
 endif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv5tel")
 if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7l")
-       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${YAB_OPTIMIZATION}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -mcpu=cortex-a8 -mfpu=vfp -mfloat-abi=softfp")
+    set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -O3 -mcpu=cortex-a8 -mfpu=vfp -mfloat-abi=softfp")
 endif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7l")
+if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv7-a")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -mcpu=cortex-a9 -mfpu=neon -ffast-math")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3  -mcpu=cortex-a9 -mfpu=neon -ffast-math -fno-exceptions -fno-rtti  ")
+endif()
+if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a -ffast-math")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a -ffast-math -fno-exceptions -fno-rtti  ")
+endif()
+
 if(ANDROID)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${YAB_OPTIMIZATION}")
 endif()
+
+
 
 # Warnings defined to know when we're breaking compilation with MSVC
 if (CMAKE_COMPILER_IS_GNUCC)
