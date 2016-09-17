@@ -22,6 +22,8 @@
 #include "../vidsoft.h"
 #include "../threads.h"
 
+#include "../profiler.h"
+
 #include <stdlib.h>
 
 /* private */
@@ -299,7 +301,6 @@ static u32 TitanDigPixel(int pos, int y)
 
    int priority;
 
-startLocalProfile(1);
    //sort the pixels from highest to lowest priority
    for (priority = 7; priority > 0; priority--)
    {
@@ -317,11 +318,9 @@ startLocalProfile(1);
          }
       }
    }
-stopLocalProfile(1);
    pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
 
 finished:
-
    if (pixel_stack[0].linescreen)
    {
       pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, tt_context.linescreen[pixel_stack[0].linescreen][y]);
@@ -535,7 +534,6 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
       return;
    }
 
-startLocalProfile(0);
 
    Vdp2GetInterlaceInfo(&interlace_line, &line_increment);
 
@@ -561,7 +559,6 @@ startLocalProfile(0);
       layer_y++;
    }
 
-stopLocalProfile(0);
 }
 
 //num + 1 needs to be an even number to avoid issues with interlace modes
