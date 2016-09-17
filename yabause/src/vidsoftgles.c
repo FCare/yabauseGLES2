@@ -2158,7 +2158,7 @@ glBindTexture(GL_TEXTURE_2D, 0);
        if( error != GL_NO_ERROR )
        {
           fprintf(stderr,"g_VertexBuffer gl error %04X", error );
-          return;
+          return GL_TRUE;
        }
 
 
