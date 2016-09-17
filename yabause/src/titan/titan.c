@@ -299,6 +299,7 @@ static u32 TitanDigPixel(int pos, int y)
 
    int priority;
 
+startLocalProfile(1);
    //sort the pixels from highest to lowest priority
    for (priority = 7; priority > 0; priority--)
    {
@@ -316,7 +317,7 @@ static u32 TitanDigPixel(int pos, int y)
          }
       }
    }
-
+stopLocalProfile(1);
    pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
 
 finished:
