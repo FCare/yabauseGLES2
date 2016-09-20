@@ -1,5 +1,7 @@
 project(yabause-sdl)
 
+add_subdirectory(test)
+
 yab_port_start()
 
 find_package(SDL2 COMPONENTS sdl)
@@ -15,7 +17,7 @@ if (NOT OPENGLES2_FOUND)
 endif (NOT OPENGLES2_FOUND)
 
 set(PORT_INCLUDE_DIRS ${SDL2_INCLUDE_DIR} ${OPENGLES_INCLUDE_DIR})
-set(PORT_LIBRARIES ${SDL2_LIBRARIES} ${OPENGLES_LIBRARIES})
+set(PORT_LIBRARIES ${SDL2_LIBRARY} ${OPENGLES_LIBRARIES})
 
 set(yabause_sdl_SOURCES
 	main.c
