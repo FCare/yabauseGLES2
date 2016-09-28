@@ -1,40 +1,160 @@
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengles2.h>
+
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#ifdef __RPI__
+#include <EGL/eglext_brcm.h>
+#endif
+
+#include <GLES2/gl2platform.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 
-GLuint g_FrameBuffer = 0;
-GLuint g_VertexBuffer = 0;
-GLuint programObject  = 0;
-GLuint positionLoc    = 0;
-GLuint texCoordLoc    = 0;
-GLuint samplerLoc     = 0;
+#include <stdio.h>
+#include <assert.h>
 
-int g_buf_width = -1;
-int g_buf_height = -1;
+#include "shared.h"
 
-void *fbo;
+
+static void* eglImage = 0;
+
+static GLuint g_FrameBuffer = 0;
+static GLuint g_VertexBuffer = 0;
+static GLuint programObject  = 0;
+static GLuint positionLoc    = 0;
+static GLuint texCoordLoc    = 0;
+static GLuint samplerLoc     = 0;
+
+static int g_buf_width = -1;
+static int g_buf_height = -1;
+
+static void *fbo;
 
 static int resizeFilter = GL_NEAREST;
 
-SDL_Window *window;
+static SDL_Window *sdl_window;
 
-int error;
+static int error;
 
-float vertices [] = {
+static float vertices [] = {
    -1.0f, 1.0f, 0, 0,
    1.0f, 1.0f, 1.0f, 0,
    1.0f, -1.0f, 1.0f, 1.0f,
    -1.0f,-1.0f, 0, 1.0f
 };
 
-void Draw(void) {
+#ifdef __RPI__
+EGLNativeWindowType create_rpi_native_window(int *width, int *height)
+{
+    VC_RECT_T dst_rect;
+    VC_RECT_T src_rect;
+
+    uint32_t display_width;
+    uint32_t display_height;
+    
+    uint32_t success;
+    success = graphics_get_display_size(0 /* LCD */, &display_width, &display_height);
+    if (success < 0)
+    {
+         return 0;
+    }
+
+    dst_rect.x = 0;
+    dst_rect.y = 0;
+    dst_rect.width = display_width;
+    dst_rect.height = display_height;
+      
+    src_rect.x = 0;
+    src_rect.y = 0;
+    src_rect.width = display_width << 16;
+    src_rect.height = display_height << 16;
+
+    dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+    dispman_update = vc_dispmanx_update_start( 0 );
+         
+    dispman_element = vc_dispmanx_element_add(dispman_update, dispman_display,
+					      0 /*layer*/, &dst_rect, 0 /*src*/,
+					      &src_rect, DISPMANX_PROTECTION_NONE,
+					      0 /*alpha*/, 0 /*clamp*/, 0 /*transform*/);
+      
+    dispman_window.element = dispman_element;
+    dispman_window.width = display_width;
+    dispman_window.height = display_height;
+    vc_dispmanx_update_submit_sync(dispman_update);
+
+    *width = display_width;
+    *height = display_height;
+
+    return &dispman_window;
+}
+#else
+EGLNativeWindowType create_native_window(int *width, int *height)
+{
+
+     Display *display;
+     Window  frame_window;
+     XSetWindowAttributes attributes;
+     Visual *visual;
+     int screen;
+     int depth;
+
+     display = XOpenDisplay(NULL);
+     screen = DefaultScreen(display);
+     *width  = DisplayWidth(display, screen);
+     *height = DisplayHeight(display, screen);
+     visual = DefaultVisual(display,screen);
+     depth  = DefaultDepth(display,screen);
+     attributes.background_pixel = XWhitePixel(display,screen);
+ 
+     frame_window = XCreateWindow( display,XRootWindow(display,screen),
+                            *width/4, *height/4, *width/2, *height/2, 5, depth,  InputOutput,
+                            visual ,CWBackPixel, &attributes);
+
+ 
+    XMapWindow(display, frame_window);
+	 
+    return (EGLNativeWindowType)frame_window;
+}
+#endif
+
+Context create_context(EGLDisplay display, EGLint attribList[], EGLint contextAttribs[])
+{
+    Context ctx;
+
+    EGLint majorVersion;
+    EGLint minorVersion;
+   
+    // Get Display
+    if (display == EGL_NO_DISPLAY)
+        ctx.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    assert(ctx.display != EGL_NO_DISPLAY);
+     
+    // Initialize EGL
+    assert(eglInitialize(ctx.display, &majorVersion, &minorVersion));
+
+    // Get configs
+    assert(eglGetConfigs(ctx.display, NULL, 0, &ctx.numConfigs));
+
+    // Choose config
+    assert(eglChooseConfig(ctx.display, attribList, &ctx.config, 1, &ctx.numConfigs));
+
+    // Create a GL context
+    ctx.context = eglCreateContext(ctx.display, ctx.config, EGL_NO_CONTEXT, contextAttribs);
+    assert(ctx.context != EGL_NO_CONTEXT);
+
+    return ctx;
+}
+
+
+static void Draw(void) {
 
     int buf_width, buf_height;
     int screen_width, screen_height;
     int error;
 
-    if( window == NULL ){
+    if( sdl_window == NULL ){
       return;
     }
 
@@ -63,7 +183,7 @@ void Draw(void) {
        glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
     }
 
-    SDL_GetWindowSize(window,&buf_width, &buf_height);
+    SDL_GetWindowSize(sdl_window,&buf_width, &buf_height);
     glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,fbo);
 
 
@@ -105,44 +225,18 @@ void Draw(void) {
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-   SDL_GL_SwapWindow(window);
+   SDL_GL_SwapWindow(sdl_window);
 }
 
-void SDLInit(void) {
-	SDL_GLContext context;
-
-	SDL_InitSubSystem(SDL_INIT_VIDEO);
-
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-
-	SDL_GL_SetSwapInterval(1);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-
-	window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL);
-	if (!window) {
-    		fprintf(stderr, "Couldn't create window: %s\n", SDL_GetError());
-    		return;
-	}
-
-	context = SDL_GL_CreateContext(window);
-	if (!context) {
-    		fprintf(stderr, "Couldn't create context: %s\n", SDL_GetError());
-    		return;
-	}
+static void SDLInit(void) {
+	SDL_InitSubSystem(SDL_INIT_EVENTS);
 }
 
 ///
 // Create a shader object, load the shader source, and
 // compile the shader.
 //
-GLuint LoadShader ( GLenum type, const char *shaderSrc )
+static GLuint LoadShader ( GLenum type, const char *shaderSrc )
 {
    GLuint shader;
    GLint compiled;
@@ -186,7 +280,7 @@ GLuint LoadShader ( GLenum type, const char *shaderSrc )
 
 }
 
-int SetupOpenGL()
+static int SetupOpenGL()
 {
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
@@ -210,6 +304,65 @@ int SetupOpenGL()
    GLuint vertexShader;
    GLuint fragmentShader;
    GLint linked;
+
+    EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+	EGL_NONE
+    };
+
+    EGLint attribList[] =
+    {
+        EGL_RED_SIZE,                 8,
+	EGL_GREEN_SIZE,               8,
+	EGL_BLUE_SIZE,                8,
+	EGL_ALPHA_SIZE,               8,
+	EGL_DEPTH_SIZE,   EGL_DONT_CARE,
+	EGL_STENCIL_SIZE, EGL_DONT_CARE,
+	EGL_SAMPLE_BUFFERS,           0,
+	EGL_NONE,              EGL_NONE
+    };
+
+    // Creating EGL context
+    Context ctx = create_context(EGL_NO_DISPLAY, attribList, contextAttribs);
+    int width;
+    int height;
+
+    // Creating Native Window Surface
+#ifdef __RPI__
+    EGLNativeWindowType window = create_rpi_native_window(&width, &height);
+#else
+    EGLNativeWindowType window = create_native_window(&width, &height);
+#endif
+    assert(window);
+    ctx.surface = eglCreateWindowSurface(ctx.display, ctx.config, window, NULL);
+    assert(ctx.surface != EGL_NO_SURFACE);
+    assert(eglMakeCurrent(ctx.display, ctx.surface, ctx.surface, ctx.context));
+#if 0
+SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+
+	SDL_GL_SetSwapInterval(1);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+
+	window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL);
+	if (!window) {
+    		fprintf(stderr, "Couldn't create window: %s\n", SDL_GetError());
+    		return;
+	}
+
+	context = SDL_GL_CreateContext(window);
+	if (!context) {
+    		fprintf(stderr, "Couldn't create context: %s\n", SDL_GetError());
+    		return;
+	}
+#endif
+
 
    // Load the vertex/fragment shaders
    vertexShader = LoadShader ( GL_VERTEX_SHADER, vShaderStr );
@@ -260,7 +413,21 @@ int SetupOpenGL()
    samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
 
    glUseProgram(programObject);
-
+#if 0
+   /* Create EGL Image */
+   eglImage = eglCreateImageKHR(
+                esContext->eglDisplay,
+                esContext->eglContext,
+                EGL_GL_TEXTURE_2D_KHR,
+                textureId, // (EGLClientBuffer)esContext->texture,
+                0);
+    
+   if (eglImage == EGL_NO_IMAGE_KHR)
+   {
+      printf("eglCreateImageKHR failed.\n");
+      exit(1);
+   }
+#endif
 
    return GL_TRUE;
 }
@@ -283,6 +450,10 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i<800*600; i++) {
 		((int*)fbo)[i] = 0xFF0000FF;
 	}
+
+#ifdef __RPI__
+	bcm_host_init()
+#endif
 
         SDLInit();
 	if( SetupOpenGL() != GL_TRUE ){
