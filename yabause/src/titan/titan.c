@@ -501,8 +501,7 @@ void TitanPutBackHLine(s32 y, u32 color)
    PixelData* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
    int i;
 
-   for (i = 0; i < tt_context.vdp2width; i++)
-      buffer[i] = color;
+   memset(buffer, color, tt_context.vdp2width*sizeof(PixelData));
 }
 
 void TitanPutLineHLine(int linescreen, s32 y, u32 color)
@@ -537,8 +536,7 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
       PixelData * buffer = &tt_context.vdp2framebuffer[priority][ (y * tt_context.vdp2width) + x];
       int i;
 
-      for (i = 0; i < width; i++)
-         buffer[i] = color;
+      memset(buffer, color, width*sizeof(PixelData));
    }
 }
 
