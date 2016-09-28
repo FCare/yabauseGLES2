@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "vdp2.h"
 #include "titan/titan.h"
+#include "glutils/gles20utils.h"
 
 #include "yui.h"
 
@@ -98,6 +99,8 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8*
 static void VIDSoftGLESGetNativeResolution(int *width, int *height, int*interlace);
 static void VIDSoftGLESVdp2DispOff(void);
 static pixel_t* VIDSoftGLESgetFramebuffer(void);
+static int VidSoftGLESgetDevFbo(void);
+static u8 * VidSoftGLESgetSWFbo(void);
 
 VideoInterface_struct VIDSoftGLES = {
 VIDCORE_OGLES,
@@ -131,8 +134,12 @@ VIDSoftGLESVdp2DrawScreens,
 VIDSoftGLESGetGlSize,
 VIDSoftGLESGetNativeResolution,
 VIDSoftGLESVdp2DispOff,
-VIDSoftGLESgetFramebuffer
+VIDSoftGLESgetFramebuffer,
+VidSoftGLESgetDevFbo,
+VidSoftGLESgetSWFbo
 };
+
+static int fbo = -1;
 
 static pixel_t *dispbuffergles=NULL;
 static u8 *vdp1framebuffer[2]= { NULL, NULL };
@@ -2048,163 +2055,6 @@ static void LoadLineParamsSprite(vdp2draw_struct * info, int line, Vdp2* lines)
 
 //////////////////////////////////////////////////////////////////////////////
 
-// create a texture object
-static GLuint textureId = 0;
-static GLuint g_VertexBuffer = 0;
-static GLuint programObject  = 0;
-static GLuint positionLoc    = 0;
-static GLuint texCoordLoc    = 0;
-static GLuint samplerLoc     = 0;
-
-static int g_buf_height = -1;
-static int g_buf_width = -1;
-
-static int error;
-
-static float vertices [] = {
-   -1.0f, 1.0f, 0, 0,
-   1.0f, 1.0f, 1.0f, 0,
-   1.0f, -1.0f, 1.0f, 1.0f,
-   -1.0f,-1.0f, 0, 1.0f
-};
-
-int VIDSoftGLESInitProgramForSoftwareRendering()
-{
-   GLbyte vShaderStr[] =
-      "attribute vec4 a_position;   \n"
-      "attribute vec2 a_texCoord;   \n"
-      "varying vec2 v_texCoord;     \n"
-      "void main()                  \n"
-      "{                            \n"
-      "   gl_Position = a_position; \n"
-      "   v_texCoord = a_texCoord;  \n"
-      "}                            \n";
-
-   GLbyte fShaderStr[] =
-      "varying vec2 v_texCoord;                            \n"
-      "uniform sampler2D s_texture;                        \n"
-      "void main()                                         \n"
-      "{                                                   \n"
-      "  gl_FragColor = texture2D( s_texture, v_texCoord );\n"    
-      "}                                                   \n";
-
-   GLuint vertexShader;
-   GLuint fragmentShader;
-   GLint linked;
-
-   // Load the vertex/fragment shaders
-   vertexShader = LoadShader ( GL_VERTEX_SHADER, vShaderStr );
-   fragmentShader = LoadShader ( GL_FRAGMENT_SHADER, fShaderStr );
-
-   // Create the program object
-   programObject = glCreateProgram ( );
-
-   if ( programObject == 0 )
-      return 0;
-
-   glAttachShader ( programObject, vertexShader );
-   glAttachShader ( programObject, fragmentShader );
-
-   // Link the program
-   glLinkProgram ( programObject );
-
-   // Check the link status
-   glGetProgramiv ( programObject, GL_LINK_STATUS, &linked );
-
-   if ( !linked )
-   {
-      GLint infoLen = 0;
-
-      glGetProgramiv ( programObject, GL_INFO_LOG_LENGTH, &infoLen );
-
-      if ( infoLen > 1 )
-      {
-        char* infoLog = malloc (sizeof(char) * infoLen );
-        glGetProgramInfoLog ( programObject, infoLen, NULL, infoLog );
-        fprintf (stderr, "Error linking program:\n%s\n", infoLog );
-        free ( infoLog );
-         return GL_FALSE;
-      }
-
-      glDeleteProgram ( programObject );
-      return GL_FALSE;
-   }
-
-
-   // Get the attribute locations
-   positionLoc = glGetAttribLocation ( programObject, "a_position" );
-   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
-
-   // Get the sampler location
-   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
-
-   glUseProgram(programObject);
-
-
-glGenTextures(1, &textureId);
-glBindTexture(GL_TEXTURE_2D, textureId);
-glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 704, 512, 0,
-             GL_RGBA, GL_UNSIGNED_BYTE, dispbuffergles);
-glBindTexture(GL_TEXTURE_2D, 0);
-
- glGenBuffers(1, &g_VertexBuffer);
-       glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
-       glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),vertices,GL_STATIC_DRAW);
-       error = glGetError();
-       if( error != GL_NO_ERROR )
-       {
-          fprintf(stderr,"g_VertexBuffer gl error %04X", error );
-          return GL_TRUE;
-       }
-
-
-   return GL_TRUE;
-}
-
-void VIDSoftGLESDrawSoftwareBuffer() {
-
-    int error;
-
-glUseProgram(programObject);
-glViewport(0, 0, 800, 600);
-
-    glClearColor( 0.0f,0.0f,0.0f,1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    
-       glBindTexture(GL_TEXTURE_2D, textureId);
-       glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
-
-
-   if( vdp2width != g_buf_width ||  vdp2height != g_buf_height )
-   {
-      vertices[6]=vertices[10]=(float)vdp2width/1024.f;
-      vertices[11]=vertices[15]=(float)vdp2height/1024.f;
-      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),vertices,GL_STATIC_DRAW);
-      glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
-      glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
-      glEnableVertexAttribArray ( positionLoc );
-      glEnableVertexAttribArray ( texCoordLoc );
-      g_buf_width  = vdp2width;
-      g_buf_height = vdp2height;
-      error = glGetError();
-      if( error != GL_NO_ERROR )
-      {
-         fprintf(stderr, "gl error %d", error );
-         return;
-      }
-   }else{
-      glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
-   }
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-}
-
-
 int VIDSoftGLESInit(void)
 {
 
@@ -2216,11 +2066,8 @@ int VIDSoftGLESInit(void)
    if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
       return -1;
 
-//if( VIDSoftGLESInitProgramForSoftwareRendering() != GL_TRUE ){
-//                fprintf(stderr, "Fail to VIDSoftGLESInitProgramForSoftwareRendering\n");
-//                return -1;
-//            }
-
+   if (fbo == -1) 
+       fbo = gles20_createFBO();
 
    // Initialize VDP1 framebuffer 1
    if ((vdp1framebuffer[0] = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
@@ -3777,8 +3624,9 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
-
    TitanRender(dispbuffergles);
+
+   if (fbo != -1) TitanRenderFBO(fbo);
 
    VIDSoftGLESVdp1SwapFrameBuffer();
 
@@ -3842,6 +3690,14 @@ static void VIDSoftGLESVdp2DrawScreens(void)
 
 static pixel_t* VIDSoftGLESgetFramebuffer(void) {
     return dispbuffergles;
+}
+
+static int VidSoftGLESgetDevFbo(void) {
+    return fbo;
+}
+
+static u8 * VidSoftGLESgetSWFbo(void) {
+    return vdp1frontframebuffer; //Manque taille et le type... Il faut renvoyer une structure
 }
 
 //////////////////////////////////////////////////////////////////////////////

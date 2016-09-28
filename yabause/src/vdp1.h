@@ -88,6 +88,8 @@ typedef struct
    void (*GetNativeResolution)(int *width, int *height, int * interlace);
    void(*Vdp2DispOff)(void);
    pixel_t *(*getFramebuffer)(void);
+   int (*getDevFbo)(void);
+   u8 * (*getSWFbo)(void);
 } VideoInterface_struct;
 
 extern VideoInterface_struct *VIDCore;
