@@ -33,25 +33,27 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line);
 extern int vdp2_interlace;
 
 int vidsoft_num_priority_threads = 0;
+typedef u32 PixelData;
 
-struct PixelData
-{
-   u32 pixel;
-   u8 priority;
-   u8 linescreen;
-   u8 shadow_type;
-   u8 shadow_enabled;
+struct StencilData{
+   u8 priority : 3 ;
+   u8 linescreen : 2 ;
+   u8 shadow_type : 2 ;
+   u8 shadow_enabled : 1;
 };
+
 
 static struct TitanContext {
    int inited;
-   struct PixelData * vdp2framebuffer[6];
+   PixelData * vdp2framebuffer[6];
+   struct StencilData * vdp2stencil[6];
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
    TitanBlendFunc blend;
    TitanTransFunc trans;
-   struct PixelData * backscreen;
+   PixelData * backscreen;
+   struct StencilData * backstencil;
    int layer_priority[6];
 } tt_context = {
    0,
@@ -155,7 +157,8 @@ void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_li
 
          for (j = 0; j < num_layers; j++)
          {
-            struct PixelData sprite = tt_context.vdp2framebuffer[TITAN_SPRITE][layer_pos];
+            PixelData pixel = tt_context.vdp2framebuffer[TITAN_SPRITE][layer_pos];
+	    struct StencilData stencil = tt_context.vdp2stencil[TITAN_SPRITE][layer_pos];
 
             int bg_layer = sorted_layers[j];
 
@@ -163,34 +166,34 @@ void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_li
             if (bg_layer == TITAN_BACK)
             {
                //use a sprite pixel if it is not transparent
-               if (sprite.pixel)
+               if (pixel)
                {
-                  dispbuffer[i] = TitanFixAlpha(sprite.pixel);
+                  dispbuffer[i] = TitanFixAlpha(pixel);
                   break;
                }
                else
                {
                   //otherwise use the back screen pixel
-                  dispbuffer[i] = TitanFixAlpha(tt_context.backscreen[y].pixel);
+                  dispbuffer[i] = TitanFixAlpha(tt_context.backscreen[y]);
                   break;
                }
             }
             //if the top layer is a sprite pixel
-            else if (sprite.priority >= tt_context.layer_priority[bg_layer])
+            else if (stencil.priority >= tt_context.layer_priority[bg_layer])
             {
                //use the sprite pixel if it is not transparent
-               if (sprite.pixel)
+               if (pixel)
                {
-                  dispbuffer[i] = TitanFixAlpha(sprite.pixel);
+                  dispbuffer[i] = TitanFixAlpha(pixel);
                   break;
                }
             }
             else
             {
                //use the bg layer if it is not covered with a sprite pixel and not transparent
-               if (tt_context.vdp2framebuffer[bg_layer][layer_pos].pixel)
+               if (tt_context.vdp2framebuffer[bg_layer][layer_pos])
                {
-                  dispbuffer[i] = TitanFixAlpha(tt_context.vdp2framebuffer[bg_layer][layer_pos].pixel);
+                  dispbuffer[i] = TitanFixAlpha(tt_context.vdp2framebuffer[bg_layer][layer_pos]);
                   break;
                }
             }
@@ -295,7 +298,8 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
 
 static u32 TitanDigPixel(int pos, int y)
 {
-   struct PixelData pixel_stack[2] = { 0 };
+   PixelData pixel_stack[2] = { 0 };
+   struct StencilData stencil_stack[2] = { 0 };
 
    int pixel_stack_pos = 0;
 
@@ -308,9 +312,10 @@ static u32 TitanDigPixel(int pos, int y)
 
       for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
       {
-         if (tt_context.vdp2framebuffer[which_layer][pos].priority == priority)
+         if (tt_context.vdp2stencil[which_layer][pos].priority == priority)
          {
             pixel_stack[pixel_stack_pos] = tt_context.vdp2framebuffer[which_layer][pos];
+            stencil_stack[pixel_stack_pos] = tt_context.vdp2stencil[which_layer][pos];
             pixel_stack_pos++;
 
             if (pixel_stack_pos == 2)
@@ -319,58 +324,59 @@ static u32 TitanDigPixel(int pos, int y)
       }
    }
    pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
+   stencil_stack[pixel_stack_pos] = tt_context.backstencil[pos];
 
 finished:
-   if (pixel_stack[0].linescreen)
+   if (stencil_stack[0].linescreen)
    {
-      pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, tt_context.linescreen[pixel_stack[0].linescreen][y]);
+      pixel_stack[0] = tt_context.blend(pixel_stack[0], tt_context.linescreen[stencil_stack[0].linescreen][y]);
    }
 
-   if ((pixel_stack[0].shadow_type == TITAN_MSB_SHADOW) && ((pixel_stack[0].pixel & 0xFFFFFF) == 0))
+   if ((stencil_stack[0].shadow_type == TITAN_MSB_SHADOW) && ((pixel_stack[0] & 0xFFFFFF) == 0))
    {
       //transparent sprite shadow
-      if (pixel_stack[1].shadow_enabled)
+      if (stencil_stack[1].shadow_enabled)
       {
-         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[1].pixel);
+         pixel_stack[0] = TitanBlendPixelsTop(0x20000000, pixel_stack[1]);
       }
       else
       {
-         pixel_stack[0].pixel = pixel_stack[1].pixel;
+         pixel_stack[0] = pixel_stack[1];
       }
    }
-   else if (pixel_stack[0].shadow_type == TITAN_MSB_SHADOW && ((pixel_stack[0].pixel & 0xFFFFFF) != 0))
+   else if (stencil_stack[0].shadow_type == TITAN_MSB_SHADOW && ((pixel_stack[0] & 0xFFFFFF) != 0))
    {
-      if (tt_context.trans(pixel_stack[0].pixel))
+      if (tt_context.trans(pixel_stack[0]))
       {
-         u32 bottom = pixel_stack[1].pixel;
-         pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
+         u32 bottom = pixel_stack[1];
+         pixel_stack[0] = tt_context.blend(pixel_stack[0], bottom);
       }
 
       //sprite self-shadowing, only if sprite window is not enabled
       if (!(Vdp2Regs->SPCTL & 0x10))
-         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[0].pixel);
+         pixel_stack[0] = TitanBlendPixelsTop(0x20000000, pixel_stack[0]);
    }
-   else if (pixel_stack[0].shadow_type == TITAN_NORMAL_SHADOW)
+   else if (stencil_stack[0].shadow_type == TITAN_NORMAL_SHADOW)
    {
-      if (pixel_stack[1].shadow_enabled)
+      if (stencil_stack[1].shadow_enabled)
       {
-         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[1].pixel);
+         pixel_stack[0] = TitanBlendPixelsTop(0x20000000, pixel_stack[1]);
       }
       else
       {
-         pixel_stack[0].pixel = pixel_stack[1].pixel;
+         pixel_stack[0] = pixel_stack[1];
       }
    }
    else
    {
-      if (tt_context.trans(pixel_stack[0].pixel))
+      if (tt_context.trans(pixel_stack[0]))
       {
-         u32 bottom = pixel_stack[1].pixel;
-         pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
+         u32 bottom = pixel_stack[1];
+         pixel_stack[0] = tt_context.blend(pixel_stack[0], bottom);
       }
    }
 
-   return pixel_stack[0].pixel;
+   return pixel_stack[0];
 }
 
 /* public */
@@ -382,8 +388,10 @@ int TitanInit()
    {
       for(i = 0;i < 6;i++)
       {
-         if ((tt_context.vdp2framebuffer[i] = (struct PixelData *)calloc(sizeof(struct PixelData), 704 * 256)) == NULL)
+         if ((tt_context.vdp2framebuffer[i] = (PixelData *)calloc(sizeof(PixelData), 704 * 256)) == NULL)
             return -1;
+         if ((tt_context.vdp2stencil[i] = (struct StencilData*)calloc(sizeof(struct StencilData), 704 * 256)) == NULL)
+	    return -1;
       }
 
       /* linescreen 0 is not initialized as it's not used... */
@@ -393,8 +401,10 @@ int TitanInit()
             return -1;
       }
 
-      if ((tt_context.backscreen = (struct PixelData  *)calloc(sizeof(struct PixelData), 704 * 512)) == NULL)
+      if ((tt_context.backscreen = (PixelData  *)calloc(sizeof(PixelData), 704 * 512)) == NULL)
          return -1;
+      if ((tt_context.backstencil = (struct StencilData *)calloc(sizeof(struct StencilData), 704 * 512)) == NULL)
+	 return -1;
 
       for (i = 0; i < 5; i++)
       {
@@ -411,8 +421,10 @@ int TitanInit()
       tt_context.inited = 1;
    }
 
-   for(i = 0;i < 6;i++)
+   for(i = 0;i < 6;i++) {
       memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 256);
+      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
+   }
 
    for(i = 1;i < 4;i++)
       memset(tt_context.linescreen[i], 0, sizeof(u32) * 512);
@@ -429,19 +441,26 @@ void TitanErase()
    if (vdp2_interlace)
       height /= 2;
 
-   for (i = 0; i < 6; i++)
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(struct PixelData) * tt_context.vdp2width * height);
+   for (i = 0; i < 6; i++) {
+      memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * tt_context.vdp2width * height);
+      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * tt_context.vdp2width * height);
+   }
 }
 
 int TitanDeInit()
 {
    int i;
 
-   for(i = 0;i < 6;i++)
+   for(i = 0;i < 6;i++) {
       free(tt_context.vdp2framebuffer[i]);
+      free(tt_context.vdp2stencil[i]);
+   }
 
    for(i = 1;i < 4;i++)
       free(tt_context.linescreen[i]);
+
+   free(tt_context.backscreen);
+   free(tt_context.backstencil);
 
    return 0;
 }
@@ -479,11 +498,11 @@ void TitanSetBlendingMode(int blend_mode)
 
 void TitanPutBackHLine(s32 y, u32 color)
 {
-   struct PixelData* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
+   PixelData* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
    int i;
 
    for (i = 0; i < tt_context.vdp2width; i++)
-      buffer[i].pixel = color;
+      buffer[i] = color;
 }
 
 void TitanPutLineHLine(int linescreen, s32 y, u32 color)
@@ -502,11 +521,11 @@ void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2dr
 
    {
       int pos = (y * tt_context.vdp2width) + x;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].pixel = color;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].priority = priority;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].linescreen = linescreen;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_enabled = info->titan_shadow_enabled;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_type = info->titan_shadow_type;
+      tt_context.vdp2framebuffer[info->titan_which_layer][pos] = color;
+      tt_context.vdp2stencil[info->titan_which_layer][pos].priority = priority;
+      tt_context.vdp2stencil[info->titan_which_layer][pos].linescreen = linescreen;
+      tt_context.vdp2stencil[info->titan_which_layer][pos].shadow_enabled = info->titan_shadow_enabled;
+      tt_context.vdp2stencil[info->titan_which_layer][pos].shadow_type = info->titan_shadow_type;
    }
 }
 
@@ -515,11 +534,11 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
    if (priority == 0) return;
 
    {
-      struct PixelData * buffer = &tt_context.vdp2framebuffer[priority][ (y * tt_context.vdp2width) + x];
+      PixelData * buffer = &tt_context.vdp2framebuffer[priority][ (y * tt_context.vdp2width) + x];
       int i;
 
       for (i = 0; i < width; i++)
-         buffer[i].pixel = color;
+         buffer[i] = color;
    }
 }
 

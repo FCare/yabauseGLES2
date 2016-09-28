@@ -22,6 +22,7 @@
 
 #include "../core.h"
 #include "../vidshared.h"
+#include "../glutils/gles20utils.h"
 
 #define TITAN_BLEND_TOP     0
 #define TITAN_BLEND_BOTTOM  1
