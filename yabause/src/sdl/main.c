@@ -142,6 +142,9 @@ GLuint samplerLoc     = 0;
 int g_buf_width = -1;
 int g_buf_height = -1;
 
+int fbo_buf_width = -1;
+int fbo_buf_height = -1;
+
 static int resizeFilter = GL_NEAREST;
 
 static char biospath[256] = "\0";
@@ -160,8 +163,22 @@ float vertices [] = {
    -1.0f,-1.0f, 0, 1.0f
 };
 
+float swVertices [] = {
+   -1.0f, 1.0f, 0, 0,
+   1.0f, 1.0f, 1.0f, 0,
+   1.0f, -1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f
+};
+
+const float squareVertices [] = {
+   -1.0f, 1.0f, 0, 0,
+   1.0f, 1.0f, 1.0f, 0,
+   1.0f, -1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f
+};
+
+
 float *devVertices = NULL;
-float *swVertices = NULL;
 
 void YuiErrorMsg(const char * string) {
     fprintf(stderr, "%s\n\r", string);
@@ -189,17 +206,21 @@ void DrawSWFBO() {
     
 
     VIDCore->GetGlSize(&buf_width, &buf_height);
-    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,512,256,GL_RGBA,GL_UNSIGNED_SHORT_5_5_5_1,VIDCore->getSWFbo());
+    if ((buf_width == 0) || (buf_height == 0)) return;
 
-   if( swVertices == NULL )
-   {
-      swVertices = malloc(sizeof(vertices));
-      memcpy(swVertices, vertices, sizeof(vertices));
-      for (i=0; i<4; i++) {
-         swVertices[0+i*4] = swVertices[0+i*4]/3.0f + 2.0f/3.0f;
-         swVertices[1+i*4] = swVertices[1+i*4]/3.0f + 2.0f/3.0f;
-      }
-   }
+
+      if( buf_width != fbo_buf_width ||  buf_height != fbo_buf_height )
+      {
+	  memcpy(swVertices, squareVertices, sizeof(swVertices));
+          swVertices[6]=swVertices[10]=(float)buf_width/1024.f;
+          swVertices[11]=swVertices[15]=(float)buf_height/1024.f;
+          fbo_buf_width  = buf_width;
+          fbo_buf_height = buf_height;
+          for (i=0; i<4; i++) {
+              swVertices[0+i*4] = swVertices[0+i*4]/3.0f + 2.0f/3.0f;
+              swVertices[1+i*4] = swVertices[1+i*4]/3.0f + 2.0f/3.0f;
+          }
+       }
    if( g_VertexSWBuffer == 0 )
    {
       glGenBuffers(1, &g_VertexSWBuffer);
@@ -297,6 +318,7 @@ void YuiDrawSoftwareBuffer() {
     glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
 
     VIDCore->GetGlSize(&buf_width, &buf_height);
+    if ((buf_width == 0) || (buf_height == 0)) return;
     glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,VIDCore->getFramebuffer());
 
     if( g_VertexBuffer == 0 )
