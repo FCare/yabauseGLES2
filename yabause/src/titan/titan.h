@@ -55,6 +55,7 @@ void TitanPutLineHLine(int linescreen, s32 y, u32 color);
 void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2draw_struct* info);
 void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color);
 
+void TitanRenderFBO(int fbo);
 void TitanRender(pixel_t * dispbuffer);
 
 void TitanWriteColor(pixel_t * dispbuffer, s32 bufwidth, s32 x, s32 y, u32 color);

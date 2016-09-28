@@ -644,6 +644,9 @@ void TitanRenderThreads(pixel_t * dispbuffer, int can_use_simplified)
    }
 }
 
+void TitanRenderFBO(int fbo) {
+}
+
 void TitanRender(pixel_t * dispbuffer)
 {
    int can_use_simplified_rendering = 1;

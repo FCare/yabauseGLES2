@@ -27,6 +27,7 @@
 #include <SDL2/SDL.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
+#include "../glutils/gles20utils.h"
 
 #include "../yabause.h"
 #include "../gameinfo.h"
@@ -129,7 +130,10 @@ NULL
 };
 
 GLuint g_FrameBuffer = 0;
+GLuint g_SWFrameBuffer = 0;
 GLuint g_VertexBuffer = 0;
+GLuint g_VertexDevBuffer = 0;
+GLuint g_VertexSWBuffer = 0;
 GLuint programObject  = 0;
 GLuint positionLoc    = 0;
 GLuint texCoordLoc    = 0;
@@ -156,20 +160,119 @@ float vertices [] = {
    -1.0f,-1.0f, 0, 1.0f
 };
 
+float *devVertices = NULL;
+float *swVertices = NULL;
+
 void YuiErrorMsg(const char * string) {
-	fprintf(stderr, "%s\n\r", string);
+    fprintf(stderr, "%s\n\r", string);
+}
+
+void DrawSWFBO() {
+    int error,i;
+    int buf_width, buf_height;
+
+    glUseProgram(programObject);
+    if( g_SWFrameBuffer == 0 )
+    {
+       glGenTextures(1,&g_SWFrameBuffer);
+       glActiveTexture ( GL_TEXTURE0 );
+       glBindTexture(GL_TEXTURE_2D, g_SWFrameBuffer);
+       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, resizeFilter );
+       glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, resizeFilter );
+    } else {
+       glActiveTexture ( GL_TEXTURE0 );
+       glBindTexture(GL_TEXTURE_2D, g_SWFrameBuffer);
+    }
+    
+
+    VIDCore->GetGlSize(&buf_width, &buf_height);
+    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,512,256,GL_RGBA,GL_UNSIGNED_SHORT_5_5_5_1,VIDCore->getSWFbo());
+
+   if( swVertices == NULL )
+   {
+      swVertices = malloc(sizeof(vertices));
+      memcpy(swVertices, vertices, sizeof(vertices));
+      for (i=0; i<4; i++) {
+         swVertices[0+i*4] = swVertices[0+i*4]/3.0f + 2.0f/3.0f;
+         swVertices[1+i*4] = swVertices[1+i*4]/3.0f + 2.0f/3.0f;
+      }
+   }
+   if( g_VertexSWBuffer == 0 )
+   {
+      glGenBuffers(1, &g_VertexSWBuffer);
+   }
+   glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),swVertices,GL_STATIC_DRAW);
+   glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
+   glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+   glEnableVertexAttribArray ( positionLoc );
+   glEnableVertexAttribArray ( texCoordLoc );
+   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+}
+
+void DrawDevFBO() {
+    int error,i;
+    int buf_width, buf_height;
+    int tex = VIDCore->getDevFbo();
+
+    glUseProgram(programObject);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, resizeFilter );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, resizeFilter );
+    error = glGetError();
+    if( error != GL_NO_ERROR )
+    {
+       fprintf(stderr,"g_FrameBuffer gl error %04X", error );
+       return;
+    }
+    VIDCore->GetGlSize(&buf_width, &buf_height);
+
+   if( devVertices == NULL )
+   {
+      devVertices = malloc(sizeof(vertices));
+      memcpy(devVertices, vertices, sizeof(vertices));
+      for (i=0; i<sizeof(vertices)/sizeof(float); i++) {
+         devVertices[i] = devVertices[i]/3.0f - 1.0f/3.0f;
+      }
+      if( g_VertexDevBuffer == 0 )
+      {
+          glGenBuffers(1, &g_VertexDevBuffer);
+          glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
+          glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),devVertices,GL_STATIC_DRAW);
+          error = glGetError();
+          if( error != GL_NO_ERROR )
+          {
+              fprintf(stderr,"g_VertexDevBuffer gl error %04X", error );
+              return;
+           }
+      }
+   }else{
+      glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),devVertices,GL_STATIC_DRAW);
+      error = glGetError();
+      if( error != GL_NO_ERROR )
+      {
+         fprintf(stderr,"g_VertexDevBuffer gl error %04X", error );
+         return;
+      }
+   }
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 #ifdef HAVE_LIBGLES
 void YuiDrawSoftwareBuffer() {
 
     int buf_width, buf_height;
-    int screen_width, screen_height;
     int error;
 
     
-
-glUseProgram(programObject);
+    glUseProgram(programObject);
 
 //    glClearColor( 0.0f,0.0f,0.0f,1.0f);
 //    glClear(GL_COLOR_BUFFER_BIT);
@@ -190,51 +293,32 @@ glUseProgram(programObject);
           fprintf(stderr,"g_FrameBuffer gl error %04X", error );
           return;
        }
-    }else{
-       glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
     }
+    glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
 
     VIDCore->GetGlSize(&buf_width, &buf_height);
     glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,VIDCore->getFramebuffer());
 
-
     if( g_VertexBuffer == 0 )
     {
        glGenBuffers(1, &g_VertexBuffer);
-       glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
-       glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),vertices,GL_STATIC_DRAW);
-       error = glGetError();
-       if( error != GL_NO_ERROR )
-       {
-          fprintf(stderr,"g_VertexBuffer gl error %04X", error );
-          return;
-       }
-    }else{
-       glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
     }
 
    if( buf_width != g_buf_width ||  buf_height != g_buf_height )
    {
       vertices[6]=vertices[10]=(float)buf_width/1024.f;
       vertices[11]=vertices[15]=(float)buf_height/1024.f;
-      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),vertices,GL_STATIC_DRAW);
-      glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
-      glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
-      glEnableVertexAttribArray ( positionLoc );
-      glEnableVertexAttribArray ( texCoordLoc );
       g_buf_width  = buf_width;
       g_buf_height = buf_height;
-      error = glGetError();
-      if( error != GL_NO_ERROR )
-      {
-         fprintf(stderr, "gl error %d", error );
-         return;
-      }
-   }else{
-      glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
    }
+   glBindBuffer(GL_ARRAY_BUFFER, g_VertexBuffer);
+   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),vertices,GL_STATIC_DRAW);
+   glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
+   glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+   glEnableVertexAttribArray ( positionLoc );
+   glEnableVertexAttribArray ( texCoordLoc );
 
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+   glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 #endif
 
@@ -247,6 +331,13 @@ void YuiSwapBuffers(void) {
        YuiDrawSoftwareBuffer();
    }
 #endif
+
+   if ((VIDCore->getSWFbo != NULL) && (VIDCore->getSWFbo() != NULL)) {
+       DrawSWFBO();
+   }
+   if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
+      // DrawDevFBO();
+   }
    SDL_GL_SwapWindow(window);
 }
 
@@ -317,49 +408,6 @@ void SDLInit(void) {
 // Create a shader object, load the shader source, and
 // compile the shader.
 //
-GLuint LoadShader ( GLenum type, const char *shaderSrc )
-{
-   GLuint shader;
-   GLint compiled;
-   
-   // Create the shader object
-   shader = glCreateShader ( type );
-
-   if ( shader == 0 )
-   	return 0;
-
-   // Load the shader source
-   glShaderSource ( shader, 1, &shaderSrc, NULL );
-   
-   // Compile the shader
-   glCompileShader ( shader );
-
-   // Check the compile status
-   glGetShaderiv ( shader, GL_COMPILE_STATUS, &compiled );
-
-   if ( !compiled ) 
-   {
-      GLint infoLen = 0;
-
-      glGetShaderiv ( shader, GL_INFO_LOG_LENGTH, &infoLen );
-      
-      if ( infoLen > 1 )
-      {
-         char* infoLog = malloc (sizeof(char) * infoLen );
-
-         glGetShaderInfoLog ( shader, infoLen, NULL, infoLog );
-         printf ( "Error compiling shader:\n%s\n", infoLog );            
-         
-         free ( infoLog );
-      }
-
-      glDeleteShader ( shader );
-      return 0;
-   }
-
-   return shader;
-
-}
 
 int YuiInitProgramForSoftwareRendering()
 {
@@ -378,7 +426,9 @@ int YuiInitProgramForSoftwareRendering()
       "uniform sampler2D s_texture;                        \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  gl_FragColor = texture2D( s_texture, v_texCoord );\n"    
+      "  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+      "  vec4 color = texture2D( s_texture, v_texCoord );\n"    
+      "  gl_FragColor = color;\n"    
       "}                                                   \n";
 
    GLuint vertexShader;
