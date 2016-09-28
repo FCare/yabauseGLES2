@@ -194,7 +194,7 @@ void DrawSWFBO() {
        glGenTextures(1,&g_SWFrameBuffer);
        glActiveTexture ( GL_TEXTURE0 );
        glBindTexture(GL_TEXTURE_2D, g_SWFrameBuffer);
-       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0, GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV_EXT, NULL);
        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, resizeFilter );
@@ -207,6 +207,7 @@ void DrawSWFBO() {
 
     VIDCore->GetGlSize(&buf_width, &buf_height);
     if ((buf_width == 0) || (buf_height == 0)) return;
+    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,512,256,GL_RGBA,GL_UNSIGNED_SHORT_1_5_5_5_REV_EXT,VIDCore->getSWFbo());
 
 
       if( buf_width != fbo_buf_width ||  buf_height != fbo_buf_height )
