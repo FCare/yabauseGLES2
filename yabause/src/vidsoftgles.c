@@ -139,7 +139,7 @@ VidSoftGLESgetDevFbo,
 VidSoftGLESgetSWFbo
 };
 
-static int fbo = -1;
+static gl_fbo fbo;
 
 static pixel_t *dispbuffergles=NULL;
 static u8 *vdp1framebuffer[2]= { NULL, NULL };
@@ -2065,9 +2065,8 @@ int VIDSoftGLESInit(void)
 
    if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
       return -1;
-
-   if (fbo == -1) 
-       fbo = gles20_createFBO();
+ 
+   gles20_createFBO(&fbo, 704, 512);
 
    // Initialize VDP1 framebuffer 1
    if ((vdp1framebuffer[0] = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
@@ -3626,7 +3625,7 @@ void VIDSoftGLESVdp2DrawEnd(void)
 {
    TitanRender(dispbuffergles);
 
-   if (fbo != -1) TitanRenderFBO(fbo);
+   TitanRenderFBO(fbo.fb);
 
    VIDSoftGLESVdp1SwapFrameBuffer();
 
@@ -3693,7 +3692,7 @@ static pixel_t* VIDSoftGLESgetFramebuffer(void) {
 }
 
 static int VidSoftGLESgetDevFbo(void) {
-    return fbo;
+    return fbo.tex;
 }
 
 static u8 * VidSoftGLESgetSWFbo(void) {

@@ -53,7 +53,6 @@ static struct TitanContext {
    TitanBlendFunc blend;
    TitanTransFunc trans;
    PixelData * backscreen;
-   struct StencilData * backstencil;
    int layer_priority[6];
 } tt_context = {
    0,
@@ -323,8 +322,8 @@ static u32 TitanDigPixel(int pos, int y)
          }
       }
    }
-   pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
-   stencil_stack[pixel_stack_pos] = tt_context.backstencil[pos];
+   pixel_stack[pixel_stack_pos] = tt_context.backscreen[y];
+   memset(&stencil_stack[pixel_stack_pos], 0, sizeof(struct StencilData));
 
 finished:
    if (stencil_stack[0].linescreen)
@@ -401,10 +400,8 @@ int TitanInit()
             return -1;
       }
 
-      if ((tt_context.backscreen = (PixelData  *)calloc(sizeof(PixelData), 704 * 512)) == NULL)
+      if ((tt_context.backscreen = (PixelData  *)calloc(sizeof(PixelData), 512)) == NULL)
          return -1;
-      if ((tt_context.backstencil = (struct StencilData *)calloc(sizeof(struct StencilData), 704 * 512)) == NULL)
-	 return -1;
 
       for (i = 0; i < 5; i++)
       {
@@ -460,7 +457,6 @@ int TitanDeInit()
       free(tt_context.linescreen[i]);
 
    free(tt_context.backscreen);
-   free(tt_context.backstencil);
 
    return 0;
 }
@@ -498,10 +494,10 @@ void TitanSetBlendingMode(int blend_mode)
 
 void TitanPutBackHLine(s32 y, u32 color)
 {
-   PixelData* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
+   PixelData* buffer = &tt_context.backscreen[(y)];
    int i;
 
-   memset(buffer, color, tt_context.vdp2width*sizeof(PixelData));
+   *buffer = color;
 }
 
 void TitanPutLineHLine(int linescreen, s32 y, u32 color)
