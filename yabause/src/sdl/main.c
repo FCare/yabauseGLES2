@@ -454,50 +454,13 @@ int YuiInitProgramForSoftwareRendering()
       "  gl_FragColor = color;\n"    
       "}                                                   \n";
 
-   GLuint vertexShader;
-   GLuint fragmentShader;
-   GLint linked;
-
-   // Load the vertex/fragment shaders
-   vertexShader = LoadShader ( GL_VERTEX_SHADER, vShaderStr );
-   fragmentShader = LoadShader ( GL_FRAGMENT_SHADER, fShaderStr );
-
    // Create the program object
-   programObject = glCreateProgram ( );
+   programObject = gles20_createProgram (vShaderStr, fShaderStr);
 
    if ( programObject == 0 ){
       fprintf (stderr,"Can not create a program\n");
       return 0;
    }
-
-   glAttachShader ( programObject, vertexShader );
-   glAttachShader ( programObject, fragmentShader );
-
-   // Link the program
-   glLinkProgram ( programObject );
-
-   // Check the link status
-   glGetProgramiv ( programObject, GL_LINK_STATUS, &linked );
-
-   if ( !linked )
-   {
-      GLint infoLen = 0;
-
-      glGetProgramiv ( programObject, GL_INFO_LOG_LENGTH, &infoLen );
-
-      if ( infoLen > 1 )
-      {
-        char* infoLog = malloc (sizeof(char) * infoLen );
-        glGetProgramInfoLog ( programObject, infoLen, NULL, infoLog );
-        fprintf (stderr, "Error linking program:\n%s\n", infoLog );
-        free ( infoLog );
-         return GL_FALSE;
-      }
-
-      glDeleteProgram ( programObject );
-      return GL_FALSE;
-   }
-
 
    // Get the attribute locations
    positionLoc = glGetAttribLocation ( programObject, "a_position" );
