@@ -114,65 +114,35 @@ int gles20_createProgram(GLbyte* vShader, GLbyte* fShader) {
 
 }
 
-int gles20_createFBO()
+int gles20_createFBO(gl_fbo* fbo, int w, int h)
 {
-   int fbo;
-   int tex;
    GLenum status;
 
-   GLbyte vShaderStr[] =
-      "attribute vec4 a_position;   \n"
-      "attribute vec2 a_texCoord;   \n"
-      "varying vec2 v_texCoord;     \n"
-      "void main()                  \n"
-      "{                            \n"
-      "   gl_Position = a_position; \n"
-      "   v_texCoord = a_texCoord;  \n"
-      "}                            \n";
-
-   GLbyte fShaderStr[] =
-      "varying vec2 v_texCoord;                            \n"
-      "uniform sampler2D s_texture;                        \n"
-      "void main()                                         \n"
-      "{                                                   \n"
-      "  gl_FragColor = texture2D( s_texture, v_texCoord );\n"    
-      "}                                                   \n";
-
-   programObject = gles20_createProgram(vShaderStr, fShaderStr);
-
-   // Get the attribute locations
-   positionLoc = glGetAttribLocation ( programObject, "a_position" );
-   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
-   // Get the sampler location
-   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
-
-   glUseProgram(programObject);
-
-   glGenTextures(1, &tex);
-   glBindTexture(GL_TEXTURE_2D, tex);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+   glGenTextures(1, &fbo->tex);
+   glBindTexture(GL_TEXTURE_2D, fbo->tex);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
    //NULL means reserve texture memory, but texels are undefined
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 704, 512, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
    //-------------------------
-   glGenFramebuffers(1, &fbo);
-   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+   glGenFramebuffers(1, &fbo->fb);
+   glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
    //Attach 2D texture to this FBO
-   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo->tex, 0);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    //Does the GPU support current FBO configuration?
    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
    switch(status)
    {
       case GL_FRAMEBUFFER_COMPLETE:
-      	return fbo;
+      	return 1;
       default:
-        return -1;
+        return 0;
    }
 
-   return -1;
+   return 0;
 }
 
 #if 0

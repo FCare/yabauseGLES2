@@ -7,8 +7,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+typedef struct fbo_s {
+    int fb;
+    int tex;
+} gl_fbo;
 
-extern int gles20_createFBO();
+
+extern int gles20_createFBO(gl_fbo* fbo, int w, int h);
 extern int gles20_createProgram(GLbyte* vShader, GLbyte* fShader);
 
 #endif
