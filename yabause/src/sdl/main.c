@@ -257,38 +257,25 @@ void DrawDevFBO() {
        fprintf(stderr,"g_FrameBuffer gl error %04X", error );
        return;
     }
+   if( g_VertexDevBuffer == 0 )
+   {
+      glGenBuffers(1, &g_VertexDevBuffer);
+   }
+
     VIDCore->GetGlSize(&buf_width, &buf_height);
 
-   if( devVertices == NULL )
-   {
-      devVertices = malloc(sizeof(vertices));
-      memcpy(devVertices, vertices, sizeof(vertices));
-      for (i=0; i<sizeof(vertices)/sizeof(float); i++) {
-         devVertices[i] = devVertices[i]/3.0f - 1.0f/3.0f;
-      }
-      if( g_VertexDevBuffer == 0 )
-      {
-          glGenBuffers(1, &g_VertexDevBuffer);
-          glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
-          glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),devVertices,GL_STATIC_DRAW);
-          error = glGetError();
-          if( error != GL_NO_ERROR )
-          {
-              fprintf(stderr,"g_VertexDevBuffer gl error %04X", error );
-              return;
-           }
-      }
-   }else{
       glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
-      glBufferData(GL_ARRAY_BUFFER, sizeof(vertices),devVertices,GL_STATIC_DRAW);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(devVertices),devVertices,GL_STATIC_DRAW);
+      glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
+      glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+      glEnableVertexAttribArray ( positionLoc );
+      glEnableVertexAttribArray ( texCoordLoc );
       error = glGetError();
       if( error != GL_NO_ERROR )
       {
          fprintf(stderr,"g_VertexDevBuffer gl error %04X", error );
          return;
       }
-   }
-
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
@@ -364,7 +351,7 @@ void YuiSwapBuffers(void) {
        DrawSWFBO();
    }
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
-      // DrawDevFBO();
+       DrawDevFBO();
    }
    SDL_GL_SwapWindow(window);
 }
@@ -473,9 +460,6 @@ int YuiInitProgramForSoftwareRendering()
 
    // Get the sampler location
    samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
-
-   glUseProgram(programObject);
-
 
    return GL_TRUE;
 }
