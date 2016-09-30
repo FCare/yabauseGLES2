@@ -42,6 +42,12 @@
 #include <stdlib.h>
 #include <limits.h>
 
+//#define DO_NOT_RENDER_SW
+
+#ifndef DO_NOT_RENDER_SW
+#define DEBUG_SW
+#endif
+
 #if defined WORDS_BIGENDIAN
 static INLINE u32 COLSAT2YAB16(int priority,u32 temp)            { return (priority | (temp & 0x7C00) << 1 | (temp & 0x3E0) << 14 | (temp & 0x1F) << 27); }
 static INLINE u32 COLSAT2YAB32(int priority,u32 temp)            { return (((temp & 0xFF) << 24) | ((temp & 0xFF00) << 8) | ((temp & 0xFF0000) >> 8) | priority); }
@@ -3623,7 +3629,9 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+#ifndef DO_NOT_RENDER_SW
    TitanRender(dispbuffergles);
+#endif
 
    TitanRenderFBO(fbo.fb);
 
@@ -3696,7 +3704,11 @@ static int VidSoftGLESgetDevFbo(void) {
 }
 
 static u8 * VidSoftGLESgetSWFbo(void) {
+#ifdef DEBUG_SW
     return vdp1frontframebuffer; //Manque taille et le type... Il faut renvoyer une structure
+#else
+    return NULL;
+#endif;
 }
 
 //////////////////////////////////////////////////////////////////////////////
