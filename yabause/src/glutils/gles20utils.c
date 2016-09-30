@@ -124,13 +124,21 @@ int gles20_createFBO(gl_fbo* fbo, int w, int h)
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-   //NULL means reserve texture memory, but texels are undefined
    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+
+   glGenRenderbuffers(1, &fbo->stencil);
+   glBindRenderbuffer(GL_RENDERBUFFER, fbo->stencil);
+   glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, w, h);
+
    //-------------------------
    glGenFramebuffers(1, &fbo->fb);
+
    glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
    //Attach 2D texture to this FBO
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo->tex, 0);
+   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fbo->stencil);
+
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    //Does the GPU support current FBO configuration?
    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
