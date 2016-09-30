@@ -129,15 +129,15 @@ VideoInterface_struct *VIDCoreList[] = {
 NULL
 };
 
-GLuint g_FrameBuffer = 0;
-GLuint g_SWFrameBuffer = 0;
-GLuint g_VertexBuffer = 0;
-GLuint g_VertexDevBuffer = 0;
-GLuint g_VertexSWBuffer = 0;
-GLuint programObject  = 0;
-GLuint positionLoc    = 0;
-GLuint texCoordLoc    = 0;
-GLuint samplerLoc     = 0;
+static GLuint g_FrameBuffer = 0;
+static GLuint g_SWFrameBuffer = 0;
+static GLuint g_VertexBuffer = 0;
+static GLuint g_VertexDevBuffer = 0;
+static GLuint g_VertexSWBuffer = 0;
+static GLuint programObject  = 0;
+static GLuint positionLoc    = 0;
+static GLuint texCoordLoc    = 0;
+static GLuint samplerLoc     = 0;
 
 int g_buf_width = -1;
 int g_buf_height = -1;
@@ -154,23 +154,23 @@ SDL_Window *window;
 
 yabauseinit_struct yinit;
 
-int error;
+static int error;
 
-float vertices [] = {
+static float vertices [] = {
    -1.0f, 1.0f, 0, 0,
    1.0f, 1.0f, 1.0f, 0,
    1.0f, -1.0f, 1.0f, 1.0f,
    -1.0f,-1.0f, 0, 1.0f
 };
 
-float swVertices [] = {
+static float swVertices [] = {
    -1.0f, 1.0f, 0, 0,
    1.0f, 1.0f, 1.0f, 0,
    1.0f, -1.0f, 1.0f, 1.0f,
    -1.0f,-1.0f, 0, 1.0f
 };
 
-const float squareVertices [] = {
+static const float squareVertices [] = {
    -1.0f, 1.0f, 0, 0,
    1.0f, 1.0f, 1.0f, 0,
    1.0f, -1.0f, 1.0f, 1.0f,
@@ -178,7 +178,12 @@ const float squareVertices [] = {
 };
 
 
-float *devVertices = NULL;
+static float devVertices [] = {
+   -1.0f, 0.5f, 0, 0,
+   -0.5f, 0.5f, 1.0f, 0,
+   -0.5f, 1.0f, 1.0f, 1.0f,
+   -1.0f, 1.0f, 0, 1.0f
+};
 
 void YuiErrorMsg(const char * string) {
     fprintf(stderr, "%s\n\r", string);
