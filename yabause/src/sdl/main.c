@@ -246,6 +246,8 @@ void DrawDevFBO() {
     int tex = VIDCore->getDevFbo();
 
     glUseProgram(programObject);
+
+    glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -308,6 +310,7 @@ void YuiDrawSoftwareBuffer() {
           return;
        }
     }
+    glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
 
     VIDCore->GetGlSize(&buf_width, &buf_height);
