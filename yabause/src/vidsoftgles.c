@@ -3637,8 +3637,11 @@ void VIDSoftGLESVdp2DrawEnd(void)
 
    VIDSoftGLESVdp1SwapFrameBuffer();
 
+#ifndef DO_NOT_RENDER_SW
    if (OSDUseBuffer())
       OSDDisplayMessages(dispbuffergles, vdp2width, vdp2height);
+#endif
+
 
 //VIDSoftGLESDrawSoftwareBuffer();
 
