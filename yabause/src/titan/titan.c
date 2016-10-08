@@ -40,6 +40,7 @@ static GLuint programObject  = 0;
 static GLuint positionLoc    = 0;
 static GLuint texCoordLoc    = 0;
 static GLuint samplerLoc     = 0;
+static GLuint backLoc        = 0;
 
 static GLuint programGeneralPriority = 0;
 static GLuint posGPrioLoc = 0;
@@ -134,6 +135,7 @@ void set_layer_y(const int start_line, int * layer_y)
 
 void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_line)
 {
+
    int x, y, i, layer, j, layer_y;
    int line_increment, interlace_line;
    int sorted_layers[8] = { 0 };
@@ -681,12 +683,14 @@ void createGLPrograms(void) {
    GLbyte fShaderStr[] =
       "varying vec2 v_texCoord;                            \n"
       "uniform sampler2D s_texture;                        \n"
+      "uniform sampler2D b_texture;                        \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  vec4 back = texture2D( s_texture, v_texCoord );\n"
-      "  if (back.a >= (1.0/255.0)) { \n"
-      "      gl_FragColor = back;\n"
-      "  } else discard;\n"
+      "  vec4 sprite = texture2D( s_texture, v_texCoord );\n"
+      "  vec4 back = texture2D( b_texture, v_texCoord );\n"
+      "  if (sprite.a >= (1.0/255.0)) { \n"
+      "      gl_FragColor = sprite;\n"
+      "  } else  gl_FragColor = back;\n"
       "}                                                   \n";
 
    GLbyte vShaderGPrioStr[] =
@@ -736,6 +740,8 @@ void createGLPrograms(void) {
 
    // Get the sampler location
    samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
+   // Get the sampler location
+   backLoc = glGetUniformLocation ( programObject, "b_texture" );
 
    programGeneralPriority = gles20_createProgram (vShaderGPrioStr, fShaderGPrioStr);
 
@@ -786,10 +792,8 @@ void TitanRenderFBO(int fbo) {
    tt_context.layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-   glStencilMask(0xFF);
    glClearColor(0.0, 0.0, 0.0, 0.0);
-   glClearStencil(0);
-   glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+   glClear(GL_COLOR_BUFFER_BIT);
 
    if (back_tex == -1) {
 	glGenTextures(1, &back_tex);
@@ -839,6 +843,8 @@ void TitanRenderFBO(int fbo) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
    }
 
+   sorted_layers[num_layers++] = TITAN_BACK;
+
    //pre-sort the layers so it doesn't have to be done per-pixel
    for (i = 0; i < 8; i++)
    {
@@ -848,8 +854,6 @@ void TitanRenderFBO(int fbo) {
             sorted_layers[num_layers++] = layer;
       }
    }
-
-   sorted_layers[num_layers++] = TITAN_BACK;
    
    if( g_VertexSWBuffer == 0 )
    {
@@ -863,21 +867,19 @@ void TitanRenderFBO(int fbo) {
 	    glActiveTexture(GL_TEXTURE0);
 	    glBindTexture(GL_TEXTURE_2D, back_tex);
 	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,1,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.backscreen);
+	    glActiveTexture(GL_TEXTURE1);
+	    glBindTexture(GL_TEXTURE_2D, sprite_tex);
+	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
 	    glUseProgram(programObject);
-	    glUniform1i(samplerLoc, 0);
+	    glUniform1i(backLoc, 0);
+	    glUniform1i(samplerLoc, 1);
 	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
 	    glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
 	    glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
 	    glEnableVertexAttribArray ( positionLoc );
 	    glEnableVertexAttribArray ( texCoordLoc );
-
-	    glEnable(GL_STENCIL_TEST);
-	    glStencilMask(0xFF);
-	    glStencilFunc(GL_EQUAL, 0, 0xFF);
-	    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	    glDisable(GL_STENCIL_TEST);
         } else {
 	    glActiveTexture(GL_TEXTURE0);
 	    glBindTexture(GL_TEXTURE_2D, layer_tex);
@@ -899,13 +901,7 @@ void TitanRenderFBO(int fbo) {
 	    glVertexAttribPointer ( tCoordGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
 	    glEnableVertexAttribArray ( posGPrioLoc );
 	    glEnableVertexAttribArray ( tCoordGPrioLoc );
-
-	    glEnable(GL_STENCIL_TEST);
-	    glStencilMask(0xFF);
-	    glStencilFunc(GL_ALWAYS, 0, 0xFF);
-	    glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-            glDisable(GL_STENCIL_TEST);
 	}
    }
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
