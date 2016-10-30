@@ -22,6 +22,7 @@ set(TEST_LIBRARIES ${SDL2_LIBRARY} ${OPENGLES_LIBRARIES} ${EGL_LIBRARIES})
 
 set(test_sdl_SOURCES
 	testEgl.c
+	../../patternManager.c
 )
 
 include_directories(${TEST_INCLUDE_DIRS})

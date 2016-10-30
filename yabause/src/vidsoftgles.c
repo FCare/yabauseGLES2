@@ -27,7 +27,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "../profiler.h"
+#include "profiler.h"
 
 #include "vidsoftgles.h"
 #include "ygl.h"
@@ -36,11 +36,13 @@
 #include "vdp2.h"
 #include "titan/titan.h"
 #include "glutils/gles20utils.h"
+#include "patternManager.h"
 
 #include "yui.h"
 
 #include <stdlib.h>
 #include <limits.h>
+#include <math.h>
 
 //#define DO_NOT_RENDER_SW
 
@@ -86,6 +88,7 @@ static void VIDSoftGLESVdp1DrawEnd(void);
 static void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
 static void VIDSoftGLESVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1UserClipping(u8 * ram, Vdp1 * regs);
@@ -120,12 +123,20 @@ VIDSoftGLESVdp1DrawStart,
 VIDSoftGLESVdp1DrawEnd,
 VIDSoftGLESVdp1NormalSpriteDraw,
 VIDSoftGLESVdp1ScaledSpriteDraw,
+#ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1DistortedSpriteDraw,
+#else
+VIDSoftGLESVdp1DistortedSpriteDrawGL,
+#endif
 //for the actual hardware, polygons are essentially identical to distorted sprites
 //the actual hardware draws using diagonal lines, which is why using half-transparent processing
 //on distorted sprites and polygons is not recommended since the hardware overdraws to prevent gaps
 //thus, with half-transparent processing some pixels will be processed more than once, producing moire patterns in the drawn shapes
+#ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1DistortedSpriteDraw,
+#else
+VIDSoftGLESVdp1DistortedSpriteDrawGL,
+#endif
 VIDSoftGLESVdp1PolylineDraw,
 VIDSoftGLESVdp1LineDraw,
 VIDSoftGLESVdp1UserClipping,
@@ -145,12 +156,17 @@ VidSoftGLESgetDevFbo,
 VidSoftGLESgetSWFbo
 };
 
+typedef struct {
+	u8* fb;
+	gl_fbo fbo;	
+} framebuffer;
+
 static gl_fbo fbo;
 
 static pixel_t *dispbuffergles=NULL;
-static u8 *vdp1framebuffer[2]= { NULL, NULL };
-static u8 *vdp1frontframebuffer;
-static u8 *vdp1backframebuffer;
+static framebuffer* vdp1framebuffer[2]= { NULL, NULL };
+static framebuffer* vdp1frontframebuffer;
+static framebuffer* vdp1backframebuffer;
 static u8 sprite_window_mask[704 * 512];
 
 static int vdp1width;
@@ -185,7 +201,6 @@ typedef struct
 
 static INLINE u32 FASTCALL Vdp2ColorRamGetColor(u32 addr, u8* vdp2_color_ram)
 {
-
    switch(Vdp2Internal.ColorMode)
    {
       case 0:
@@ -2059,6 +2074,18 @@ static void LoadLineParamsSprite(vdp2draw_struct * info, int line, Vdp2* lines)
    ReadVdp2ColorOffset(regs, info, 0x40, 0x40);
 }
 
+static GLint programObject  = 0;
+static GLint positionLoc    = 0;
+static GLint texCoordLoc    = 0;
+static GLint samplerLoc     = 0;
+
+static GLfloat swVertices [] = {
+   -1.0f, 1.0f, 0, 0, 1.0f,
+   1.0f, 1.0f, 1.0f, 0, 1.0f,
+   1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f, 1.0f
+};
+
 //////////////////////////////////////////////////////////////////////////////
 
 int VIDSoftGLESInit(void)
@@ -2069,18 +2096,61 @@ int VIDSoftGLESInit(void)
    if (TitanInit() == -1)
       return -1;
 
+   GLbyte vShaderStr[] =
+      "attribute vec4 a_position;   \n"
+      "attribute vec3 a_texCoord;   \n"
+      "varying vec3 v_texCoord;     \n"
+      "void main()                  \n"
+      "{                            \n"
+      "   gl_Position = a_position; \n"
+      "   v_texCoord = a_texCoord;  \n"
+      "}                            \n";
+
+   GLbyte fShaderStr[] =
+      "varying vec3 v_texCoord;                            \n"
+      "uniform sampler2D s_texture;                        \n"
+      "void main()                                         \n"
+      "{                                                   \n"
+      "  vec4 color = texture2D( s_texture, v_texCoord.xy/v_texCoord.z);\n"  
+      "  if (color.a < 0.1) discard;\n" 
+      "  gl_FragColor = color;\n"
+      "}                                                   \n";
+
+   // Create the program object
+   programObject = gles20_createProgram (vShaderStr, fShaderStr);
+
+   if ( programObject == 0 ){
+      fprintf (stderr,"Can not create a program\n");
+      return 0;
+   }
+
+   // Get the attribute locations
+   positionLoc = glGetAttribLocation ( programObject, "a_position" );
+   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
+   // Get the sampler location
+   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
+
    if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
       return -1;
  
    gles20_createFBO(&fbo, 704, 512);
 
    // Initialize VDP1 framebuffer 1
-   if ((vdp1framebuffer[0] = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+   if ((vdp1framebuffer[0] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
+      return -1;
+
+   if ((vdp1framebuffer[0]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       return -1;
 
    // Initialize VDP1 framebuffer 2
-   if ((vdp1framebuffer[1] = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+   if ((vdp1framebuffer[1] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
       return -1;
+
+   if ((vdp1framebuffer[1]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+      return -1;
+
+   gles20_createFBO(&vdp1framebuffer[0]->fbo, 704, 512);
+   gles20_createFBO(&vdp1framebuffer[1]->fbo, 704, 512);
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
@@ -2109,11 +2179,15 @@ void VIDSoftGLESDeInit(void)
       dispbuffergles = NULL;
    }
 
-   if (vdp1framebuffer[0])
+   if (vdp1framebuffer[0]) {
+      free(vdp1framebuffer[0]->fb);
       free(vdp1framebuffer[0]);
+   }
 
-   if (vdp1framebuffer[1])
+   if (vdp1framebuffer[1]) {
+      free(vdp1framebuffer[1]->fb);
       free(vdp1framebuffer[1]);
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2587,12 +2661,11 @@ static int iterateOverLine(int x1, int y1, int x2, int y2, int greedy, void *dat
 	//this will at least let it run
 	if(abs(dx) > 999 || abs(dy) > 999)
 		return INT_MAX;
-
 	if (abs(dx) > abs(dy)) {
 		if (ax != ay) dx = -dx;
 
 		for (; x1 != x2; x1 += ax, i++) {
-         if (line_callback && line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0) return i + 1;
+                        if (line_callback && line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0) return i + 1;
 
 			a += dy;
 			if (abs(a) >= abs(dx)) {
@@ -2603,12 +2676,10 @@ static int iterateOverLine(int x1, int y1, int x2, int y2, int greedy, void *dat
 				if (greedy) {
 					i ++;
 					if (ax == ay) {
-						if (line_callback &&
-                     line_callback(x1 + ax, y1 - ay, i, data, regs, cmd, ram, back_framebuffer) != 0)
+						if (line_callback && line_callback(x1 + ax, y1 - ay, i, data, regs, cmd, ram, back_framebuffer) != 0)
 							return i + 1;
 					} else {
-						if (line_callback &&
-                     line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0)
+						if (line_callback && line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0)
 							return i + 1;
 					}
 				}
@@ -2617,14 +2688,14 @@ static int iterateOverLine(int x1, int y1, int x2, int y2, int greedy, void *dat
 
 		// If the line isn't greedy here, we end up with gaps that don't occur on the Saturn
 		if (/*(i == 0) || (y1 != y2)*/1) {
-         if (line_callback) line_callback(x2, y2, i, data, regs, cmd, ram, back_framebuffer);
+                       if (line_callback) line_callback(x2, y2, i, data, regs, cmd, ram, back_framebuffer);
 			i ++;
 		}
 	} else {
 		if (ax != ay) dy = -dy;
 
 		for (; y1 != y2; y1 += ay, i++) {
-         if (line_callback && line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0) return i + 1;
+                        if (line_callback && line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0) return i + 1;
 
 			a += dx;
 			if (abs(a) >= abs(dy)) {
@@ -2634,12 +2705,10 @@ static int iterateOverLine(int x1, int y1, int x2, int y2, int greedy, void *dat
 				if (greedy) {
 					i ++;
 					if (ay == ax) {
-						if (line_callback &&
-                     line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0)
+						if (line_callback && line_callback(x1, y1, i, data, regs, cmd, ram, back_framebuffer) != 0)
 							return i + 1;
 					} else {
-						if (line_callback &&
-                     line_callback(x1 - ax, y1 + ay, i, data, regs, cmd, ram, back_framebuffer) != 0)
+						if (line_callback && line_callback(x1 - ax, y1 + ay, i, data, regs, cmd, ram, back_framebuffer) != 0)
 							return i + 1;
 					}
 				}
@@ -2647,11 +2716,10 @@ static int iterateOverLine(int x1, int y1, int x2, int y2, int greedy, void *dat
 		}
 
 		if (/*(i == 0) || (y1 != y2)*/1) {
-         if (line_callback) line_callback(x2, y2, i, data, regs, cmd, ram, back_framebuffer);
+                        if (line_callback) line_callback(x2, y2, i, data, regs, cmd, ram, back_framebuffer);
 			i ++;
 		}
 	}
-
 	return i;
 }
 
@@ -2816,7 +2884,6 @@ static int is_pre_clipped(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 
 //this is also the reason why half-transparent shading causes moire patterns
 //and the reason why gouraud shading can be applied to a single line draw command
 static void drawQuad(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 tr_y, s16 br_x, s16 br_y, u8 * ram, Vdp1* regs, vdp1cmd_struct * cmd, u8* back_framebuffer){
-
 	int totalleft;
 	int totalright;
 	int total;
@@ -2939,7 +3006,9 @@ static void drawQuad(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 tr_y,
          cmd,
          ram, back_framebuffer
 			);
+
 	}
+
 }
 
 void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -2960,8 +3029,7 @@ void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8 * back_framebuffe
 	bottomRighty = topLefty + (spriteHeight - 1);
 	bottomLeftx = topLeftx;
 	bottomLefty = topLefty + (spriteHeight - 1);
-
-   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, back_framebuffer);
+   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
 }
 
 void VIDSoftGLESVdp1ScaledSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer){
@@ -3057,29 +3125,209 @@ void VIDSoftGLESVdp1ScaledSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer){
 
 	bottomLeftx = topLeftx;
 	bottomLefty = y1+y0 - 1;
-
-   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, back_framebuffer);
+printf("Scaled sprite (%d,%d)-(%d,%d)-(%d,%d)-(%d,%d)\n", topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty);
+   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
 }
 
+#define EPSILON (1e-10 )
+
+static int loop = 0;
+
 void VIDSoftGLESVdp1DistortedSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
-	s32 xa,ya,xb,yb,xc,yc,xd,yd;
-   vdp1cmd_struct cmd;
+    s32 xa,ya,xb,yb,xc,yc,xd,yd;
+    vdp1cmd_struct cmd;
 
-   Vdp1ReadCommand(&cmd, regs->addr, ram);
+    Vdp1ReadCommand(&cmd, regs->addr, ram);
+ 
+     xa = (s32)(cmd.CMDXA + regs->localX);
+     ya = (s32)(cmd.CMDYA + regs->localY);
+     xb = (s32)(cmd.CMDXB + regs->localX);
+     yb = (s32)(cmd.CMDYB + regs->localY);
+     xc = (s32)(cmd.CMDXC + regs->localX);
+     yc = (s32)(cmd.CMDYC + regs->localY);
+     xd = (s32)(cmd.CMDXD + regs->localX);
+     yd = (s32)(cmd.CMDYD + regs->localY);
 
-    xa = (s32)(cmd.CMDXA + regs->localX);
-    ya = (s32)(cmd.CMDYA + regs->localY);
+    drawQuad(xa, ya, xd, yd, xb, yb, xc, yc, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
+}
 
-    xb = (s32)(cmd.CMDXB + regs->localX);
-    yb = (s32)(cmd.CMDYB + regs->localY);
+    GLuint g_VertexSWBuffer = -1;
 
-    xc = (s32)(cmd.CMDXC + regs->localX);
-    yc = (s32)(cmd.CMDYC + regs->localY);
+Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
+    int i = 0, j=0;
 
-    xd = (s32)(cmd.CMDXD + regs->localX);
-    yd = (s32)(cmd.CMDYD + regs->localY);
+    int characterWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
+    int characterHeight = cmd.CMDSIZE & 0xFF;
+    int flip = (cmd.CMDCTRL & 0x30) >> 4;
+    int currentShape = cmd.CMDCTRL & 0x7;
+    int characterAddress = cmd.CMDSRCA << 3;
+    u16 colorbank = cmd.CMDCOLR;
+    u32 colorlut = (u32)colorbank << 3;
+    int SPD = ((cmd.CMDPMOD & 0x40) != 0);
+    int color = ((cmd.CMDPMOD >> 3) & 0x7);
 
-    drawQuad(xa, ya, xd, yd, xb, yb, xc, yc, ram, regs, &cmd, back_framebuffer);
+    int colorCalc = cmd.CMDPMOD & 0x7 ;
+    int endcodesEnabled = ((cmd.CMDPMOD & 0x80) == 0) ? 1 : 0;
+    int isTextured = 1;
+    int untexturedColor = colorbank;
+    int endcode;
+    u32 pix[characterHeight*characterWidth];
+
+    int param0 = cmd.CMDSRCA << 16 | cmd.CMDCOLR;
+    int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
+
+
+    Pattern* curPattern = getCachePattern(param0, param1);
+    if (curPattern != NULL) {
+  	return curPattern;
+    }
+
+    //4 polygon, 5 polyline or 6 line
+    if(currentShape == 4 || currentShape == 5 || currentShape == 6) {
+        isTextured = 0;
+    }
+
+    if(!isTextured) {
+	
+        for (i=0; i<characterHeight*characterWidth ; i++)
+		if (untexturedColor & 0x8000) { //isRGB code
+		    if (colorCalc != 0) printf("On color calculation 0 is supported!\n");
+		    pix[i] = COLSAT2YAB16(0xFF, untexturedColor);
+		}
+    } else {
+        switch (color) {
+            case 0x0://4bpp bank
+	        endcode = 0xf;
+                for (i=0; i<characterHeight ; i++) {
+		    for (j=0; j<characterWidth; j++ ){
+			int index = i*characterWidth+j;
+			pix[index] = Vdp1ReadPattern16( characterAddress + (i*(characterWidth>>1)), j , ram) & 0xF;
+			if(isTextured && endcodesEnabled && pix[index] == endcode)
+				break;
+			if ((pix[index]  != 0) || SPD) 
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | 0xFF000000;
+			else pix[index]  = 0;
+                        
+		    }
+	        }
+            break;
+            case 0x1://4bpp lut
+	        endcode = 0xf;
+                for (i=0; i<characterHeight ; i++) {
+		    for (j=0; j<characterWidth; j++ ){
+			int index = i*characterWidth+j;
+			pix[index] = Vdp1ReadPattern16(characterAddress + (i*(characterWidth>>1)), j , ram);
+			if( endcodesEnabled && pix[index] == endcode) {
+				break;
+			}
+			if ((pix[index]  != 0) || SPD) {
+				u32 temp = T1ReadWord(Vdp1Ram, (pix[index] * 2 + colorlut) & 0x7FFFF);
+				if (temp & 0x8000)
+                        		pix[index] = COLSAT2YAB16(0xFF,temp);
+				else
+					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | 0xFF000000;
+			} else pix[index]  = 0;
+		    }
+	        }
+            break;
+
+            default:
+                printf("color %d\n", color);
+            break;
+        }
+    }
+    curPattern = createCachePattern(param0, param1, characterWidth, characterHeight);
+    glGenTextures(1,&curPattern->tex);
+    glActiveTexture ( GL_TEXTURE0 );
+    glBindTexture(GL_TEXTURE_2D, curPattern->tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, characterWidth, characterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+
+    addCachePattern(curPattern);
+
+    return curPattern;
+}
+
+void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
+   
+    float xa,ya,xb,yb,xc,yc,xd,yd;
+    vdp1cmd_struct cmd;
+
+    Vdp1ReadCommand(&cmd, regs->addr, ram);
+
+    xa = (s32)(cmd.CMDXA + regs->localX)/(float)vdp2width;
+    ya = (s32)(cmd.CMDYA + regs->localY)/(float)vdp2height;
+
+    xb = (s32)(cmd.CMDXB + regs->localX)/(float)vdp2width;
+    yb = (s32)(cmd.CMDYB + regs->localY)/(float)vdp2height;
+
+    xc = (s32)(cmd.CMDXC + regs->localX)/(float)vdp2width;
+    yc = (s32)(cmd.CMDYC + regs->localY)/(float)vdp2height;
+
+    xd = (s32)(cmd.CMDXD + regs->localX)/(float)vdp2width;
+    yd = (s32)(cmd.CMDYD + regs->localY)/(float)vdp2height;
+
+    Pattern* pattern = NULL;
+
+    pattern = getPattern(cmd, ram); 
+
+    if (g_VertexSWBuffer == -1) 
+	glGenBuffers(1, &g_VertexSWBuffer);
+
+// detects intersection of two diagonal lines
+    float A1 = (yc-ya);
+    float B1 = (xa-xc);
+    float C1 = (A1*xa+B1*ya);
+
+    float A2 = (yb-yd);
+    float B2 = (xd-xb);
+    float C2 = (A2*xd+B2*yd);
+
+    float det = A1*B2-A2*B1;
+    float centerX = (B2*C1 - B1*C2)/det;
+    float centerY = (A1*C2 - A2*C1)/det;
+
+    // determines distances to center for all vertexes
+    float d1 = hypotf(xa - centerX, ya - centerY);
+    float d2 = hypotf(xb - centerX, yb - centerY);
+    float d3 = hypotf(xc - centerX, yc - centerY);
+    float d4 = hypotf(xd - centerX, yd - centerY);
+
+    // calculates quotients used as w component in uvw texture mapping
+    float u1 = ((d3==0.0f)||isfinite(d3)==0)?1.0:(d1 + d3)/d3;
+    float u2 = ((d4==0.0f)||isfinite(d4)==0)?1.0:(d2 + d4)/d4;
+    float u3 = ((d1==0.0f)||isfinite(d1)==0)?1.0:(d3 + d1)/d1;
+    float u4 = ((d2==0.0f)||isfinite(d2)==0)?1.0:(d4 + d2)/d2;
+
+    GLfloat quadVertices [20] =  {xa, ya, 0.0, 0.0, u1,
+			xb, yb, u2, 0.0, u2,
+			xc, yc, u3, u3, u3,
+			xd, yd, 0.0, u4, u4}; 
+
+    glUseProgram(programObject);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
+
+    if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+
+    if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
+    if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+
+
+    glActiveTexture ( GL_TEXTURE0 );
+    glBindTexture(GL_TEXTURE_2D, pattern->tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+   // glDeleteTextures(1,&spriteTex);
+   // glDeleteBuffers(1, &g_VertexSWBuffer);
+
 }
 
 static void gouraudLineSetup(double * redstep, double * greenstep, double * bluestep, int length, COLOR table1, COLOR table2, u8* ram, Vdp1* regs, vdp1cmd_struct * cmd, u8 * back_framebuffer) {
@@ -3114,21 +3362,21 @@ void VIDSoftGLESVdp1PolylineDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer)
 	X[3] = (int)regs->localX + (int)((s16)T1ReadWord(ram, regs->addr + 0x18));
 	Y[3] = (int)regs->localY + (int)((s16)T1ReadWord(ram, regs->addr + 0x1A));
 
-   length = iterateOverLine(X[0], Y[0], X[1], Y[1], 1, NULL, NULL, regs, &cmd, ram, back_framebuffer);
-   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudA, gouraudB, ram, regs, &cmd, back_framebuffer);
-   DrawLine(X[0], Y[0], X[1], Y[1], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, back_framebuffer);
+   length = iterateOverLine(X[0], Y[0], X[1], Y[1], 1, NULL, NULL, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
+   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudA, gouraudB, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
+   DrawLine(X[0], Y[0], X[1], Y[1], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
 
-   length = iterateOverLine(X[1], Y[1], X[2], Y[2], 1, NULL, NULL, regs, &cmd, ram, back_framebuffer);
-   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudB, gouraudC, ram, regs, &cmd, back_framebuffer);
-   DrawLine(X[1], Y[1], X[2], Y[2], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, back_framebuffer);
+   length = iterateOverLine(X[1], Y[1], X[2], Y[2], 1, NULL, NULL, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
+   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudB, gouraudC, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
+   DrawLine(X[1], Y[1], X[2], Y[2], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
 
-   length = iterateOverLine(X[2], Y[2], X[3], Y[3], 1, NULL, NULL, regs, &cmd, ram, back_framebuffer);
-   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudD, gouraudC, ram, regs, &cmd, back_framebuffer);
-   DrawLine(X[3], Y[3], X[2], Y[2], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, back_framebuffer);
+   length = iterateOverLine(X[2], Y[2], X[3], Y[3], 1, NULL, NULL, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
+   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudD, gouraudC, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
+   DrawLine(X[3], Y[3], X[2], Y[2], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
 
-   length = iterateOverLine(X[3], Y[3], X[0], Y[0], 1, NULL, NULL, regs, &cmd, ram, back_framebuffer);
-   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudA, gouraudD, ram, regs, &cmd, back_framebuffer);
-   DrawLine(X[0], Y[0], X[3], Y[3], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, back_framebuffer);
+   length = iterateOverLine(X[3], Y[3], X[0], Y[0], 1, NULL, NULL, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
+   gouraudLineSetup(&redstep, &greenstep, &bluestep, length, gouraudA, gouraudD, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
+   DrawLine(X[0], Y[0], X[3], Y[3], 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
 }
 
 void VIDSoftGLESVdp1LineDraw(u8* ram, Vdp1*regs, u8* back_framebuffer)
@@ -3145,9 +3393,9 @@ void VIDSoftGLESVdp1LineDraw(u8* ram, Vdp1*regs, u8* back_framebuffer)
 	x2 = (int)regs->localX + (int)((s16)T1ReadWord(ram, regs->addr + 0x10));
 	y2 = (int)regs->localY + (int)((s16)T1ReadWord(ram, regs->addr + 0x12));
 
-   length = iterateOverLine(x1, y1, x2, y2, 1, NULL, NULL, regs, &cmd, ram, back_framebuffer);
-   gouraudLineSetup(&redstep, &bluestep, &greenstep, length, gouraudA, gouraudB, ram, regs, &cmd, back_framebuffer);
-   DrawLine(x1, y1, x2, y2, 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, back_framebuffer);
+   length = iterateOverLine(x1, y1, x2, y2, 1, NULL, NULL, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
+   gouraudLineSetup(&redstep, &bluestep, &greenstep, length, gouraudA, gouraudB, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
+   DrawLine(x1, y1, x2, y2, 0, 0, 0, redstep, greenstep, bluestep, regs, &cmd, ram, ((framebuffer *)back_framebuffer)->fb);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3187,11 +3435,11 @@ void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
    switch (type)
    {
    case 0:
-      val = T1ReadByte(vdp1backframebuffer, addr);
+      val = T1ReadByte(vdp1backframebuffer->fb, addr);
       *(u8*)out = val;
       break;
    case 1:
-      val = T1ReadWord(vdp1backframebuffer, addr);
+      val = T1ReadWord(vdp1backframebuffer->fb, addr);
 #ifndef WORDS_BIGENDIAN
       val = BSWAP16L(val);
 #endif
@@ -3199,7 +3447,7 @@ void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
       break;
    case 2:
 #if 0 //enable when burning rangers is fixed
-      val = T1ReadLong(vdp1backframebuffer, addr);
+      val = T1ReadLong(vdp1backframebuffer->fb, addr);
 #ifndef WORDS_BIGENDIAN
       val = BSWAP32(val);
 #endif
@@ -3222,20 +3470,20 @@ void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
    switch (type)
    {
    case 0:
-      T1WriteByte(vdp1backframebuffer, addr, val);
+      T1WriteByte(vdp1backframebuffer->fb, addr, val);
       break;
    case 1:
 #ifndef WORDS_BIGENDIAN
       val = BSWAP16L(val);
 #endif
-      T1WriteWord(vdp1backframebuffer, addr, val);
+      T1WriteWord(vdp1backframebuffer->fb, addr, val);
       break;
    case 2:
 #ifndef WORDS_BIGENDIAN
       val = BSWAP32(val);
 #endif
       val = (val & 0xffff) << 16 | (val & 0xffff0000) >> 16;
-      T1WriteLong(vdp1backframebuffer, addr, val);
+      T1WriteLong(vdp1backframebuffer->fb, addr, val);
       break;
    default:
       break;
@@ -3255,6 +3503,13 @@ int VIDSoftGLESVdp2Reset(void)
 void VIDSoftGLESVdp2DrawStart(void)
 {
    int titanblendmode = TITAN_BLEND_TOP;
+
+glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+glViewport(0,0,704, 512);
+glClearColor(0.0, 0.0, 0.0, 1.0);
+glClear(GL_COLOR_BUFFER_BIT);
+
+//recycleCache();
 
    if (Vdp2Regs->CCCTL & 0x100) titanblendmode = TITAN_BLEND_ADD;
    else if (Vdp2Regs->CCCTL & 0x200) titanblendmode = TITAN_BLEND_BOTTOM;
@@ -3629,12 +3884,13 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glViewport(0,0,800, 600);
 #ifndef DO_NOT_RENDER_SW
    TitanRender(dispbuffergles);
-#endif
-
+#else
    TitanRenderFBO(fbo.fb);
-
+#endif
    VIDSoftGLESVdp1SwapFrameBuffer();
 
 #ifndef DO_NOT_RENDER_SW
@@ -3687,7 +3943,8 @@ static void VIDSoftGLESVdp2DrawScreens(void)
       draw_priority_0[TITAN_RBG0] = (Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
 
-   VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
+
+   VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
 
    Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
    Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
@@ -3703,12 +3960,18 @@ static pixel_t* VIDSoftGLESgetFramebuffer(void) {
 }
 
 static int VidSoftGLESgetDevFbo(void) {
-    return fbo.tex;
+#ifdef DO_NOT_RENDER_SW
+    //return fbo.tex;
+
+    return vdp1frontframebuffer->fbo.fb;
+#else
+    return -1;
+#endif
 }
 
 static u8 * VidSoftGLESgetSWFbo(void) {
 #ifdef DEBUG_SW
-    return vdp1frontframebuffer; //Manque taille et le type... Il faut renvoyer une structure
+    return vdp1frontframebuffer->fb; //Manque taille et le type... Il faut renvoyer une structure
 #else
     return NULL;
 #endif;
@@ -3823,7 +4086,7 @@ static void VIDSoftGLESVdp1SwapFrameBuffer(void)
 {
    if (((Vdp1Regs->FBCR & 2) == 0) || Vdp1External.manualchange)
    {
-		u8 *temp;
+		framebuffer *temp;
 
       temp = vdp1frontframebuffer;
       vdp1frontframebuffer = vdp1backframebuffer;
@@ -3850,7 +4113,7 @@ static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer)
          for (i2 = (regs->EWLR & 0x1FF); i2 < h; i2++)
          {
             for (i = ((regs->EWLR >> 6) & 0x1F8); i < w; i++)
-               ((u16 *)back_framebuffer)[(i2 * vdp1width) + i] = regs->EWDR;
+               ((u16 *)(((framebuffer *)back_framebuffer)->fb))[(i2 * vdp1width) + i] = regs->EWDR;
          }
       }
       else
@@ -3865,7 +4128,7 @@ static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer)
                int pos = (i2 * vdp1width) + i;
 
                if (pos < 0x3FFFF)
-                  back_framebuffer[pos] = regs->EWDR & 0xFF;
+                  ((framebuffer *)back_framebuffer)->fb[pos] = regs->EWDR & 0xFF;
             }
          }
       }

@@ -129,15 +129,15 @@ VideoInterface_struct *VIDCoreList[] = {
 NULL
 };
 
-static GLuint g_FrameBuffer = 0;
-static GLuint g_SWFrameBuffer = 0;
-static GLuint g_VertexBuffer = 0;
-static GLuint g_VertexDevBuffer = 0;
-static GLuint g_VertexSWBuffer = 0;
-static GLuint programObject  = 0;
-static GLuint positionLoc    = 0;
-static GLuint texCoordLoc    = 0;
-static GLuint samplerLoc     = 0;
+static GLint g_FrameBuffer = 0;
+static GLint g_SWFrameBuffer = 0;
+static GLint g_VertexBuffer = 0;
+static GLint g_VertexDevBuffer = 0;
+static GLint g_VertexSWBuffer = 0;
+static GLint programObject  = 0;
+static GLint positionLoc    = 0;
+static GLint texCoordLoc    = 0;
+static GLint samplerLoc     = 0;
 
 int g_buf_width = -1;
 int g_buf_height = -1;
@@ -179,10 +179,10 @@ static const float squareVertices [] = {
 
 
 static float devVertices [] = {
-   -1.0f, 0.5f, 0, 0,
-   -0.5f, 0.5f, 1.0f, 0,
-   -0.5f, 1.0f, 1.0f, 1.0f,
-   -1.0f, 1.0f, 0, 1.0f
+   -1.0f, 1.0f, 0, 0,
+   1.0f, 1.0f, 1.0f, 0,
+   1.0f, -1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f
 };
 
 void YuiErrorMsg(const char * string) {
@@ -253,18 +253,10 @@ void DrawDevFBO() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, resizeFilter );
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, resizeFilter );
-    error = glGetError();
-    if( error != GL_NO_ERROR )
-    {
-       fprintf(stderr,"g_FrameBuffer gl error %04X", error );
-       return;
-    }
    if( g_VertexDevBuffer == 0 )
    {
       glGenBuffers(1, &g_VertexDevBuffer);
    }
-
-    VIDCore->GetGlSize(&buf_width, &buf_height);
 
       glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
       glBufferData(GL_ARRAY_BUFFER, sizeof(devVertices),devVertices,GL_STATIC_DRAW);
@@ -272,12 +264,6 @@ void DrawDevFBO() {
       glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
       glEnableVertexAttribArray ( positionLoc );
       glEnableVertexAttribArray ( texCoordLoc );
-      error = glGetError();
-      if( error != GL_NO_ERROR )
-      {
-         fprintf(stderr,"g_VertexDevBuffer gl error %04X", error );
-         return;
-      }
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
@@ -303,12 +289,6 @@ void YuiDrawSoftwareBuffer() {
        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, resizeFilter );
        glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, resizeFilter );
-       error = glGetError();
-       if( error != GL_NO_ERROR )
-       {
-          fprintf(stderr,"g_FrameBuffer gl error %04X", error );
-          return;
-       }
     }
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
@@ -353,6 +333,7 @@ void YuiSwapBuffers(void) {
    if ((VIDCore->getSWFbo != NULL) && (VIDCore->getSWFbo() != NULL)) {
        DrawSWFBO();
    }
+
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
        DrawDevFBO();
    }
@@ -444,7 +425,6 @@ int YuiInitProgramForSoftwareRendering()
       "uniform sampler2D s_texture;                        \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
       "  vec4 color = texture2D( s_texture, v_texCoord );\n"    
       "  gl_FragColor = color;\n"    
       "}                                                   \n";

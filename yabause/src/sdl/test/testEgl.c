@@ -460,7 +460,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to SetupOpenGL\n");
                 return -1;
 	}
-
 	while (quit == SDL_FALSE)
 	{
 		if (SDL_PollEvent(&event))

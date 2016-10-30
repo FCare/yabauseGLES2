@@ -758,10 +758,10 @@ void createGLPrograms(void) {
 }
 
 static float swVertices [] = {
-   -1.0f, 1.0f, 0, 0,
-   1.0f, 1.0f, 1.0f, 0,
-   1.0f, -1.0f, 1.0f, 1.0f,
-   -1.0f,-1.0f, 0, 1.0f
+   -1.0f, -1.0f, 0, 0,
+   1.0f, -1.0f, 1.0f, 0,
+   1.0f, 1.0f, 1.0f, 1.0f,
+   -1.0f,1.0f, 0, 1.0f
 };
 
 static int layer_tex = -1;
@@ -792,6 +792,7 @@ void TitanRenderFBO(int fbo) {
    tt_context.layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+   glViewport(0,0,704, 512);
    glClearColor(0.0, 0.0, 0.0, 0.0);
    glClear(GL_COLOR_BUFFER_BIT);
 
@@ -905,6 +906,7 @@ void TitanRenderFBO(int fbo) {
 	}
    }
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+glViewport(0,0,800, 600);
 }
 
 void TitanRender(pixel_t * dispbuffer)
