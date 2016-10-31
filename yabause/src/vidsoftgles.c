@@ -3297,17 +3297,6 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 
     Vdp1ReadCommand(&cmd, regs->addr, ram);
 
-   if (is_pre_clipped(	cmd.CMDXA + regs->localX, 
-			cmd.CMDYA + regs->localY,
-			cmd.CMDXB + regs->localX,
-			cmd.CMDYB + regs->localY,
-			cmd.CMDXC + regs->localX,
-			cmd.CMDYC + regs->localY,
-			cmd.CMDXD + regs->localX,
-			cmd.CMDYD + regs->localY,
-			regs))
-      return;
-
     xa = (s32)(cmd.CMDXA + regs->localX)/(float)vdp2width;
     ya = (s32)(cmd.CMDYA + regs->localY)/(float)vdp2height;
 
