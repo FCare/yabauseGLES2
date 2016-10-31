@@ -258,6 +258,27 @@ void DrawDevFBO() {
       glGenBuffers(1, &g_VertexDevBuffer);
    }
 
+   VIDCore->GetGlSize(&buf_width, &buf_height);
+   if ((buf_width == 0) || (buf_height == 0)) return;
+
+   if( buf_width != fbo_buf_width ||  buf_height != fbo_buf_height )
+   {
+       devVertices[2] = 1.0f - (float)buf_width/704.0f;
+       devVertices[3] = 1.0f - (float)buf_height/512.0f;
+
+       devVertices[6] = 1.0f;
+       devVertices[7] = 1.0f - (float)buf_height/512.0f;
+
+       devVertices[10] = 1.0f;
+       devVertices[11] = 1.0f;
+
+       devVertices[14] = 1.0f - (float)buf_width/704.0f;
+       devVertices[15] = 1.0f;
+
+       fbo_buf_width = buf_width;
+       fbo_buf_height = buf_height;
+    }
+
       glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
       glBufferData(GL_ARRAY_BUFFER, sizeof(devVertices),devVertices,GL_STATIC_DRAW);
       glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
