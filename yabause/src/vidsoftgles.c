@@ -3560,6 +3560,8 @@ void VIDSoftGLESVdp2DrawStart(void)
 
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
 glViewport(0,0,704, 512);
+glScissor(704 - vdp2width, 512 - vdp2height, vdp2width, vdp2height);
+glEnable(GL_SCISSOR_TEST);
 glClearColor(0.0, 0.0, 0.0, 1.0);
 glClear(GL_COLOR_BUFFER_BIT);
 
@@ -3938,6 +3940,7 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+   glDisable(GL_SCISSOR_TEST);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    glViewport(0,0,800, 600);
 #ifndef DO_NOT_RENDER_SW
