@@ -3979,33 +3979,6 @@ static u8 * VidSoftGLESgetSWFbo(void) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void VIDSoftGLESVdp2DrawScreen(int screen)
-{
-
-   VIDSoftGLESVdp2SetResolution(Vdp2Regs->TVMD);
-
-   switch(screen)
-   {
-      case 0:
-         Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-         break;
-      case 1:
-         Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-         break;
-      case 2:
-         Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-         break;
-      case 3:
-         Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-         break;
-      case 4:
-         Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-         break;
-   }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
 static void VIDSoftGLESVdp2SetResolution(u16 TVMD)
 {
    // This needs some work
