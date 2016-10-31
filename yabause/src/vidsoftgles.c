@@ -3560,7 +3560,7 @@ void VIDSoftGLESVdp2DrawStart(void)
 
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
 glViewport(0,0,704, 512);
-glScissor(704 - vdp2width, 512 - vdp2height, vdp2width, vdp2height);
+glScissor(704 - vdp2width, 512 - vdp2height, vdp2width, vdp2height); //Shall take care of system and user clipping
 glEnable(GL_SCISSOR_TEST);
 glClearColor(0.0, 0.0, 0.0, 1.0);
 glClear(GL_COLOR_BUFFER_BIT);
