@@ -39,6 +39,7 @@
 #include "patternManager.h"
 
 #include "yui.h"
+#include "threads.h"
 
 #include <stdlib.h>
 #include <limits.h>
@@ -196,6 +197,36 @@ typedef struct
    int xmask, ymask;
    u32 planetbl[16];
 } screeninfo_struct;
+
+struct
+{
+   volatile int need_draw[5];
+   volatile int draw_finished[5];
+   volatile void (*draw[5])(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data);
+} screen_render_thread_context;
+
+#define DECLARE_SCREEN_RENDER_THREAD(FUNC_NAME, THREAD_NUMBER) \
+void FUNC_NAME(void* data) \
+{ \
+   for (;;) \
+   { \
+      if (screen_render_thread_context.need_draw[THREAD_NUMBER]) \
+      { \
+         screen_render_thread_context.need_draw[THREAD_NUMBER] = 0; \
+         if (screen_render_thread_context.draw[THREAD_NUMBER] != NULL) screen_render_thread_context.draw[THREAD_NUMBER](Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data); \
+         screen_render_thread_context.draw_finished[THREAD_NUMBER] = 1; \
+      } \
+      YabThreadSleep(); \
+   } \
+}
+
+DECLARE_SCREEN_RENDER_THREAD(screenRenderThread0, 0);
+DECLARE_SCREEN_RENDER_THREAD(screenRenderThread1, 1);
+DECLARE_SCREEN_RENDER_THREAD(screenRenderThread2, 2);
+DECLARE_SCREEN_RENDER_THREAD(screenRenderThread3, 3);
+DECLARE_SCREEN_RENDER_THREAD(screenRenderThread4, 4);
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -2096,6 +2127,18 @@ int VIDSoftGLESInit(void)
    if (TitanInit() == -1)
       return -1;
 
+    for (i = 0; i < 5; i++)
+      {
+         screen_render_thread_context.draw_finished[i] = 1;
+         screen_render_thread_context.need_draw[i] = 0;
+      }
+
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG3, screenRenderThread0, NULL);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG2, screenRenderThread1, NULL);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, screenRenderThread2, NULL);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
+      YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
+
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
       "attribute vec3 a_texCoord;   \n"
@@ -3908,6 +3951,18 @@ void VIDSoftGLESVdp2DrawEnd(void)
    }
 }
 
+void screenRenderThread(void (*pt[5])(Vdp2*, Vdp2*, u8*, u8*, struct CellScrollData *), int which) {
+   screen_render_thread_context.draw[which] = pt;
+   screen_render_thread_context.need_draw[which] = 1;
+   screen_render_thread_context.draw_finished[which] = 0;
+   YabThreadWake(YAB_THREAD_VIDSOFT_LAYER_NBG3 + which);
+}
+
+void screenRenderWait(int which) {
+    while (!screen_render_thread_context.draw_finished[which]){}
+    screen_render_thread_context.draw[which] = NULL;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 static int IsSpriteWindowEnabled(u16 wtcl)
@@ -3943,15 +3998,19 @@ static void VIDSoftGLESVdp2DrawScreens(void)
       draw_priority_0[TITAN_RBG0] = (Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
 
+   screenRenderThread(Vdp2DrawNBG0, 0);
+   screenRenderThread(Vdp2DrawNBG1, 1);
+   screenRenderThread(Vdp2DrawNBG2, 2);
+   screenRenderThread(Vdp2DrawNBG3, 3);
+   screenRenderThread(Vdp2DrawRBG0, 4);
 
    VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
 
-   Vdp2DrawNBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-   Vdp2DrawNBG1(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-   Vdp2DrawNBG2(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-   Vdp2DrawNBG3(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-   Vdp2DrawRBG0(Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data);
-
+   screenRenderWait(0);
+   screenRenderWait(1);
+   screenRenderWait(2);
+   screenRenderWait(3);
+   screenRenderWait(4);
 }
 
 
