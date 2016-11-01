@@ -3244,7 +3244,10 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
                 for (i=0; i<characterHeight ; i++) {
 		    for (j=0; j<characterWidth; j++ ){
 			int index = i*characterWidth+j;
-			pix[index] = Vdp1ReadPattern16( characterAddress + (i*(characterWidth>>1)), j , ram) & 0xF;
+			int patternLine = (flip&0x2)?characterHeight-1-i:i;
+			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+			patternLine*=(characterWidth>>1);
+			pix[index] = Vdp1ReadPattern16( characterAddress + patternLine, patternRow , ram) & 0xF;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
@@ -3259,7 +3262,10 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
                 for (i=0; i<characterHeight ; i++) {
 		    for (j=0; j<characterWidth; j++ ){
 			int index = i*characterWidth+j;
-			pix[index] = Vdp1ReadPattern16(characterAddress + (i*(characterWidth>>1)), j , ram);
+			int patternLine = (flip&0x2)?characterHeight-1-i:i;
+			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+			patternLine*=(characterWidth>>1);
+			pix[index] = Vdp1ReadPattern16(characterAddress + patternLine, patternRow , ram);
 			if( endcodesEnabled && pix[index] == endcode) {
 				break;
 			}
