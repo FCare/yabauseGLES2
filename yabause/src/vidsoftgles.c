@@ -87,6 +87,7 @@ static int VIDSoftGLESVdp1Reset(void);
 static void VIDSoftGLESVdp1DrawStart(void);
 static void VIDSoftGLESVdp1DrawEnd(void);
 static void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
@@ -122,7 +123,11 @@ VIDSoftGLESIsFullscreen,
 VIDSoftGLESVdp1Reset,
 VIDSoftGLESVdp1DrawStart,
 VIDSoftGLESVdp1DrawEnd,
+#ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1NormalSpriteDraw,
+#else
+VIDSoftGLESVdp1NormalSpriteDrawGL,
+#endif
 VIDSoftGLESVdp1ScaledSpriteDraw,
 #ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1DistortedSpriteDraw,
@@ -3294,6 +3299,71 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     addCachePattern(curPattern);
 
     return curPattern;
+}
+
+void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
+	float xa,ya,xb,yb,xc,yc,xd,yd;
+	int spriteWidth;
+	int spriteHeight;
+        vdp1cmd_struct cmd;
+	Vdp1ReadCommand(&cmd, regs->addr, ram);
+
+	xa = cmd.CMDXA + regs->localX;
+	ya = cmd.CMDYA + regs->localY;
+	spriteWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
+	spriteHeight = cmd.CMDSIZE & 0xFF;
+
+	xb = xa + (spriteWidth - 1);
+	yb = ya;
+	xc = xa + (spriteWidth - 1);
+	yc = ya + (spriteHeight - 1);
+	xd = xa;
+	yd = ya + (spriteHeight - 1);
+
+        xa /= (float)vdp2width;
+        ya /= (float)vdp2width;
+
+        xb /= (float)vdp2width;
+        yb /= (float)vdp2width;
+
+        xc /= (float)vdp2width;
+        yc /= (float)vdp2width;
+
+        xd /= (float)vdp2width;
+        yd /= (float)vdp2width;
+
+        Pattern* pattern = NULL;
+
+    	pattern = getPattern(cmd, ram); 
+
+    	if (g_VertexSWBuffer == -1) 
+		glGenBuffers(1, &g_VertexSWBuffer);
+
+    	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
+			xb, yb, 1.0f , 0.0f, 1.0f,
+			xc, yc, 1.0f, 1.0f, 1.0f,
+			xd, yd, 0.0, 1.0f, 1.0f};
+
+	glUseProgram(programObject);
+
+    	glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
+
+    	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
+
+    	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+
+    	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
+    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+
+    	glActiveTexture ( GL_TEXTURE0 );
+    	glBindTexture(GL_TEXTURE_2D, pattern->tex);
+    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+
+    	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
