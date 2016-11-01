@@ -3406,7 +3406,6 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	yc = (float)bottomRighty/(float)vdp2height;
 	xd = (float)bottomLeftx/(float)vdp2width;
 	yd = (float)bottomLefty/(float)vdp2height;
-printf("Scaled sprite (%d,%d)-(%d,%d)-(%d,%d)-(%d,%d)\n", topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty);
 
 	Pattern* pattern = NULL;
 
