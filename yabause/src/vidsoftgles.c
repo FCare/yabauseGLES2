@@ -3442,14 +3442,14 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	topLeftx = x0;
 	topLefty = y0;
 
-	topRightx = x1+x0 - 1;
+	topRightx = x1+x0;
 	topRighty = topLefty;
 
-	bottomRightx = x1+x0 - 1;
-	bottomRighty = y1+y0 - 1;
+	bottomRightx = x1+x0;
+	bottomRighty = y1+y0;
 
 	bottomLeftx = topLeftx;
-	bottomLefty = y1+y0 - 1;
+	bottomLefty = y1+y0;
 
 	xa = (float)topLeftx/(float)vdp2width;
 	ya = (float)topLefty/(float)vdp2height;
