@@ -2224,20 +2224,22 @@ void VIDSoftGLESSetBilinear(int b)
 void VIDSoftGLESDeInit(void)
 {
 
-   if (dispbuffergles)
+   if (dispbuffergles != NULL)
    {
       free(dispbuffergles);
       dispbuffergles = NULL;
    }
 
-   if (vdp1framebuffer[0]) {
+   if (vdp1framebuffer[0] != NULL) {
       free(vdp1framebuffer[0]->fb);
       free(vdp1framebuffer[0]);
+      vdp1framebuffer[0] = NULL;
    }
 
-   if (vdp1framebuffer[1]) {
+   if (vdp1framebuffer[1] != NULL) {
       free(vdp1framebuffer[1]->fb);
       free(vdp1framebuffer[1]);
+      vdp1framebuffer[1] = NULL;
    }
 }
 

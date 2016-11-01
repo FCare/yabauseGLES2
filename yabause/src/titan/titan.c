@@ -478,15 +478,21 @@ int TitanDeInit()
    int i;
 
    for(i = 0;i < 6;i++) {
-      free(tt_context.vdp2framebuffer[i]);
-      free(tt_context.vdp2stencil[i]);
-      free(tt_context.vdp2priority[i]);
+      if (tt_context.vdp2framebuffer[i] != NULL) free(tt_context.vdp2framebuffer[i]);
+      if (tt_context.vdp2stencil[i] != NULL) free(tt_context.vdp2stencil[i]);
+      if (tt_context.vdp2priority[i] != NULL) free(tt_context.vdp2priority[i]);
+      tt_context.vdp2framebuffer[i] = NULL;
+      tt_context.vdp2stencil[i] = NULL;
+      tt_context.vdp2priority[i] = NULL;
    }
 
-   for(i = 1;i < 4;i++)
-      free(tt_context.linescreen[i]);
+   for(i = 1;i < 4;i++) {
+      if (tt_context.linescreen[i] != NULL) free(tt_context.linescreen[i]);
+      tt_context.linescreen[i] = NULL;
+   }
 
-   free(tt_context.backscreen);
+   if (tt_context.backscreen != NULL) free(tt_context.backscreen);
+   tt_context.backscreen = NULL;
 
    return 0;
 }

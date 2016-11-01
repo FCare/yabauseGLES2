@@ -9,6 +9,7 @@ Pattern* patternCache[0xFFFF];
 #define CACHE_LIFETIME 60;
 
 INLINE void deleteCachePattern(Pattern* pat) {
+	if (pat == NULL) return;
 	glDeleteTextures(1, &pat->tex);
 	free(pat);
 }
