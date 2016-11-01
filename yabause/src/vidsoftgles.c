@@ -3321,16 +3321,16 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 	yd = ya + (spriteHeight - 1);
 
         xa /= (float)vdp2width;
-        ya /= (float)vdp2width;
+        ya /= (float)vdp2height;
 
         xb /= (float)vdp2width;
-        yb /= (float)vdp2width;
+        yb /= (float)vdp2height;
 
         xc /= (float)vdp2width;
-        yc /= (float)vdp2width;
+        yc /= (float)vdp2height;
 
         xd /= (float)vdp2width;
-        yd /= (float)vdp2width;
+        yd /= (float)vdp2height;
 
         Pattern* pattern = NULL;
 
