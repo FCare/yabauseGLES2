@@ -3272,21 +3272,54 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
 			patternLine*=(characterWidth>>1);
-			pix[index] = Vdp1ReadPattern16(characterAddress + patternLine, patternRow , ram);
+			pix[index] = Vdp1ReadPattern16(characterAddress + patternLine, patternRow , ram) & 0xF;
 			if( endcodesEnabled && pix[index] == endcode) {
 				break;
 			}
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, (pix[index] * 2 + colorlut) & 0x7FFFF);
-				if (temp & 0x8000)
+				if (temp & 0x8000) {
                         		pix[index] = COLSAT2YAB16(0xFF,temp);
-				else
+				} else
 					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | 0xFF000000;
 			} else pix[index]  = 0;
 		    }
 	        }
             break;
-
+	    case 0x2://8bpp bank
+	        endcode = 0xff;
+                for (i=0; i<characterHeight ; i++) {
+		    for (j=0; j<characterWidth; j++ ){
+			int index = i*characterWidth+j;
+			int patternLine = (flip&0x2)?characterHeight-1-i:i;
+			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+			patternLine*=characterWidth;
+			pix[index] = Vdp1ReadPattern64(characterAddress + patternLine, patternRow , ram);
+			if(isTextured && endcodesEnabled && pix[index] == endcode)
+				break;
+			if ((pix[index]  != 0) || SPD) 
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0x3F), Vdp2ColorRam) | 0xFF000000;
+			else pix[index]  = 0;
+		    }
+	        }
+            break;
+	    case 0x4://256 color
+		endcode = 0xff;
+                for (i=0; i<characterHeight ; i++) {
+		    for (j=0; j<characterWidth; j++ ){
+			int index = i*characterWidth+j;
+			int patternLine = (flip&0x2)?characterHeight-1-i:i;
+			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+			patternLine*=characterWidth;
+			pix[index] = Vdp1ReadPattern256( characterAddress + patternLine, patternRow , ram);
+			if(isTextured && endcodesEnabled && pix[index] == endcode)
+				break;
+			if ((pix[index]  != 0) || SPD) 
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | 0xFF000000;
+			else pix[index]  = 0;
+		    }
+	        }
+	    break;
             default:
                 printf("color %d\n", color);
             break;
