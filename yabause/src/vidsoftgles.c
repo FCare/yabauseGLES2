@@ -3323,6 +3323,23 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 		    }
 	        }
 	    break;
+	    case 0x5://16bpp bank
+	    case 0x6://prohibited, used by (at least) Beach de Reach and seems to behave like 0x5
+		endcode = 0x7fff;			
+		for (i=0; i<characterHeight ; i++) {
+		    for (j=0; j<characterWidth; j++ ){
+			int index = i*characterWidth+j;
+			int patternLine = (flip&0x2)?characterHeight-1-i:i;
+			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+			patternLine*=characterWidth*2;
+			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram);
+			if(isTextured && endcodesEnabled && pix[index] == endcode)
+				break;
+			if (!(pix[index] & 0x8000) && !SPD)
+				pix[index]  = 0;
+		    }
+	        }
+	    break;
             default:
                 printf("color %d\n", color);
             break;
@@ -3489,12 +3506,12 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 	spriteWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
 	spriteHeight = cmd.CMDSIZE & 0xFF;
 
-	xb = xa + (spriteWidth - 1);
+	xb = xa + spriteWidth;
 	yb = ya;
-	xc = xa + (spriteWidth - 1);
-	yc = ya + (spriteHeight - 1);
+	xc = xa + spriteWidth;
+	yc = ya + spriteHeight;
 	xd = xa;
-	yd = ya + (spriteHeight - 1);
+	yd = ya + spriteHeight;
 
         xa /= (float)vdp2width;
         ya /= (float)vdp2height;
