@@ -89,6 +89,7 @@ static void VIDSoftGLESVdp1DrawEnd(void);
 static void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+static void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
 static void VIDSoftGLESVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
@@ -125,10 +126,12 @@ VIDSoftGLESVdp1DrawStart,
 VIDSoftGLESVdp1DrawEnd,
 #ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1NormalSpriteDraw,
+VIDSoftGLESVdp1ScaledSpriteDraw,
 #else
 VIDSoftGLESVdp1NormalSpriteDrawGL,
+VIDSoftGLESVdp1ScaledSpriteDrawGL,
 #endif
-VIDSoftGLESVdp1ScaledSpriteDraw,
+
 #ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1DistortedSpriteDraw,
 #else
@@ -3173,7 +3176,6 @@ void VIDSoftGLESVdp1ScaledSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer){
 
 	bottomLeftx = topLeftx;
 	bottomLefty = y1+y0 - 1;
-printf("Scaled sprite (%d,%d)-(%d,%d)-(%d,%d)-(%d,%d)\n", topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty);
    drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
 }
 
@@ -3299,6 +3301,145 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     addCachePattern(curPattern);
 
     return curPattern;
+}
+
+void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer){
+	s32 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
+        float xa,ya,xb,yb,xc,yc,xd,yd;
+	int x0,y0,x1,y1;
+   vdp1cmd_struct cmd;
+   Vdp1ReadCommand(&cmd, regs->addr, ram);
+
+	x0 = cmd.CMDXA + regs->localX;
+	y0 = cmd.CMDYA + regs->localY;
+
+	switch ((cmd.CMDCTRL >> 8) & 0xF)
+	{
+	case 0x0: // Only two coordinates
+	default:
+		x1 = ((int)cmd.CMDXC) - x0 + regs->localX + 1;
+		y1 = ((int)cmd.CMDYC) - y0 + regs->localY + 1;
+		break;
+	case 0x5: // Upper-left
+		x1 = ((int)cmd.CMDXB) + 1;
+		y1 = ((int)cmd.CMDYB) + 1;
+		break;
+	case 0x6: // Upper-Center
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		x0 = x0 - x1/2;
+		x1++;
+		y1++;
+		break;
+	case 0x7: // Upper-Right
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		x0 = x0 - x1;
+		x1++;
+		y1++;
+		break;
+	case 0x9: // Center-left
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		y0 = y0 - y1/2;
+		x1++;
+		y1++;
+		break;
+	case 0xA: // Center-center
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		x0 = x0 - x1/2;
+		y0 = y0 - y1/2;
+		x1++;
+		y1++;
+		break;
+	case 0xB: // Center-right
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		x0 = x0 - x1;
+		y0 = y0 - y1/2;
+		x1++;
+		y1++;
+		break;
+	case 0xD: // Lower-left
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		y0 = y0 - y1;
+		x1++;
+		y1++;
+		break;
+	case 0xE: // Lower-center
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		x0 = x0 - x1/2;
+		y0 = y0 - y1;
+		x1++;
+		y1++;
+		break;
+	case 0xF: // Lower-right
+		x1 = ((int)cmd.CMDXB);
+		y1 = ((int)cmd.CMDYB);
+		x0 = x0 - x1;
+		y0 = y0 - y1;
+		x1++;
+		y1++;
+		break;
+	}
+
+	topLeftx = x0;
+	topLefty = y0;
+
+	topRightx = x1+x0 - 1;
+	topRighty = topLefty;
+
+	bottomRightx = x1+x0 - 1;
+	bottomRighty = y1+y0 - 1;
+
+	bottomLeftx = topLeftx;
+	bottomLefty = y1+y0 - 1;
+
+	xa = (float)topLeftx/(float)vdp2width;
+	ya = (float)topLefty/(float)vdp2height;
+	xb = (float)topRightx/(float)vdp2width;
+	yb = (float)topRighty/(float)vdp2height;
+	xc = (float)bottomRightx/(float)vdp2width;
+	yc = (float)bottomRighty/(float)vdp2height;
+	xd = (float)bottomLeftx/(float)vdp2width;
+	yd = (float)bottomLefty/(float)vdp2height;
+printf("Scaled sprite (%d,%d)-(%d,%d)-(%d,%d)-(%d,%d)\n", topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty);
+
+	Pattern* pattern = NULL;
+
+    	pattern = getPattern(cmd, ram); 
+
+    	if (g_VertexSWBuffer == -1) 
+		glGenBuffers(1, &g_VertexSWBuffer);
+
+    	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
+			xb, yb, 1.0f , 0.0f, 1.0f,
+			xc, yc, 1.0f, 1.0f, 1.0f,
+			xd, yd, 0.0, 1.0f, 1.0f};
+
+	glUseProgram(programObject);
+
+    	glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
+
+    	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
+
+    	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+
+    	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
+    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+
+    	glActiveTexture ( GL_TEXTURE0 );
+    	glBindTexture(GL_TEXTURE_2D, pattern->tex);
+    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+
+    	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
