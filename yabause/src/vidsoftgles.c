@@ -87,18 +87,25 @@ static int VIDSoftGLESVdp1Reset(void);
 static void VIDSoftGLESVdp1DrawStart(void);
 static void VIDSoftGLESVdp1DrawEnd(void);
 static void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+
+static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
+static void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
+
 static void VIDSoftGLESVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1UserClipping(u8 * ram, Vdp1 * regs);
 static void VIDSoftGLESVdp1SystemClipping(u8 * ram, Vdp1 * regs);
 static void VIDSoftGLESVdp1LocalCoordinate(u8 * ram, Vdp1 * regs);
+#ifndef DO_NOT_RENDER_SW
 static void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out);
 static void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val);
+#else
+static void VIDSoftGLESVdp1ReadFrameBufferGL(u32 type, u32 addr, void * out);
+static void VIDSoftGLESVdp1WriteFrameBufferGL(u32 type, u32 addr, u32 val);
+#endif
 static int VIDSoftGLESVdp2Reset(void);
 static void VIDSoftGLESVdp2DrawStart(void);
 static void VIDSoftGLESVdp2DrawEnd(void);
@@ -151,8 +158,13 @@ VIDSoftGLESVdp1LineDraw,
 VIDSoftGLESVdp1UserClipping,
 VIDSoftGLESVdp1SystemClipping,
 VIDSoftGLESVdp1LocalCoordinate,
+#ifndef DO_NOT_RENDER_SW
 VIDSoftGLESVdp1ReadFrameBuffer,
 VIDSoftGLESVdp1WriteFrameBuffer,
+#else
+VIDSoftGLESVdp1ReadFrameBufferGL,
+VIDSoftGLESVdp1WriteFrameBufferGL,
+#endif
 VIDSoftGLESVdp2Reset,
 VIDSoftGLESVdp2DrawStart,
 VIDSoftGLESVdp2DrawEnd,
@@ -3739,6 +3751,8 @@ void VIDSoftGLESVdp1LocalCoordinate(u8* ram, Vdp1*regs)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+void VIDSoftGLESVdp1ReadFrameBufferGL(u32 type, u32 addr, void * out) {
+}
 
 void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
 {
@@ -3775,6 +3789,9 @@ void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+
+void VIDSoftGLESVdp1WriteFrameBufferGL(u32 type, u32 addr, u32 val)
+{ }
 
 void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
 {
