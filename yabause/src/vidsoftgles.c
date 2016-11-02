@@ -46,6 +46,7 @@
 #include <math.h>
 
 //#define DO_NOT_RENDER_SW
+#define IMPROVE_TRANSPARENCY
 
 #ifndef DO_NOT_RENDER_SW
 #define DEBUG_SW
@@ -3232,6 +3233,10 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int color = ((cmd.CMDPMOD >> 3) & 0x7);
     int mesh = cmd.CMDPMOD & 0x0100;
 
+#ifdef IMPROVE_TRANSPARENCY
+    mesh = 0; //Disable mesh transparency here
+#endif
+
     int colorCalc = cmd.CMDPMOD & 0x7 ;
     int endcodesEnabled = ((cmd.CMDPMOD & 0x80) == 0) ? 1 : 0;
     int isTextured = 1;
@@ -3241,7 +3246,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 
     int param0 = cmd.CMDSRCA << 16 | cmd.CMDCOLR;
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
-
 
     Pattern* curPattern = getCachePattern(param0, param1);
     if (curPattern != NULL) {
@@ -3510,7 +3514,14 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 			xd, yd, 0.0, 1.0f, 1.0f};
 
 	glUseProgram(programObject);
-
+#ifdef IMPROVE_TRANSPARENCY
+    //Replace the mesh effect by a pure transparency effect half/half
+    if (cmd.CMDPMOD & 0x0100) {
+	glBlendFunc(GL_CONSTANT_ALPHA, GL_CONSTANT_ALPHA);
+	glBlendColor(1.0f, 1.0f, 1.0f, 0.5f);
+	glEnable(GL_BLEND);
+    }
+#endif
     	glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 
     	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
@@ -3529,6 +3540,9 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
     	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
     	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+#ifdef IMPROVE_TRANSPARENCY
+    glDisable(GL_BLEND);
+#endif
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3575,7 +3589,14 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 			xd, yd, 0.0, 1.0f, 1.0f};
 
 	glUseProgram(programObject);
-
+#ifdef IMPROVE_TRANSPARENCY
+    //Replace the mesh effect by a pure transparency effect half/half
+    if (cmd.CMDPMOD & 0x0100) {
+	glBlendFunc(GL_CONSTANT_ALPHA, GL_CONSTANT_ALPHA);
+	glBlendColor(1.0f, 1.0f, 1.0f, 0.5f);
+	glEnable(GL_BLEND);
+    }
+#endif
     	glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 
     	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
@@ -3594,6 +3615,9 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
     	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
     	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+#ifdef IMPROVE_TRANSPARENCY
+    glDisable(GL_BLEND);
+#endif
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3654,6 +3678,15 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 
     glUseProgram(programObject);
 
+#ifdef IMPROVE_TRANSPARENCY
+    //Replace the mesh effect by a pure transparency effect half/half
+    if (cmd.CMDPMOD & 0x0100) {
+	glBlendFunc(GL_CONSTANT_ALPHA, GL_CONSTANT_ALPHA);
+	glBlendColor(1.0f, 1.0f, 1.0f, 0.5f);
+	glEnable(GL_BLEND);
+    }
+#endif
+
     glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
@@ -3673,6 +3706,9 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+#ifdef IMPROVE_TRANSPARENCY
+    glDisable(GL_BLEND);
+#endif
 
    // glDeleteTextures(1,&spriteTex);
    // glDeleteBuffers(1, &g_VertexSWBuffer);
