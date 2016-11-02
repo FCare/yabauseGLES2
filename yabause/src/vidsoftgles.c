@@ -2314,8 +2314,9 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
       vdp1height = 256;
       vdp1pixelsize = 2;
    }
-
+#ifndef DO_NOT_RENDER_SW
    VIDSoftGLESVdp1EraseFrameBuffer(regs, back_framebuffer);
+#endif
 
    //night warriors doesn't set clipping most frames and uses
    //the last part of the vdp1 framebuffer as scratch ram
