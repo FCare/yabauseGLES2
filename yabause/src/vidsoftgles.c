@@ -3268,8 +3268,8 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     			}
 			if (untexturedColor & 0x8000) { //isRGB code
 		    		if (colorCalc != 0) printf("On color calculation 0 is supported!\n");
-		    		pix[index] = COLSAT2YAB16(0x3F, untexturedColor);
 			}
+		    	pix[index] = COLSAT2YAB16(0x3F, untexturedColor);
 		}
 	}
     } else {
