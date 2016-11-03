@@ -3324,7 +3324,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, ((pix[index] & 0xF) * 2 + colorlut) & 0x7FFFF);
 				if (temp & 0x8000) {
-                        		pix[index] = COLSAT2YAB16(0xFF,temp);
+                        		pix[index] = COLSAT2YAB16(0x3F,temp);
 				} else
 					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | 0x3F000000;
 			} else pix[index]  = 0;
@@ -3385,8 +3385,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | 0x3F000000;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
-			if (!(pix[index] & 0x8000) && !SPD)
-				pix[index]  = 0;
+			if ((pix[index]  != 0) || SPD) 
+				pix[index]  = COLSAT2YAB16(0x3F,pix[index]);
+			else pix[index]  = 0;
 		    }
 	        }
 	    break;
