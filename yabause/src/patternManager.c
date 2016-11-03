@@ -6,7 +6,7 @@
 
 Pattern* patternCache[0xFFFF];
 
-#define CACHE_LIFETIME 60;
+#define CACHE_LIFETIME 10;
 
 INLINE void deleteCachePattern(Pattern* pat) {
 	if (pat == NULL) return;
@@ -48,27 +48,30 @@ INLINE void recycleCache() {
 	}
 }
 
-INLINE Pattern* getCachePattern(int param0, int param1) {
+INLINE Pattern* getCachePattern(int param0, int param1, int param2, int w, int h) {
   Pattern *pat = patternCache[getHash(param0, param1)];
-  if ((pat!= NULL) && (pat->param[0]==param0) && (pat->param[1]==param1)) {
+  if ((pat!= NULL) && (pat->param[0]==param0) && (pat->param[1]==param1) && (pat->param[2]==param2) && (pat->width == w) && (pat->height == h)) {
         pat->frameout = CACHE_LIFETIME;
   	return pat;
-  } else
+  } else {
 	return NULL;
+  }
 }
 int size = 0;
 
 INLINE void addCachePattern(Pattern* pat) {
 	Pattern *collider = patternCache[getHash(pat->param[0], pat->param[1])];
-	if (collider != NULL) deleteCachePattern(collider);
-
+	if (collider != NULL) {
+		deleteCachePattern(collider);
+	}
 	patternCache[getHash(pat->param[0], pat->param[1])] = pat;
 }
 
-INLINE Pattern* createCachePattern(int param0, int param1, int w, int h) {
+INLINE Pattern* createCachePattern(int param0, int param1, int param2, int w, int h) {
 	Pattern* new = malloc(sizeof(Pattern));
 	new->param[0] = param0;
 	new->param[1] = param1;
+	new->param[2] = param2;
         new->width = w;
 	new->height = h;
 	new->frameout = CACHE_LIFETIME;

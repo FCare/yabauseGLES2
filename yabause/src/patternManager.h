@@ -7,13 +7,13 @@ typedef struct sPattern {
 	unsigned int tex;
 	int width;
 	int height;
-	u32 param[2];
+	u32 param[3];
 	int frameout;
 } Pattern;
 
-Pattern* getCachePattern(int param1, int param2);
+Pattern* getCachePattern(int param0, int param1, int param2, int w, int h);
 void addCachePattern(Pattern* pat);
-Pattern* createCachePattern(int param0, int param1, int w, int h);
+Pattern* createCachePattern(int param0, int param1, int param2, int w, int h);
 void recycleCache();
 
 #endif

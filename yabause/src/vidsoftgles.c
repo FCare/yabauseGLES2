@@ -3246,8 +3246,15 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 
     int param0 = cmd.CMDSRCA << 16 | cmd.CMDCOLR;
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
+    int param2 = 0;
 
-    Pattern* curPattern = getCachePattern(param0, param1);
+    int probe = ((characterHeight*characterWidth/2)*2)/20;
+    for (i=0; i<probe; i+=2) {
+	param2 ^=  Vdp1ReadPattern16( characterAddress + characterHeight*i/probe*characterWidth, characterWidth*i/probe , ram) << 16 |
+		   Vdp1ReadPattern16( characterAddress + characterHeight*(i+1)/probe*characterWidth, characterWidth*(i+1)/probe , ram);
+    }
+
+    Pattern* curPattern = getCachePattern(param0, param1, param2, characterWidth, characterHeight);
     if (curPattern != NULL) {
   	return curPattern;
     }
@@ -3266,9 +3273,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 				pix[index]  = 0;
        				continue;
     			}
+#if 0
 			if (untexturedColor & 0x8000) { //isRGB code
-		    		if (colorCalc != 0) printf("On color calculation 0 is supported!\n");
-			}
+		    		if (colorCalc != 0) printf("Only color calculation 0 is supported!\n");
+			} //See in MegamanX
+#endif
 		    	pix[index] = COLSAT2YAB16(0x3F, untexturedColor);
 		}
 	}
@@ -3386,7 +3395,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             break;
         }
     }
-    curPattern = createCachePattern(param0, param1, characterWidth, characterHeight);
+    curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight);
     glGenTextures(1,&curPattern->tex);
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, curPattern->tex);
@@ -3901,7 +3910,7 @@ glEnable(GL_SCISSOR_TEST);
 glClearColor(0.0, 0.0, 0.0, 1.0);
 glClear(GL_COLOR_BUFFER_BIT);
 
-//recycleCache();
+recycleCache();
 
    if (Vdp2Regs->CCCTL & 0x100) titanblendmode = TITAN_BLEND_ADD;
    else if (Vdp2Regs->CCCTL & 0x200) titanblendmode = TITAN_BLEND_BOTTOM;
