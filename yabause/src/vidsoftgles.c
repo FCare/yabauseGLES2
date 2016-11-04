@@ -3248,7 +3248,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
     int param2 = 0;
 
-    int probe = ((characterHeight*characterWidth/2)*2)/20;
+    int probe = MIN(10,((characterHeight*characterWidth/2)*2));
     for (i=0; i<probe; i+=2) {
 	param2 ^=  Vdp1ReadPattern16( characterAddress + characterHeight*i/probe*characterWidth, characterWidth*i/probe , ram) << 16 |
 		   Vdp1ReadPattern16( characterAddress + characterHeight*(i+1)/probe*characterWidth, characterWidth*(i+1)/probe , ram);
