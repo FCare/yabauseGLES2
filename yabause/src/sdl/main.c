@@ -288,9 +288,6 @@ void YuiDrawSoftwareBuffer() {
     
     glUseProgram(programObject);
 
-//    glClearColor( 0.0f,0.0f,0.0f,1.0f);
-//    glClear(GL_COLOR_BUFFER_BIT);
-
     if( g_FrameBuffer == 0 )
     {
        glGenTextures(1,&g_FrameBuffer);
@@ -431,6 +428,9 @@ void SDLInit(void) {
 	}
 
 	rdr = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+        glClearColor( 0.0f,0.0f,0.0f,1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 }
 
 ///
