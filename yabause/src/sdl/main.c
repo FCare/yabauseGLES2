@@ -263,18 +263,6 @@ void DrawDevFBO() {
 
    if( buf_width != fbo_buf_width ||  buf_height != fbo_buf_height )
    {
-       devVertices[2] = 1.0f - (float)buf_width/704.0f;
-       devVertices[3] = 1.0f - (float)buf_height/512.0f;
-
-       devVertices[6] = 1.0f;
-       devVertices[7] = 1.0f - (float)buf_height/512.0f;
-
-       devVertices[10] = 1.0f;
-       devVertices[11] = 1.0f;
-
-       devVertices[14] = 1.0f - (float)buf_width/704.0f;
-       devVertices[15] = 1.0f;
-
        fbo_buf_width = buf_width;
        fbo_buf_height = buf_height;
     }

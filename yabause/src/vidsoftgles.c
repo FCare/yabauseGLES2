@@ -2214,11 +2214,11 @@ int VIDSoftGLESInit(void)
    if ((vdp1framebuffer[1]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       return -1;
 
-   gles20_createFBO(&vdp1framebuffer[0]->fbo, 704, 512);
-   gles20_createFBO(&vdp1framebuffer[1]->fbo, 704, 512);
+   gles20_createFBO(&vdp1framebuffer[0]->fbo, 1024, 512);
+   gles20_createFBO(&vdp1framebuffer[1]->fbo, 1024, 512);
 
-   gles20_createFBO(&vdp1framebuffer[0]->priority, 704, 512);
-   gles20_createFBO(&vdp1framebuffer[1]->priority, 704, 512);
+   gles20_createFBO(&vdp1framebuffer[0]->priority, 1024, 512);
+   gles20_createFBO(&vdp1framebuffer[1]->priority, 1024, 512);
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
@@ -3721,7 +3721,7 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 TitanSetVdp2Priority(2, TITAN_SPRITE); //A faire egalement dans une texture...
 
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-glViewport(0,0,704, 512);
+glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 #if 0
@@ -3921,9 +3921,7 @@ void VIDSoftGLESVdp2DrawStart(void)
    int titanblendmode = TITAN_BLEND_TOP;
 
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-glViewport(0,0,704, 512);
-//glScissor(704 - vdp2width, 512 - vdp2height, vdp2width, vdp2height); //Shall take care of system and user clipping
-//glEnable(GL_SCISSOR_TEST);
+glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
 glClear(GL_COLOR_BUFFER_BIT);
 
@@ -4309,7 +4307,7 @@ void VIDSoftGLESVdp2DrawEnd(void)
    TitanRender(dispbuffergles);
 #else
    TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
-   TitanRenderFBO(fbo.fb);
+   TitanRenderFBO(&fbo);
 #endif
    VIDSoftGLESVdp1SwapFrameBuffer();
 

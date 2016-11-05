@@ -797,16 +797,16 @@ static int back_tex = -1;
 static int sprite_tex = -1;
 static int stencil_tex = -1;
 
-void TitanRenderFBO(int fbo) {
+void TitanRenderFBO(gl_fbo *fbo) {
 
    int width = tt_context.vdp2width;
    int height = tt_context.vdp2height;
 
    if (tt_context.vdp2fbo[TITAN_SPRITE] != -1) {
-	swVertices[4] = (704.0f - (float)width)/704.0f;
-	swVertices[5] = (512.0f - (float)height)/512.0f;
-	swVertices[11] = (512.0f - (float)height)/512.0f;
-	swVertices[22] = (704.0f - (float)width)/704.0f;
+	swVertices[4] = (fbo->width - (float)width)/fbo->width;
+	swVertices[5] = (fbo->height - (float)height)/fbo->height;
+	swVertices[11] = (fbo->height - (float)height)/fbo->height;
+	swVertices[22] = (fbo->width - (float)width)/fbo->width;
    }
 
    int x, y, i, layer, j;
@@ -826,8 +826,8 @@ void TitanRenderFBO(int fbo) {
    tt_context.layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    tt_context.layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-   glViewport(0,0,704, 512);
+   glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
+   glViewport(0,0,fbo->width, fbo->height);
    glClearColor(0.0, 0.0, 0.0, 0.0);
    glClear(GL_COLOR_BUFFER_BIT);
 

@@ -11,8 +11,8 @@ typedef struct fbo_s {
     int fb;
     int tex;
     int stencil;
-    int width;
-    int height;
+    float width;
+    float height;
 } gl_fbo;
 
 
