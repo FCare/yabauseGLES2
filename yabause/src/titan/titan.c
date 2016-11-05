@@ -958,8 +958,6 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	}
    }
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-glViewport(0,0,800, 600);
 }
 
 void TitanRender(pixel_t * dispbuffer)

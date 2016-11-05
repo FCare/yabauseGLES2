@@ -60,6 +60,9 @@
 #include "../cdbase.h"
 #include "../peripheral.h"
 
+#define WINDOW_WIDTH 600
+#define WINDOW_HEIGHT 600
+
 M68K_struct * M68KCoreList[] = {
 &M68KDummy,
 #ifdef HAVE_MUSASHI
@@ -333,6 +336,24 @@ void YuiSwapBuffers(void) {
    if( window == NULL ){
       return;
    }
+   int buf_width, buf_height;
+   int glWidth, glHeight;
+   VIDCore->GetGlSize(&buf_width, &buf_height);
+
+   float ar = (float)buf_width/(float)buf_height;
+   float dar = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
+
+   if (ar <= dar) {
+     glHeight = WINDOW_HEIGHT;
+     glWidth = ar * glHeight;
+   } else {
+     glWidth = WINDOW_WIDTH;
+     glHeight = glWidth/ar;
+   }
+
+   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glViewport((WINDOW_WIDTH-glWidth)/2,(WINDOW_HEIGHT-glHeight)/2,glWidth, glHeight);
+
 #ifdef HAVE_LIBGLES
    if(VIDCore->getFramebuffer() != NULL){
        YuiDrawSoftwareBuffer();
@@ -397,7 +418,7 @@ void SDLInit(void) {
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 
-	window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL);
+	window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
 	if (!window) {
     		fprintf(stderr, "Couldn't create window: %s\n", SDL_GetError());
     		return;
