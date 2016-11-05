@@ -39,12 +39,14 @@ static GLuint g_VertexSWBuffer = 0;
 static GLuint programObject  = 0;
 static GLuint positionLoc    = 0;
 static GLuint texCoordLoc    = 0;
+static GLuint stexCoordLoc   = 0;
 static GLuint samplerLoc     = 0;
 static GLuint backLoc        = 0;
 
 static GLuint programGeneralPriority = 0;
 static GLuint posGPrioLoc = 0;
 static GLuint tCoordGPrioLoc = 0;
+static GLuint sCoordGPrioLoc = 0;
 static GLuint spriteLoc = 0;
 static GLuint layerLoc = 0;
 static GLuint prioLoc = 0;
@@ -64,6 +66,7 @@ static struct TitanContext {
    PixelData * vdp2framebuffer[6];
    struct StencilData * vdp2stencil[6];
    u8 *vdp2priority[6];
+   int vdp2fbo[6];
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
@@ -124,6 +127,14 @@ static INLINE u8 TitanGetBlue(u32 pixel) { return pixel & 0xFF; }
 static INLINE u32 TitanCreatePixel(u8 alpha, u8 red, u8 green, u8 blue) { return (alpha << 24) | (red << 16) | (green << 8) | blue; }
 #endif
 
+
+void TitanSetVdp2Fbo(int fb, int nb){
+	tt_context.vdp2fbo[nb] = fb;
+}
+
+void TitanSetVdp2Priority(u8 prio, int nb) {
+	memset(tt_context.vdp2priority[nb], prio, 704 * 256);
+}
 
 void set_layer_y(const int start_line, int * layer_y)
 {
@@ -416,6 +427,7 @@ int TitanInit()
 	    return -1;
          if ((tt_context.vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 256)) == NULL)
 	    return -1;
+	 tt_context.vdp2fbo[i] = -1;
       }
 
       /* linescreen 0 is not initialized as it's not used... */
@@ -679,20 +691,24 @@ void createGLPrograms(void) {
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
       "attribute vec2 a_texCoord;   \n"
+      "attribute vec2 b_texCoord;   \n"
       "varying vec2 v_texCoord;     \n"
+      "varying vec2 s_texCoord;     \n"
       "void main()                  \n"
       "{                            \n"
       "   gl_Position = a_position; \n"
       "   v_texCoord = a_texCoord;  \n"
+      "   s_texCoord = b_texCoord;  \n"
       "}                            \n";
 
    GLbyte fShaderStr[] =
       "varying vec2 v_texCoord;                            \n"
+      "varying vec2 s_texCoord;                            \n"
       "uniform sampler2D s_texture;                        \n"
       "uniform sampler2D b_texture;                        \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  vec4 sprite = texture2D( s_texture, v_texCoord );\n"
+      "  vec4 sprite = texture2D( s_texture, s_texCoord );\n"
       "  vec4 back = texture2D( b_texture, v_texCoord );\n"
       "  if (sprite.a >= (1.0/255.0)) { \n"
       "      gl_FragColor = sprite;\n"
@@ -702,15 +718,19 @@ void createGLPrograms(void) {
    GLbyte vShaderGPrioStr[] =
       "attribute vec4 a_position;   \n"
       "attribute vec2 a_texCoord;   \n"
+      "attribute vec2 b_texCoord;   \n"
       "varying vec2 v_texCoord;     \n"
+      "varying vec2 s_texCoord;     \n"
       "void main()                  \n"
       "{                            \n"
       "   gl_Position = a_position; \n"
       "   v_texCoord = a_texCoord;  \n"
+      "   s_texCoord = b_texCoord;  \n"
       "}                            \n";
 
    GLbyte fShaderGPrioStr[] =
       "varying vec2 v_texCoord;                            \n"
+      "varying vec2 s_texCoord;                            \n"
       "uniform sampler2D sprite;                        \n"
       "uniform sampler2D layer;                        \n"
       "uniform sampler2D priority;                        \n"
@@ -718,7 +738,7 @@ void createGLPrograms(void) {
       "void main()                                         \n"
       "{                                                   \n"
       "  vec4 prio = texture2D( priority, v_texCoord );\n"  
-      "  vec4 spritepix = texture2D( sprite, v_texCoord );\n"
+      "  vec4 spritepix = texture2D( sprite, s_texCoord );\n"
       "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
       "  if ((prio.a*255.0 + 0.5) >= layerpriority) {\n"
       "        if (spritepix.a >= (1.0/255.0))\n"
@@ -743,6 +763,7 @@ void createGLPrograms(void) {
    // Get the attribute locations
    positionLoc = glGetAttribLocation ( programObject, "a_position" );
    texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
+   stexCoordLoc = glGetAttribLocation ( programObject, "b_texCoord" );
 
    // Get the sampler location
    samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
@@ -757,6 +778,7 @@ void createGLPrograms(void) {
 
    posGPrioLoc = glGetAttribLocation( programGeneralPriority, "a_position");
    tCoordGPrioLoc = glGetAttribLocation( programGeneralPriority, "a_texCoord");
+   sCoordGPrioLoc = glGetAttribLocation ( programGeneralPriority, "b_texCoord" );
    spriteLoc = glGetUniformLocation( programGeneralPriority, "sprite");
    layerLoc = glGetUniformLocation( programGeneralPriority, "layer");
    prioLoc = glGetUniformLocation( programGeneralPriority, "priority");
@@ -764,10 +786,10 @@ void createGLPrograms(void) {
 }
 
 static float swVertices [] = {
-   -1.0f, -1.0f, 0, 0,
-   1.0f, -1.0f, 1.0f, 0,
-   1.0f, 1.0f, 1.0f, 1.0f,
-   -1.0f,1.0f, 0, 1.0f
+   -1.0f, -1.0f, 0, 0, 0, 0,
+   1.0f, -1.0f, 1.0f, 0, 1.0f, 0,
+   1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+   -1.0f,1.0f, 0, 1.0f, 0, 1.0f,
 };
 
 static int layer_tex = -1;
@@ -779,6 +801,13 @@ void TitanRenderFBO(int fbo) {
 
    int width = tt_context.vdp2width;
    int height = tt_context.vdp2height;
+
+   if (tt_context.vdp2fbo[TITAN_SPRITE] != -1) {
+	swVertices[4] = (704.0f - (float)width)/704.0f;
+	swVertices[5] = (512.0f - (float)height)/512.0f;
+	swVertices[11] = (512.0f - (float)height)/512.0f;
+	swVertices[22] = (704.0f - (float)width)/704.0f;
+   }
 
    int x, y, i, layer, j;
    int sorted_layers[8] = { 0 };
@@ -875,25 +904,35 @@ void TitanRenderFBO(int fbo) {
 	    glBindTexture(GL_TEXTURE_2D, back_tex);
 	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,1,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.backscreen);
 	    glActiveTexture(GL_TEXTURE1);
-	    glBindTexture(GL_TEXTURE_2D, sprite_tex);
-	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
+	    if (tt_context.vdp2fbo[TITAN_SPRITE] == -1) {
+		    glBindTexture(GL_TEXTURE_2D, sprite_tex);
+		    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
+	    } else {
+		   glBindTexture(GL_TEXTURE_2D, tt_context.vdp2fbo[TITAN_SPRITE]);
+	    }
 	    glUseProgram(programObject);
 	    glUniform1i(backLoc, 0);
 	    glUniform1i(samplerLoc, 1);
 	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
-	    glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
-	    glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+	    glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), 0 );
+	    glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+	    glVertexAttribPointer ( stexCoordLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*4) );
 	    glEnableVertexAttribArray ( positionLoc );
 	    glEnableVertexAttribArray ( texCoordLoc );
+	    glEnableVertexAttribArray ( stexCoordLoc );
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         } else {
 	    glActiveTexture(GL_TEXTURE0);
 	    glBindTexture(GL_TEXTURE_2D, layer_tex);
 	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[bg_layer]);
 	    glActiveTexture(GL_TEXTURE1);
-	    glBindTexture(GL_TEXTURE_2D, sprite_tex);
-	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
+	    if (tt_context.vdp2fbo[TITAN_SPRITE] == -1) {
+	    	glBindTexture(GL_TEXTURE_2D, sprite_tex);
+	    	glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
+	    } else {
+		glBindTexture(GL_TEXTURE_2D, tt_context.vdp2fbo[TITAN_SPRITE]);
+	    }
 	    glActiveTexture(GL_TEXTURE2);
 	    glBindTexture(GL_TEXTURE_2D, stencil_tex);
 	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_ALPHA,GL_UNSIGNED_BYTE,tt_context.vdp2priority[TITAN_SPRITE]);
@@ -904,10 +943,12 @@ void TitanRenderFBO(int fbo) {
 	    glUniform1f(refPrioLoc, (float)(tt_context.layer_priority[bg_layer]));
 	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
-	    glVertexAttribPointer ( posGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
-	    glVertexAttribPointer ( tCoordGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+	    glVertexAttribPointer ( posGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), 0 );
+	    glVertexAttribPointer ( tCoordGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+	    glVertexAttribPointer ( sCoordGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*4) );
 	    glEnableVertexAttribArray ( posGPrioLoc );
 	    glEnableVertexAttribArray ( tCoordGPrioLoc );
+	    glEnableVertexAttribArray ( sCoordGPrioLoc );
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	}
    }
