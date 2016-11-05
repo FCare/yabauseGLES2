@@ -118,6 +118,9 @@ int gles20_createFBO(gl_fbo* fbo, int w, int h)
 {
    GLenum status;
 
+   fbo->width = w;
+   fbo->height = h;
+
    glGenTextures(1, &fbo->tex);
    glBindTexture(GL_TEXTURE_2D, fbo->tex);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
