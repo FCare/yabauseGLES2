@@ -67,6 +67,7 @@ static struct TitanContext {
    struct StencilData * vdp2stencil[6];
    u8 *vdp2priority[6];
    int vdp2fbo[6];
+   int vdp2prio[6];
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
@@ -132,8 +133,8 @@ void TitanSetVdp2Fbo(int fb, int nb){
 	tt_context.vdp2fbo[nb] = fb;
 }
 
-void TitanSetVdp2Priority(u8 prio, int nb) {
-	memset(tt_context.vdp2priority[nb], prio, 704 * 256);
+void TitanSetVdp2Priority(int fb, int nb) {
+	tt_context.vdp2prio[nb] = fb;
 }
 
 void set_layer_y(const int start_line, int * layer_y)
@@ -428,6 +429,7 @@ int TitanInit()
          if ((tt_context.vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 256)) == NULL)
 	    return -1;
 	 tt_context.vdp2fbo[i] = -1;
+         tt_context.vdp2prio[i] = -1;
       }
 
       /* linescreen 0 is not initialized as it's not used... */
@@ -737,7 +739,7 @@ void createGLPrograms(void) {
       "uniform float layerpriority;                        \n"
       "void main()                                         \n"
       "{                                                   \n"
-      "  vec4 prio = texture2D( priority, v_texCoord );\n"  
+      "  vec4 prio = texture2D( priority, s_texCoord );\n"  
       "  vec4 spritepix = texture2D( sprite, s_texCoord );\n"
       "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
       "  if ((prio.a*255.0 + 0.5) >= layerpriority) {\n"
@@ -934,8 +936,12 @@ void TitanRenderFBO(gl_fbo *fbo) {
 		glBindTexture(GL_TEXTURE_2D, tt_context.vdp2fbo[TITAN_SPRITE]);
 	    }
 	    glActiveTexture(GL_TEXTURE2);
-	    glBindTexture(GL_TEXTURE_2D, stencil_tex);
-	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_ALPHA,GL_UNSIGNED_BYTE,tt_context.vdp2priority[TITAN_SPRITE]);
+	    if (tt_context.vdp2prio[TITAN_SPRITE] == -1) {
+	    	glBindTexture(GL_TEXTURE_2D, stencil_tex);
+	    	glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_ALPHA,GL_UNSIGNED_BYTE,tt_context.vdp2priority[TITAN_SPRITE]);
+            } else {
+		glBindTexture(GL_TEXTURE_2D, tt_context.vdp2prio[TITAN_SPRITE]);
+	    }
 	    glUseProgram(programGeneralPriority);
 	    glUniform1i(layerLoc, 0);
 	    glUniform1i(spriteLoc, 1);

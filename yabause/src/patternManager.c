@@ -26,6 +26,7 @@ INLINE u16 getHash(int param0, int param1) {
 	c[5] = (param1 >> 8) & 0xFF;
 	c[6] = (param1 >> 16) & 0xFF;
 	c[7] = (param1 >> 24) & 0xFF;
+
 	for (i = 0; i<7; i++) {
 		hash = hash ^ c[i];
 	}

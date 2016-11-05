@@ -100,13 +100,10 @@ static void VIDSoftGLESVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer)
 static void VIDSoftGLESVdp1UserClipping(u8 * ram, Vdp1 * regs);
 static void VIDSoftGLESVdp1SystemClipping(u8 * ram, Vdp1 * regs);
 static void VIDSoftGLESVdp1LocalCoordinate(u8 * ram, Vdp1 * regs);
-#ifndef DO_NOT_RENDER_SW
 static void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out);
 static void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val);
-#else
 static void VIDSoftGLESVdp1ReadFrameBufferGL(u32 type, u32 addr, void * out);
 static void VIDSoftGLESVdp1WriteFrameBufferGL(u32 type, u32 addr, u32 val);
-#endif
 static int VIDSoftGLESVdp2Reset(void);
 static void VIDSoftGLESVdp2DrawStart(void);
 static void VIDSoftGLESVdp2DrawEnd(void);
@@ -2132,6 +2129,12 @@ static GLint positionLoc    = 0;
 static GLint texCoordLoc    = 0;
 static GLint samplerLoc     = 0;
 
+static GLint priorityProgram = 0;
+static GLint prioPositionLoc = 0;
+static GLint prioTexCoordLoc = 0;
+static GLint prioSamplerLoc  = 0;
+static GLint prioValueLoc = 0;
+
 static GLfloat swVertices [] = {
    -1.0f, 1.0f, 0, 0, 1.0f,
    1.0f, 1.0f, 1.0f, 0, 1.0f,
@@ -2195,10 +2198,45 @@ int VIDSoftGLESInit(void)
    // Get the sampler location
    samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
 
+   GLbyte vShaderPriorityStr[] =
+      "attribute vec4 a_position;   \n"
+      "attribute vec3 a_texCoord;   \n"
+      "varying vec3 v_texCoord;     \n"
+      "void main()                  \n"
+      "{                            \n"
+      "   gl_Position = a_position; \n"
+      "   v_texCoord = a_texCoord;  \n"
+      "}                            \n";
+
+   GLbyte fShaderPriorityStr[] =
+      "uniform float u_priority;     \n"
+      "varying vec3 v_texCoord;                            \n"
+      "uniform sampler2D s_texture;                        \n"
+      "void main()                                         \n"
+      "{                                                   \n"
+      "  vec4 color = texture2D( s_texture, v_texCoord.xy/v_texCoord.z);\n"  
+      "  if (color.a < 0.1) discard;\n" 
+      "  gl_FragColor.a = u_priority;\n"
+      "}                                                   \n";
+
+   priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
+
+   if ( priorityProgram == 0 ){
+      fprintf (stderr,"Can not create a program\n");
+      return 0;
+   }
+
+   // Get the attribute locations
+   prioPositionLoc = glGetAttribLocation ( priorityProgram, "a_position" );
+   prioTexCoordLoc = glGetAttribLocation ( priorityProgram, "a_texCoord" );
+   // Get the sampler location
+   prioSamplerLoc = glGetUniformLocation ( programObject, "s_texture" );
+   prioValueLoc = glGetUniformLocation ( priorityProgram, "u_priority" );
+
    if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
       return -1;
  
-   gles20_createFBO(&fbo, 704, 512);
+   gles20_createFBO(&fbo, 704, 512, 0);
 
    // Initialize VDP1 framebuffer 1
    if ((vdp1framebuffer[0] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
@@ -2214,11 +2252,11 @@ int VIDSoftGLESInit(void)
    if ((vdp1framebuffer[1]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       return -1;
 
-   gles20_createFBO(&vdp1framebuffer[0]->fbo, 1024, 512);
-   gles20_createFBO(&vdp1framebuffer[1]->fbo, 1024, 512);
+   gles20_createFBO(&vdp1framebuffer[0]->fbo, 1024, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[1]->fbo, 1024, 512, 0);
 
-   gles20_createFBO(&vdp1framebuffer[0]->priority, 1024, 512);
-   gles20_createFBO(&vdp1framebuffer[1]->priority, 1024, 512);
+   gles20_createFBO(&vdp1framebuffer[0]->priority, 1024, 512, 1);
+   gles20_createFBO(&vdp1framebuffer[1]->priority, 1024, 512, 1);
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
@@ -3371,7 +3409,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			pix[index] = Vdp1ReadPattern256( characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
-			if ((pix[index]  != 0) || SPD) 
+			if ((pix[index] != 0) || SPD) 
 				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | 0x3F000000;
 			else pix[index]  = 0;
 		    }
@@ -3389,7 +3427,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | 0x3F000000;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
-			if ((pix[index]  != 0) || SPD) 
+			if ((pix[index] != 0) || SPD) 
 				pix[index]  = COLSAT2YAB16(0x3F,pix[index]);
 			else pix[index]  = 0;
 		    }
@@ -3416,6 +3454,7 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
         float xa,ya,xb,yb,xc,yc,xd,yd;
 	int x0,y0,x1,y1;
    vdp1cmd_struct cmd;
+
    Vdp1ReadCommand(&cmd, regs->addr, ram);
 
 	x0 = cmd.CMDXA + regs->localX;
@@ -3557,6 +3596,24 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 #ifdef IMPROVE_TRANSPARENCY
     glDisable(GL_BLEND);
 #endif
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
+
+    glUseProgram(priorityProgram);
+
+
+    if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+
+    if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
+    if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+
+    glUniform1f(prioValueLoc, (float)(Vdp2Regs->PRISA & 0x7)/255.0f);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3564,6 +3621,7 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 	int spriteWidth;
 	int spriteHeight;
         vdp1cmd_struct cmd;
+
 	Vdp1ReadCommand(&cmd, regs->addr, ram);
 
 	xa = cmd.CMDXA + regs->localX;
@@ -3632,6 +3690,25 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 #ifdef IMPROVE_TRANSPARENCY
     glDisable(GL_BLEND);
 #endif
+
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
+
+    glUseProgram(priorityProgram);
+
+
+    if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+
+    if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
+    if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+
+    glUniform1f(prioValueLoc, (float)(Vdp2Regs->PRISA & 0x7)/255.0f);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3718,23 +3795,34 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-TitanSetVdp2Priority(2, TITAN_SPRITE); //A faire egalement dans une texture...
 
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
 glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#if 0
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
 
-    glUseProgram(priorityProgram);
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#endif
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
 #ifdef IMPROVE_TRANSPARENCY
     glDisable(GL_BLEND);
 #endif
+
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
+
+    glUseProgram(priorityProgram);
+
+
+    if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+
+    if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
+    if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+
+    glUniform1f(prioValueLoc, (float)(Vdp2Regs->PRISA & 0x7)/255.0f);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 
    // glDeleteTextures(1,&spriteTex);
    // glDeleteBuffers(1, &g_VertexSWBuffer);
@@ -3761,7 +3849,6 @@ void VIDSoftGLESVdp1PolylineDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer)
 	double redstep = 0, greenstep = 0, bluestep = 0;
 	int length;
    vdp1cmd_struct cmd;
-
    Vdp1ReadCommand(&cmd, regs->addr, ram);
 
 	X[0] = (int)regs->localX + (int)((s16)T1ReadWord(ram, regs->addr + 0x0C));
@@ -3920,6 +4007,10 @@ void VIDSoftGLESVdp2DrawStart(void)
 {
    int titanblendmode = TITAN_BLEND_TOP;
 
+glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
+glClearColor(0.0, 0.0, 0.0, 0.0);
+glClear(GL_COLOR_BUFFER_BIT);
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
 glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -4053,7 +4144,6 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
          {
 
             info.titan_shadow_type = 0;
-
             // See if screen position is clipped, if it isn't, continue
             if (!(vdp2_regs->SPCTL & 0x10))
             {
@@ -4093,12 +4183,10 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
                else
                   x = i;
             }
-
             if (vdp1pixelsize == 2)
             {
                // 16-bit pixel size
                pixel = ((u16 *)vdp1_front_framebuffer)[(y * vdp1width) + x];
-
                if (pixel == 0)
                   ;
                else if (pixel & 0x8000 && colormode)
@@ -4140,6 +4228,7 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
                   // is disabled/sprite type 2-7. sprite types 0 and 1 are
                   // -always- drawn and sprite types 8-F are always
                   // transparent.
+
                   if (pixel != 0x8000 || vdp1spritetype < 2 || (vdp1spritetype < 8 && !(vdp2_regs->SPCTL & 0x10)))
                      TitanPutPixel(prioritytable[0], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB16(alpha, pixel)), info.linescreen, &info);
                }
@@ -4307,6 +4396,7 @@ void VIDSoftGLESVdp2DrawEnd(void)
    TitanRender(dispbuffergles);
 #else
    TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
+   TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
    TitanRenderFBO(&fbo);
 #endif
    VIDSoftGLESVdp1SwapFrameBuffer();
@@ -4378,9 +4468,9 @@ static void VIDSoftGLESVdp2DrawScreens(void)
    screenRenderThread(Vdp2DrawNBG2, 2);
    screenRenderThread(Vdp2DrawNBG3, 3);
    screenRenderThread(Vdp2DrawRBG0, 4);
-
+#ifndef DO_NOT_RENDER_SW
    VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
-
+#endif
    screenRenderWait(0);
    screenRenderWait(1);
    screenRenderWait(2);

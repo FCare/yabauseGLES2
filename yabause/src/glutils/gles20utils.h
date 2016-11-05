@@ -16,7 +16,7 @@ typedef struct fbo_s {
 } gl_fbo;
 
 
-extern int gles20_createFBO(gl_fbo* fbo, int w, int h);
+extern int gles20_createFBO(gl_fbo* fbo, int w, int h, int format);
 extern int gles20_createProgram(GLbyte* vShader, GLbyte* fShader);
 
 #endif

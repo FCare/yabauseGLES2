@@ -114,7 +114,7 @@ int gles20_createProgram(GLbyte* vShader, GLbyte* fShader) {
 
 }
 
-int gles20_createFBO(gl_fbo* fbo, int w, int h)
+int gles20_createFBO(gl_fbo* fbo, int w, int h, int format)
 {
    GLenum status;
 
@@ -127,8 +127,17 @@ int gles20_createFBO(gl_fbo* fbo, int w, int h)
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-
+   switch (format) {
+	case 0:
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	break;
+	case 1:
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
+	break;
+	default:
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	break;
+   }
 
    glGenRenderbuffers(1, &fbo->stencil);
    glBindRenderbuffer(GL_RENDERBUFFER, fbo->stencil);
