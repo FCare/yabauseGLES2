@@ -71,6 +71,8 @@ static struct TitanContext {
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
+   int glwidth;
+   int glheight;
    TitanBlendFunc blend;
    TitanTransFunc trans;
    PixelData * backscreen;
@@ -431,6 +433,9 @@ int TitanInit()
 	 tt_context.vdp2fbo[i] = -1;
          tt_context.vdp2prio[i] = -1;
       }
+
+      tt_context.glwidth = 0;
+      tt_context.glheight= 0;
 
       /* linescreen 0 is not initialized as it's not used... */
       for(i = 1;i < 4;i++)
@@ -803,6 +808,17 @@ void TitanRenderFBO(gl_fbo *fbo) {
 
    int width = tt_context.vdp2width;
    int height = tt_context.vdp2height;
+   int error;
+
+   if ((tt_context.glwidth != tt_context.vdp2width) || (tt_context.glheight != tt_context.vdp2height)) {
+       tt_context.glwidth = tt_context.vdp2width;
+       tt_context.glheight = tt_context.vdp2height;
+       if (back_tex == -1) glDeleteTextures(1,&back_tex);
+       if (layer_tex == -1) glDeleteTextures(1,&layer_tex);
+       if (sprite_tex == -1) glDeleteTextures(1,&sprite_tex);
+       if (stencil_tex == -1) glDeleteTextures(1,&stencil_tex);
+       back_tex = layer_tex = sprite_tex = stencil_tex = -1;
+   }
 
    if (tt_context.vdp2fbo[TITAN_SPRITE] != -1) {
 	swVertices[4] = (fbo->width - (float)width)/fbo->width;
@@ -835,7 +851,6 @@ void TitanRenderFBO(gl_fbo *fbo) {
 
    if (back_tex == -1) {
 	glGenTextures(1, &back_tex);
-	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, back_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -847,7 +862,6 @@ void TitanRenderFBO(gl_fbo *fbo) {
 
    if (sprite_tex == -1) {
 	glGenTextures(1, &sprite_tex);
-	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, sprite_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -859,7 +873,6 @@ void TitanRenderFBO(gl_fbo *fbo) {
 
    if (layer_tex == -1) {
 	glGenTextures(1, &layer_tex);
-	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, layer_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
