@@ -3275,6 +3275,8 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int color = ((cmd.CMDPMOD >> 3) & 0x7);
     int mesh = cmd.CMDPMOD & 0x0100;
 
+    if ((characterWidth == 0) || (characterHeight == 0)) return NULL;
+
 #ifdef IMPROVE_TRANSPARENCY
     mesh = 0; //Disable mesh transparency here
 #endif
@@ -3455,7 +3457,12 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	int x0,y0,x1,y1;
    vdp1cmd_struct cmd;
 
+	Pattern* pattern = NULL;
+
    Vdp1ReadCommand(&cmd, regs->addr, ram);
+
+    	pattern = getPattern(cmd, ram);
+	if (pattern == NULL) return;
 
 	x0 = cmd.CMDXA + regs->localX;
 	y0 = cmd.CMDYA + regs->localY;
@@ -3554,10 +3561,6 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	xd = (float)bottomLeftx/(float)vdp2width;
 	yd = (float)bottomLefty/(float)vdp2height;
 
-	Pattern* pattern = NULL;
-
-    	pattern = getPattern(cmd, ram); 
-
     	if (g_VertexSWBuffer == -1) 
 		glGenBuffers(1, &g_VertexSWBuffer);
 
@@ -3622,7 +3625,12 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 	int spriteHeight;
         vdp1cmd_struct cmd;
 
+        Pattern* pattern = NULL;
+
 	Vdp1ReadCommand(&cmd, regs->addr, ram);
+
+    	pattern = getPattern(cmd, ram); 
+	if(pattern == NULL) return;
 
 	xa = cmd.CMDXA + regs->localX;
 	ya = cmd.CMDYA + regs->localY;
@@ -3647,10 +3655,6 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 
         xd /= (float)vdp2width;
         yd /= (float)vdp2height;
-
-        Pattern* pattern = NULL;
-
-    	pattern = getPattern(cmd, ram); 
 
     	if (g_VertexSWBuffer == -1) 
 		glGenBuffers(1, &g_VertexSWBuffer);
@@ -3716,7 +3720,12 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
     float xa,ya,xb,yb,xc,yc,xd,yd;
     vdp1cmd_struct cmd;
 
-    Vdp1ReadCommand(&cmd, regs->addr, ram);
+        Pattern* pattern = NULL;
+
+	Vdp1ReadCommand(&cmd, regs->addr, ram);
+
+    	pattern = getPattern(cmd, ram); 
+	if(pattern == NULL) return;
 
     xa = (s32)(cmd.CMDXA + regs->localX)/(float)vdp2width;
     ya = (s32)(cmd.CMDYA + regs->localY)/(float)vdp2height;
@@ -3729,10 +3738,6 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 
     xd = (s32)(cmd.CMDXD + regs->localX)/(float)vdp2width;
     yd = (s32)(cmd.CMDYD + regs->localY)/(float)vdp2height;
-
-    Pattern* pattern = NULL;
-
-    pattern = getPattern(cmd, ram); 
 
     if (g_VertexSWBuffer == -1) 
 	glGenBuffers(1, &g_VertexSWBuffer);
