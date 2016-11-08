@@ -22,6 +22,7 @@ set(yabause_HEADERS
 	scsp.h scspdsp.h scu.h sh2core.h sh2d.h sh2iasm.h sh2idle.h sh2int.h sh2trace.h smpc.h sock.h
 	threads.h titan/titan.h
 	glutils/gles20utils.h
+	glutils/gles20programs.h
         profiler.h
 	vdp1.h vdp2.h vdp2debug.h vidshared.h vidsoft.h
 	yabause.h yui.h sh2cache.h sh7034.h ygr.h cd_drive.h tsunami/yab_tsunami.h mpeg_card.h)
@@ -40,6 +41,7 @@ set(yabause_SOURCES
 	scspdsp.c scu.c sh2core.c sh2d.c sh2iasm.c sh2idle.c sh2int.c sh2trace.c smpc.c snddummy.c
 	titan/titan.c
 	glutils/gles20utils.c
+	glutils/gles20programs.c
         profiler.c
 	vdp1.c vdp2.c vdp2debug.c vidshared.c
 	yabause.c sh2cache.c sh7034.c ygr.c cd_drive.c tsunami/yab_tsunami.c tsunami/Tsunami.c mpeg_card.c)
