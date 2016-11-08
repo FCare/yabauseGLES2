@@ -795,15 +795,15 @@ static u8 FASTCALL GetAlpha(vdp2draw_struct * info, u32 color, u32 dot)
 
    if (((info->specialcolormode == 1) || (info->specialcolormode == 2)) && ((info->specialcolorfunction & 1) == 0)) {
       /* special color calculation mode 1 and 2 enables color calculation only when special color function = 1 */
-      return 0x3F;
+      return 0xFF;
    } else if (info->specialcolormode == 2) {
       /* special color calculation 2 enables color calculation according to lower bits of the color code */
       if ((info->specialcode & (1 << ((dot & 0xF) >> 1))) == 0) {
-         return 0x3F;
+         return 0xFF;
       }
    } else if ((info->specialcolormode == 3) && ((color & 0x80000000) == 0)) {
       /* special color calculation mode 3 enables color calculation only for dots with MSB = 1 */
-      return 0x3F;
+      return 0xFF;
    }
    return info->alpha;
 }
@@ -1110,7 +1110,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
             u8 alpha;
             /* if we're in the valid area of the color calculation window, don't do color calculation */
             if (!TestBothWindow(regs->WCTLD >> 8, colorcalcwindow, i, j))
-               alpha = 0x3F;
+               alpha = 0xFF;
             else
                alpha = GetAlpha(info, color, dot);
 
@@ -1351,7 +1351,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
             lineColorAddr = (T1ReadWord(ram, lineAddr) & 0x780) | p->linescreen;
             lineColor = Vdp2ColorRamGetColor(lineColorAddr, color_ram);
             lineAddr += lineInc;
-            TitanPutLineHLine(info->linescreen, j, COLSAT2YAB32(0x3F, lineColor));
+            TitanPutLineHLine(info->linescreen, j, COLSAT2YAB32(0xFF, lineColor));
          }
 
          info->LoadLineParams(info, &sinfo, j, lines);
@@ -1494,7 +1494,7 @@ static void Vdp2DrawBackScreen(void)
    {
       // Draw Black
       for (j = 0; j < vdp2height; j++)
-         TitanPutBackHLine(j, COLSAT2YAB32(0x3F, 0));
+         TitanPutBackHLine(j, COLSAT2YAB32(0xFF, 0));
    }
    else
    {
@@ -1518,7 +1518,7 @@ static void Vdp2DrawBackScreen(void)
             dot = T1ReadWord(Vdp2Ram, scrAddr);
             scrAddr += 2;
 
-            TitanPutBackHLine(i, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0x3f, dot)));
+            TitanPutBackHLine(i, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0xFF, dot)));
          }
       }
       else
@@ -1527,7 +1527,7 @@ static void Vdp2DrawBackScreen(void)
          dot = T1ReadWord(Vdp2Ram, scrAddr);
 
          for (j = 0; j < vdp2height; j++)
-            TitanPutBackHLine(j, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0x3f, dot)));
+            TitanPutBackHLine(j, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0xFF, dot)));
       }
    }
 }
@@ -1680,7 +1680,7 @@ static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
    if (regs->CCCTL & 0x201)
       info.alpha = ((~regs->CCRNA & 0x1F) << 1) + 1;
    else
-      info.alpha = 0x3F;
+      info.alpha = 0xFF;
    if ((regs->CCCTL & 0x201) == 0x201) info.alpha |= 0x80;
    else if ((regs->CCCTL & 0x101) == 0x101) info.alpha |= 0x80;
    info.specialcolormode = regs->SFCCMD & 0x3;
@@ -1787,7 +1787,7 @@ static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
    if (regs->CCCTL & 0x202)
       info.alpha = ((~regs->CCRNA & 0x1F00) >> 7) + 1;
    else
-      info.alpha = 0x3F;
+      info.alpha = 0xFF;
    if ((regs->CCCTL & 0x202) == 0x202) info.alpha |= 0x80;
    else if ((regs->CCCTL & 0x102) == 0x102) info.alpha |= 0x80;
    info.specialcolormode = (regs->SFCCMD >> 2) & 0x3;
@@ -1876,7 +1876,7 @@ static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
    if (regs->CCCTL & 0x204)
       info.alpha = ((~regs->CCRNB & 0x1F) << 1) + 1;
    else
-      info.alpha = 0x3F;
+      info.alpha = 0xFF;
    if ((regs->CCCTL & 0x204) == 0x204) info.alpha |= 0x80;
    else if ((regs->CCCTL & 0x104) == 0x104) info.alpha |= 0x80;
    info.specialcolormode = (regs->SFCCMD >> 4) & 0x3;
@@ -1951,7 +1951,7 @@ static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
    if (regs->CCCTL & 0x208)
       info.alpha = ((~regs->CCRNB & 0x1F00) >> 7) + 1;
    else
-      info.alpha = 0x3F;
+      info.alpha = 0xFF;
    if ((regs->CCCTL & 0x208) == 0x208) info.alpha |= 0x80;
    else if ((regs->CCCTL & 0x108) == 0x108) info.alpha |= 0x80;
    info.specialcolormode = (regs->SFCCMD >> 6) & 0x3;
@@ -2085,7 +2085,7 @@ static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
    if (regs->CCCTL & 0x210)
       info.alpha = ((~regs->CCRR & 0x1F) << 1) + 1;
    else
-      info.alpha = 0x3F;
+      info.alpha = 0xFF;
    if ((regs->CCCTL & 0x210) == 0x210) info.alpha |= 0x80;
    else if ((regs->CCCTL & 0x110) == 0x110) info.alpha |= 0x80;
    info.specialcolormode = (regs->SFCCMD >> 8) & 0x3;
@@ -3334,16 +3334,16 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			if (mesh && ((i ^ j) & 1)) {
-				pix[index]  = 0;
-       				continue;
-    			}
+			//if (mesh && ((i ^ j) & 1)) {
+			//	pix[index]  = 0;
+       			//	continue;
+    			//}
 			patternLine*=(characterWidth>>1);
 			pix[index] = Vdp1ReadPattern16( characterAddress + patternLine, patternRow , ram) & 0xF;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | 0x3F000000;
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | 0xFF000000;
 			else pix[index]  = 0;
                         
 		    }
@@ -3368,9 +3368,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, ((pix[index] & 0xF) * 2 + colorlut) & 0x7FFFF);
 				if (temp & 0x8000) {
-                        		pix[index] = COLSAT2YAB16(0x3F,temp);
+                        		pix[index] = COLSAT2YAB16(0xFF,temp);
 				} else
-					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | 0x3F000000;
+					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | 0xFF000000;
 			} else pix[index]  = 0;
 		    }
 	        }
@@ -3382,16 +3382,16 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			if (mesh && ((i ^ j) & 1)) {
-				pix[index]  = 0;
-       				continue;
-    			}
+			//if (mesh && ((i ^ j) & 1)) {
+			//	pix[index]  = 0;
+       			//	continue;
+    			//}
 			patternLine*=characterWidth;
 			pix[index] = Vdp1ReadPattern64(characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0x3F), Vdp2ColorRam) | 0x3F000000;
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | 0xFF000000;
 			else pix[index]  = 0;
 		    }
 	        }
@@ -3403,16 +3403,16 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			if (mesh && ((i ^ j) & 1)) {
-				pix[index]  = 0;
-       				continue;
-    			}
+			//if (mesh && ((i ^ j) & 1)) {
+			//	pix[index]  = 0;
+       			//	continue;
+    			//}
 			patternLine*=characterWidth;
 			pix[index] = Vdp1ReadPattern256( characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | 0x3F000000;
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | 0xFF000000;
 			else pix[index]  = 0;
 		    }
 	        }
@@ -3426,11 +3426,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
 			patternLine*=characterWidth*2;
-			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | 0x3F000000;
+			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | 0xFF000000;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
-				pix[index]  = COLSAT2YAB16(0x3F,pix[index]);
+				pix[index]  = COLSAT2YAB16(0xFF,pix[index]);
 			else pix[index]  = 0;
 		    }
 	        }
