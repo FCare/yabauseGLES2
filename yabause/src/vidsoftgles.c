@@ -2124,17 +2124,6 @@ static void LoadLineParamsSprite(vdp2draw_struct * info, int line, Vdp2* lines)
    ReadVdp2ColorOffset(regs, info, 0x40, 0x40);
 }
 
-static GLint programObject  = 0;
-static GLint positionLoc    = 0;
-static GLint texCoordLoc    = 0;
-static GLint samplerLoc     = 0;
-
-static GLint priorityProgram = 0;
-static GLint prioPositionLoc = 0;
-static GLint prioTexCoordLoc = 0;
-static GLint prioSamplerLoc  = 0;
-static GLint prioValueLoc = 0;
-
 static GLfloat swVertices [] = {
    -1.0f, 1.0f, 0, 0, 1.0f,
    1.0f, 1.0f, 1.0f, 0, 1.0f,
@@ -2164,74 +2153,9 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
 
-   GLbyte vShaderStr[] =
-      "attribute vec4 a_position;   \n"
-      "attribute vec3 a_texCoord;   \n"
-      "varying vec3 v_texCoord;     \n"
-      "void main()                  \n"
-      "{                            \n"
-      "   gl_Position = a_position; \n"
-      "   v_texCoord = a_texCoord;  \n"
-      "}                            \n";
+   createPatternProgram();
 
-   GLbyte fShaderStr[] =
-      "varying vec3 v_texCoord;                            \n"
-      "uniform sampler2D s_texture;                        \n"
-      "void main()                                         \n"
-      "{                                                   \n"
-      "  vec4 color = texture2D( s_texture, v_texCoord.xy/v_texCoord.z);\n"  
-      "  if (color.a < 0.1) discard;\n" 
-      "  gl_FragColor = color;\n"
-      "}                                                   \n";
-
-   // Create the program object
-   programObject = gles20_createProgram (vShaderStr, fShaderStr);
-
-   if ( programObject == 0 ){
-      fprintf (stderr,"Can not create a program\n");
-      return 0;
-   }
-
-   // Get the attribute locations
-   positionLoc = glGetAttribLocation ( programObject, "a_position" );
-   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
-   // Get the sampler location
-   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
-
-   GLbyte vShaderPriorityStr[] =
-      "attribute vec4 a_position;   \n"
-      "attribute vec3 a_texCoord;   \n"
-      "varying vec3 v_texCoord;     \n"
-      "void main()                  \n"
-      "{                            \n"
-      "   gl_Position = a_position; \n"
-      "   v_texCoord = a_texCoord;  \n"
-      "}                            \n";
-
-   GLbyte fShaderPriorityStr[] =
-      "uniform float u_priority;     \n"
-      "varying vec3 v_texCoord;                            \n"
-      "uniform sampler2D s_texture;                        \n"
-      "void main()                                         \n"
-      "{                                                   \n"
-      "  vec4 color = texture2D( s_texture, v_texCoord.xy/v_texCoord.z);\n"  
-      "  if (color.a < 0.1) discard;\n" 
-      "  gl_FragColor.a = u_priority;\n"
-      "}                                                   \n";
-
-   priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
-
-   if ( priorityProgram == 0 ){
-      fprintf (stderr,"Can not create a program\n");
-      return 0;
-   }
-
-   // Get the attribute locations
-   prioPositionLoc = glGetAttribLocation ( priorityProgram, "a_position" );
-   prioTexCoordLoc = glGetAttribLocation ( priorityProgram, "a_texCoord" );
-   // Get the sampler location
-   prioSamplerLoc = glGetUniformLocation ( programObject, "s_texture" );
-   prioValueLoc = glGetUniformLocation ( priorityProgram, "u_priority" );
+   createPriorityProgram();
 
    if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
       return -1;
@@ -3259,7 +3183,6 @@ void VIDSoftGLESVdp1DistortedSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffe
     drawQuad(xa, ya, xd, yd, xb, yb, xc, yc, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
 }
 
-    GLuint g_VertexSWBuffer = -1;
 
 Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int i = 0, j=0;
@@ -3535,62 +3458,20 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	xd = (float)bottomLeftx/(float)vdp2width;
 	yd = (float)bottomLefty/(float)vdp2height;
 
-    	if (g_VertexSWBuffer == -1) 
-		glGenBuffers(1, &g_VertexSWBuffer);
-
     	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
 			xb, yb, 1.0f , 0.0f, 1.0f,
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	glUseProgram(programObject);
-#ifdef IMPROVE_TRANSPARENCY
-    //Replace the mesh effect by a pure transparency effect half/half
-    if (cmd.CMDPMOD & 0x0100) {
-	glBlendFunc(GL_CONSTANT_ALPHA, GL_CONSTANT_ALPHA);
-	glBlendColor(1.0f, 1.0f, 1.0f, 0.5f);
-	glEnable(GL_BLEND);
-    }
-#endif
-    	glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
+	drawPattern(pattern, quadVertices, 4);
 
-    	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
-    	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), 4);
 
-    	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
-    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
-
-    	glActiveTexture ( GL_TEXTURE0 );
-    	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-
-    	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#ifdef IMPROVE_TRANSPARENCY
-    glDisable(GL_BLEND);
-#endif
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-
-    glUseProgram(priorityProgram);
-
-
-    if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
-
-    if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
-    if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
-
-    glUniform1f(prioValueLoc, (float)(Vdp2Regs->PRISA & 0x7)/255.0f);
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3630,63 +3511,20 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
         xd /= (float)vdp2width;
         yd /= (float)vdp2height;
 
-    	if (g_VertexSWBuffer == -1) 
-		glGenBuffers(1, &g_VertexSWBuffer);
-
     	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
 			xb, yb, 1.0f , 0.0f, 1.0f,
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	glUseProgram(programObject);
-#ifdef IMPROVE_TRANSPARENCY
-    //Replace the mesh effect by a pure transparency effect half/half
-    if (cmd.CMDPMOD & 0x0100) {
-	glBlendFunc(GL_CONSTANT_ALPHA, GL_CONSTANT_ALPHA);
-	glBlendColor(1.0f, 1.0f, 1.0f, 0.5f);
-	glEnable(GL_BLEND);
-    }
-#endif
-    	glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
+	drawPattern(pattern, quadVertices, 4);
 
-    	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
+            glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
-    	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), 4);
 
-    	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
-    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
-
-    	glActiveTexture ( GL_TEXTURE0 );
-    	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-
-    	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-#ifdef IMPROVE_TRANSPARENCY
-    glDisable(GL_BLEND);
-#endif
-
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-
-    glUseProgram(priorityProgram);
-
-
-    if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
-
-    if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
-    if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
-
-    glUniform1f(prioValueLoc, (float)(Vdp2Regs->PRISA & 0x7)/255.0f);
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3712,9 +3550,6 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 
     xd = (s32)(cmd.CMDXD + regs->localX)/(float)vdp2width;
     yd = (s32)(cmd.CMDYD + regs->localY)/(float)vdp2height;
-
-    if (g_VertexSWBuffer == -1) 
-	glGenBuffers(1, &g_VertexSWBuffer);
 
 // detects intersection of two diagonal lines
     float A1 = (yc-ya);
@@ -3746,65 +3581,15 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 			xc, yc, u3, u3, u3,
 			xd, yd, 0.0, u4, u4}; 
 
-    glUseProgram(programObject);
-
-#ifdef IMPROVE_TRANSPARENCY
-    //Replace the mesh effect by a pure transparency effect half/half
-    if (cmd.CMDPMOD & 0x0100) {
-	glBlendFunc(GL_CONSTANT_ALPHA, GL_CONSTANT_ALPHA);
-	glBlendColor(1.0f, 1.0f, 1.0f, 0.5f);
-	glEnable(GL_BLEND);
-    }
-#endif
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices),quadVertices,GL_STATIC_DRAW);
-
-    if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
-
-    if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
-    if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
-
-
-    glActiveTexture ( GL_TEXTURE0 );
-    glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-#ifdef IMPROVE_TRANSPARENCY
-    glDisable(GL_BLEND);
-#endif
+    drawPattern(pattern, quadVertices, 4);
 
     glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
     glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
-    glUseProgram(priorityProgram);
-
-
-    if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
-
-    if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
-    if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
-
-    glUniform1f(prioValueLoc, (float)(Vdp2Regs->PRISA & 0x7)/255.0f);
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), 4);
 
     glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
     glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
-
-   // glDeleteTextures(1,&spriteTex);
-   // glDeleteBuffers(1, &g_VertexSWBuffer);
 
 }
 
