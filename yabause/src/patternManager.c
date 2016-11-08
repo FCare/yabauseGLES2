@@ -68,13 +68,14 @@ INLINE void addCachePattern(Pattern* pat) {
 	patternCache[getHash(pat->param[0], pat->param[1])] = pat;
 }
 
-INLINE Pattern* createCachePattern(int param0, int param1, int param2, int w, int h) {
+INLINE Pattern* createCachePattern(int param0, int param1, int param2, int w, int h, int mesh) {
 	Pattern* new = malloc(sizeof(Pattern));
 	new->param[0] = param0;
 	new->param[1] = param1;
 	new->param[2] = param2;
         new->width = w;
 	new->height = h;
+	new->mesh = mesh;
 	new->frameout = CACHE_LIFETIME;
 	return new;
 }

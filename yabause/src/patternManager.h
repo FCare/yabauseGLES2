@@ -9,11 +9,12 @@ typedef struct sPattern {
 	int height;
 	u32 param[3];
 	int frameout;
+        u32 mesh;
 } Pattern;
 
 Pattern* getCachePattern(int param0, int param1, int param2, int w, int h);
 void addCachePattern(Pattern* pat);
-Pattern* createCachePattern(int param0, int param1, int param2, int w, int h);
+Pattern* createCachePattern(int param0, int param1, int param2, int w, int h, int mesh);
 void recycleCache();
 
 #endif
