@@ -3277,10 +3277,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 
     if ((characterWidth == 0) || (characterHeight == 0)) return NULL;
 
-#ifdef IMPROVE_TRANSPARENCY
-    mesh = 0; //Disable mesh transparency here
-#endif
-
     int colorCalc = cmd.CMDPMOD & 0x7 ;
     int endcodesEnabled = ((cmd.CMDPMOD & 0x80) == 0) ? 1 : 0;
     int isTextured = 1;
@@ -3302,27 +3298,21 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     if (curPattern != NULL) {
   	return curPattern;
     }
-
     //4 polygon, 5 polyline or 6 line
     if(currentShape == 4 || currentShape == 5 || currentShape == 6) {
         isTextured = 0;
     }
 
     if(!isTextured) {
-	
         for (i=0; i<characterHeight ; i++) {
 		for (j=0; j<characterWidth; j++ ){
 			int index = i*characterWidth+j;
-			if (mesh && ((i ^ j) & 1)) {
-				pix[index]  = 0;
-       				continue;
-    			}
 #if 0
 			if (untexturedColor & 0x8000) { //isRGB code
 		    		if (colorCalc != 0) printf("Only color calculation 0 is supported!\n");
 			} //See in MegamanX
 #endif
-		    	pix[index] = COLSAT2YAB16(0x3F, untexturedColor);
+		    	pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
 		}
 	}
     } else {
@@ -3334,10 +3324,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			//if (mesh && ((i ^ j) & 1)) {
-			//	pix[index]  = 0;
-       			//	continue;
-    			//}
 			patternLine*=(characterWidth>>1);
 			pix[index] = Vdp1ReadPattern16( characterAddress + patternLine, patternRow , ram) & 0xF;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
@@ -3356,10 +3342,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			if (mesh && ((i ^ j) & 1)) {
-				pix[index]  = 0;
-       				continue;
-    			}
 			patternLine*=(characterWidth>>1);
 			pix[index] = Vdp1ReadPattern16(characterAddress + patternLine, patternRow , ram);
 			if( endcodesEnabled && pix[index] == endcode) {
@@ -3382,10 +3364,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			//if (mesh && ((i ^ j) & 1)) {
-			//	pix[index]  = 0;
-       			//	continue;
-    			//}
 			patternLine*=characterWidth;
 			pix[index] = Vdp1ReadPattern64(characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
@@ -3403,10 +3381,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
-			//if (mesh && ((i ^ j) & 1)) {
-			//	pix[index]  = 0;
-       			//	continue;
-    			//}
 			patternLine*=characterWidth;
 			pix[index] = Vdp1ReadPattern256( characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
@@ -3440,7 +3414,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             break;
         }
     }
-    curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight);
+    curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight, mesh);
     glGenTextures(1,&curPattern->tex);
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, curPattern->tex);
