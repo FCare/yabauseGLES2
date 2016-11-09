@@ -2153,10 +2153,6 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
 
-   createPatternProgram();
-
-   createPriorityProgram();
-
    if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
       return -1;
  
@@ -2184,8 +2180,12 @@ int VIDSoftGLESInit(void)
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
+
    rbg0width = vdp2width = 320;
    vdp2height = 224;
+
+   createPatternProgram();
+   createPriorityProgram();
 
    return 0;
 }
