@@ -2,6 +2,8 @@
 #define __PATTERN_MANAGER_H__
 
 #include "core.h"
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 typedef struct sPattern {
 	unsigned int tex;

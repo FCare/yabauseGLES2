@@ -2172,11 +2172,11 @@ int VIDSoftGLESInit(void)
    if ((vdp1framebuffer[1]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       return -1;
 
-   gles20_createFBO(&vdp1framebuffer[0]->fbo, 1024, 512, 0);
-   gles20_createFBO(&vdp1framebuffer[1]->fbo, 1024, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[0]->fbo, 704, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[1]->fbo, 704, 512, 0);
 
-   gles20_createFBO(&vdp1framebuffer[0]->priority, 1024, 512, 1);
-   gles20_createFBO(&vdp1framebuffer[1]->priority, 1024, 512, 1);
+   gles20_createFBO(&vdp1framebuffer[0]->priority, 704, 512, 1);
+   gles20_createFBO(&vdp1framebuffer[1]->priority, 704, 512, 1);
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
@@ -2186,6 +2186,9 @@ int VIDSoftGLESInit(void)
 
    createPatternProgram();
    createPriorityProgram();
+
+   gles20_setupMeshStencil(&vdp1framebuffer[0]->fbo);
+   gles20_setupMeshStencil(&vdp1framebuffer[1]->fbo);
 
    return 0;
 }
@@ -4155,7 +4158,6 @@ void VIDSoftGLESVdp2DrawEnd(void)
 {
    glDisable(GL_SCISSOR_TEST);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-   glViewport(0,0,800, 600);
 #ifndef DO_NOT_RENDER_SW
    TitanRender(dispbuffergles);
 #else

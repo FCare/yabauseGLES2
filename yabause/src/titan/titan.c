@@ -884,7 +884,6 @@ void TitanRenderFBO(gl_fbo *fbo) {
 
    if (stencil_tex == -1) {
 	glGenTextures(1, &stencil_tex);
-        glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, stencil_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
