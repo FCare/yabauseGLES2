@@ -3238,7 +3238,8 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 		    		if (colorCalc != 0) printf("Only color calculation 0 is supported!\n");
 			} //See in MegamanX
 #endif
-		    	pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
+			if (untexturedColor != 0x0)
+		    		pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
 		}
 	}
     } else {
