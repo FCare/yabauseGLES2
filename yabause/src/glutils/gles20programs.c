@@ -127,7 +127,7 @@ void drawPattern(Pattern* pattern, GLfloat* vertex, int nbVertex){
 
 
 void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int nbVertex) {
-
+	glDisable(GL_BLEND);
     	glUseProgram(priorityProgram);
 	glUniform1i(prioSamplerLoc, 0);
 
@@ -151,4 +151,5 @@ void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int nbVertex)
     	glUniform1f(prioValueLoc, priority/255.0f);
 
     	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	glEnable(GL_BLEND);
 }

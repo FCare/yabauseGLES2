@@ -717,9 +717,7 @@ void createGLPrograms(void) {
       "{                                                   \n"
       "  vec4 sprite = texture2D( s_texture, s_texCoord );\n"
       "  vec4 back = texture2D( b_texture, v_texCoord );\n"
-      "  if (sprite.a >= (1.0/255.0)) { \n"
-      "      gl_FragColor = sprite;\n"
-      "  } else  gl_FragColor = back;\n"
+      "  gl_FragColor = sprite.a*sprite + (1.0 - sprite.a)*back; \n"
       "}                                                   \n";
 
    GLbyte vShaderGPrioStr[] =
@@ -749,11 +747,11 @@ void createGLPrograms(void) {
       "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
       "  if ((prio.a*255.0 + 0.5) >= layerpriority) {\n"
       "        if (spritepix.a >= (1.0/255.0))\n"
-      "            gl_FragColor = spritepix;\n"
+      "            gl_FragColor = spritepix.a*spritepix + (1.0 - spritepix.a)*layerpix; \n"
       "        else discard;\n"
       "  } else {;\n"
       "        if (layerpix.a >= (1.0/255.0))\n"
-      "             gl_FragColor = layerpix;\n"
+      "             gl_FragColor = layerpix.a*layerpix + (1.0 - layerpix.a)*spritepix;\n"
       "        else discard;\n"
       "  }\n"
       "}                                                   \n";
