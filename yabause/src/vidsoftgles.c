@@ -3197,7 +3197,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int SPD = ((cmd.CMDPMOD & 0x40) != 0);
     int color = ((cmd.CMDPMOD >> 3) & 0x7);
     int mesh = cmd.CMDPMOD & 0x0100;
-    int alpha = mesh?0x7F:0xFF;
 
     if ((characterWidth == 0) || (characterHeight == 0)) return NULL;
 
@@ -3237,7 +3236,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			} //See in MegamanX
 #endif
 			if (untexturedColor != 0x0)
-		    		pix[index] = COLSAT2YAB16(alpha, untexturedColor);
+		    		pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
 		}
 	}
     } else {
@@ -3254,7 +3253,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (alpha << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (0xFF << 24);
 			else pix[index]  = 0;
                         
 		    }
@@ -3275,9 +3274,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, ((pix[index] & 0xF) * 2 + colorlut) & 0x7FFFF);
 				if (temp & 0x8000) {
-                        		pix[index] = COLSAT2YAB16(alpha,temp);
+                        		pix[index] = COLSAT2YAB16(0xFF,temp);
 				} else
-					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (alpha << 24);
+					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (0xFF << 24);
 			} else pix[index]  = 0;
 		    }
 	        }
@@ -3294,7 +3293,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (alpha << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
 			else pix[index]  = 0;
 		    }
 	        }
@@ -3311,7 +3310,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (alpha << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (0xFF << 24);
 			else pix[index]  = 0;
 		    }
 	        }
@@ -3325,11 +3324,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
 			patternLine*=characterWidth*2;
-			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | (alpha << 24);
+			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | (0xFF << 24);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
-				pix[index]  = COLSAT2YAB16(alpha,pix[index]);
+				pix[index]  = COLSAT2YAB16(0xFF,pix[index]);
 			else pix[index]  = 0;
 		    }
 	        }
