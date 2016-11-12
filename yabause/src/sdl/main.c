@@ -329,7 +329,23 @@ void YuiDrawSoftwareBuffer() {
 }
 #endif
 
+unsigned long lastFrameTime = 0;
+unsigned long delayUs = 1000000/60;
+
+static unsigned long getCurrentTimeUs(unsigned long offset) {
+    struct timeval s;
+
+    gettimeofday(&s, NULL);
+
+    return (s.tv_sec * 1000000 + s.tv_usec) - offset;
+}
+
 void YuiSwapBuffers(void) {
+
+   unsigned long currentTime;
+
+   if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
+
    if( window == NULL ){
       return;
    }
@@ -364,7 +380,14 @@ void YuiSwapBuffers(void) {
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
        DrawDevFBO();
    }
+
+   currentTime = getCurrentTimeUs(0);
+   if ((currentTime - lastFrameTime) < delayUs) {
+	usleep((delayUs - (currentTime - lastFrameTime)));
+   }   
    SDL_GL_SwapWindow(window);
+
+   lastFrameTime = getCurrentTimeUs(0);
 }
 
 void YuiInit() {
