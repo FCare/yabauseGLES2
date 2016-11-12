@@ -165,7 +165,7 @@ newline:
 	lsr	r5, r5, r1 /* scucycles */
 	/*movw	r9, #:lower16:CurrentSH2*/
 	/*movt	r9, #:upper16:CurrentSH2*/
-	ldr	r9, .csh2ptr
+	/*ldr	r9, .csh2ptr*/
 	ldr	r7, [r7] /* MSH2 */
 	ldr	r8, [r8] /* NumberOfInterruptsOffset */
 	str	r5, [fp, #scucycles-dynarec_local]
@@ -174,7 +174,7 @@ newline:
 	sub	r6, r5, r6 /* sh2cycles(full line) -= decilinecycles*9 */
 	ldr	r12, [r7, r8]
 	str	r6, [fp, #sh2cycles-dynarec_local]
-	str	r7, [r9] /* CurrentSH2 */
+	/*str	r7, [r9] /* CurrentSH2 */*/
 	tst	r12, r12
 	bne	master_handle_interrupts
 	ldr	r10, [fp, #master_cc-dynarec_local]
@@ -203,8 +203,8 @@ master_handle_interrupts:
 	.word	SSH2
 .nioptr:
 	.word	NumberOfInterruptsOffset
-.csh2ptr:
-	.word	CurrentSH2
+/*.csh2ptr:
+	.word	CurrentSH2*/
 .lcpptr:
 	.word	linecount_p
 .vlcpptr:
@@ -243,11 +243,11 @@ slave_entry:
 	/*movt	r8, #:upper16:NumberOfInterruptsOffset*/
 	ldr	r8, .nioptr
 	/*movw	r9, #:lower16:CurrentSH2*/
-	ldr	r9, .csh2ptr
+	/*ldr	r9, .csh2ptr*/
 	ldr	r7, [r7]
 	/*movt	r9, #:upper16:CurrentSH2*/
 	ldr	r8, [r8]
-	str	r7, [r9] /* CurrentSH2 */
+	/*str	r7, [r9] /* CurrentSH2 */*/
 	ldr	r12, [r7, r8]
 	tst	r12, r12
 	bne	slave_handle_interrupts
@@ -292,11 +292,11 @@ cc_interrupt_master:
 	/*movt	r9, #:upper16:CurrentSH2*/
 	ldr	r7, .msh2ptr
 	ldr	r8, .nioptr
-	ldr	r9, .csh2ptr
+	/*ldr	r9, .csh2ptr*/
 	ldr	r7, [r7] /* MSH2 */
 	ldr	r8, [r8] /* NumberOfInterruptsOffset */
 	ldr	r12, [r7, r8]
-	str	r7, [r9] /* CurrentSH2 */
+	/*str	r7, [r9] /* CurrentSH2 */*/
 	tst	r12, r12
 	bne	master_handle_interrupts
 	ldr	r10, [fp, #master_cc-dynarec_local]
