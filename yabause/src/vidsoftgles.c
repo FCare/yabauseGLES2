@@ -4183,6 +4183,13 @@ static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vd
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+
+   screenRenderWait(0);
+   screenRenderWait(1);
+   screenRenderWait(2);
+   screenRenderWait(3);
+   screenRenderWait(4);
+
    glDisable(GL_SCISSOR_TEST);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    glViewport(0,0,800, 600);
@@ -4265,11 +4272,6 @@ static void VIDSoftGLESVdp2DrawScreens(void)
 #ifndef DO_NOT_RENDER_SW
    VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
 #endif
-   screenRenderWait(0);
-   screenRenderWait(1);
-   screenRenderWait(2);
-   screenRenderWait(3);
-   screenRenderWait(4);
 }
 
 
