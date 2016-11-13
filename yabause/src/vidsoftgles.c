@@ -3364,7 +3364,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     glGenTextures(1,&curPattern->tex);
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, curPattern->tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, characterWidth/tw, characterHeight/th, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+    if(!isTextured) {
+    	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+    } else {
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, characterWidth, characterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+    }
 
     addCachePattern(curPattern);
 
