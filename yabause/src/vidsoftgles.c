@@ -3189,6 +3189,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 
     int characterWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
     int characterHeight = cmd.CMDSIZE & 0xFF;
+    int tw, th = 0;
     int flip = (cmd.CMDCTRL & 0x30) >> 4;
     int currentShape = cmd.CMDCTRL & 0x7;
     int characterAddress = cmd.CMDSRCA << 3;
@@ -3227,19 +3228,33 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     }
 
     if(!isTextured) {
-        for (i=0; i<characterHeight ; i++) {
-		for (j=0; j<characterWidth; j++ ){
-			int index = i*characterWidth+j;
+        tw = (float)characterWidth/2.0f;
+	th = (float)characterHeight/2.0f;
+        for (i=0; i<2 ; i++) {
+		for (j=0; j<2; j++ ){
+			int index = i*2+j;
 #if 0
 			if (untexturedColor & 0x8000) { //isRGB code
 		    		if (colorCalc != 0) printf("Only color calculation 0 is supported!\n");
 			} //See in MegamanX
 #endif
-			if (untexturedColor != 0x0)
-		    		pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
+			//printf("%d\n", colorCalc);
+			if (untexturedColor != 0x0) {
+				switch (colorCalc) {
+				case 0:
+			    		pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
+					break;
+				case 4:
+					break;
+				default:
+					break;
+				}
+			}
 		}
 	}
     } else {
+	tw = 1.0f;
+        th = 1.0f;
         switch (color) {
             case 0x0://4bpp bank
 	        endcode = 0xf;
@@ -3338,11 +3353,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             break;
         }
     }
-    curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight, mesh);
+    curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight, tw, th, mesh);
     glGenTextures(1,&curPattern->tex);
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, curPattern->tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, characterWidth, characterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, characterWidth/tw, characterHeight/th, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 
     addCachePattern(curPattern);
 
@@ -3464,12 +3479,12 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	drawPattern(pattern, quadVertices, 4);
+	drawPattern(pattern, quadVertices);
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
         glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
-        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), 4);
+        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
         glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
@@ -3517,12 +3532,12 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	drawPattern(pattern, quadVertices, 4);
+	drawPattern(pattern, quadVertices);
 
-            glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
         glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
-        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), 4);
+        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
         glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
@@ -3582,12 +3597,12 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 			xc, yc, u3, u3, u3,
 			xd, yd, 0.0, u4, u4}; 
 
-    drawPattern(pattern, quadVertices, 4);
+    drawPattern(pattern, quadVertices);
 
     glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
     glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
-    drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), 4);
+    drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
     glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
     glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);

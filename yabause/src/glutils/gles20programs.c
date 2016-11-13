@@ -96,7 +96,8 @@ void createPatternProgram() {
        glGenBuffers(1, &vertexSWBuffer);
 }
 
-void drawPattern(Pattern* pattern, GLfloat* vertex, int nbVertex){
+void drawPattern(Pattern* pattern, GLfloat* vertex){
+	int i;
 	if (pattern->mesh != 0) {
 		glBlendColor(0.0,0.0,0.0,0.5);
 		glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
@@ -104,9 +105,22 @@ void drawPattern(Pattern* pattern, GLfloat* vertex, int nbVertex){
 	glUseProgram(patternObject);
 	glUniform1i(samplerLoc, 0);
 
+        if (pattern->tw != 1.0f) {
+		vertex[2]*=pattern->tw;
+		vertex[7]*=pattern->tw;
+		vertex[12]*=pattern->tw;
+		vertex[17]*=pattern->tw;
+	}
+        if (pattern->th != 1.0f) {
+		vertex[3]*=pattern->th;
+		vertex[8]*=pattern->th;
+		vertex[13]*=pattern->th;
+		vertex[18]*=pattern->th;
+	}
+
     	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
 
-    	glBufferData(GL_ARRAY_BUFFER, 5*nbVertex*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
+    	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
 
     	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
     	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
@@ -129,14 +143,14 @@ void drawPattern(Pattern* pattern, GLfloat* vertex, int nbVertex){
 	}
 }
 
-void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int nbVertex) {
+void drawPriority(Pattern* pattern, GLfloat* vertex, int priority) {
 	glDisable(GL_BLEND);
     	glUseProgram(priorityProgram);
 	glUniform1i(prioSamplerLoc, 0);
 
     	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
 
-    	glBufferData(GL_ARRAY_BUFFER, 5*nbVertex*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
+    	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
 
     	if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
     	if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );

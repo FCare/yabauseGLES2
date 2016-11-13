@@ -4,8 +4,8 @@
 #include "../patternManager.h"
 #include "gles20utils.h"
 
-void drawPattern(Pattern* pattern, GLfloat* vertex, int nbVertex);
-void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int nbVertex);
+void drawPattern(Pattern* pattern, GLfloat* vertex);
+void drawPriority(Pattern* pattern, GLfloat* vertex, int priority);
 void createPatternProgram();
 void createPriorityProgram();
 
