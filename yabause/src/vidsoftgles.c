@@ -3198,6 +3198,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int SPD = ((cmd.CMDPMOD & 0x40) != 0);
     int color = ((cmd.CMDPMOD >> 3) & 0x7);
     int mesh = cmd.CMDPMOD & 0x0100;
+    int gouraudTableAddress;
 
     if ((characterWidth == 0) || (characterHeight == 0)) return NULL;
 
@@ -3207,6 +3208,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int untexturedColor = colorbank;
     int endcode;
     u32 pix[characterHeight*characterWidth];
+    u32 gouraud, final;
 
     int param0 = cmd.CMDSRCA << 16 | cmd.CMDCOLR;
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
@@ -3230,21 +3232,26 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     if(!isTextured) {
         tw = (float)characterWidth/2.0f;
 	th = (float)characterHeight/2.0f;
+	if (untexturedColor & 0x8000)
+		untexturedColor = COLSAT2YAB16(0xFF, untexturedColor);
+	else
+		untexturedColor = Vdp2ColorRamGetColor(untexturedColor, Vdp2ColorRam) | (0xFF << 24);
+	if (colorCalc == 4)
+		gouraudTableAddress = (((unsigned int)cmd.CMDGRDA) << 3);
         for (i=0; i<2 ; i++) {
 		for (j=0; j<2; j++ ){
 			int index = i*2+j;
-#if 0
-			if (untexturedColor & 0x8000) { //isRGB code
-		    		if (colorCalc != 0) printf("Only color calculation 0 is supported!\n");
-			} //See in MegamanX
-#endif
-			//printf("%d\n", colorCalc);
 			if (untexturedColor != 0x0) {
 				switch (colorCalc) {
 				case 0:
-			    		pix[index] = COLSAT2YAB16(0xFF, untexturedColor);
+			    		pix[index] = untexturedColor;
 					break;
 				case 4:
+					gouraud = T1ReadWord(ram, gouraudTableAddress + index*2);
+					final = ((untexturedColor & 0xFF) + ((gouraud & 0X1f) - 0x10) << 3) | 
+						    ((untexturedColor & 0xFF00) >> 8 + ((gouraud & 0x3E0) >> 5 - 0x10) << 3 ) << 8 | 
+						    ((untexturedColor & 0xFF0000) >> 16 + ((gouraud & 0x7C00) >> 10 -0x10) << 3) << 16;
+					pix[index] = final;
 					break;
 				default:
 					break;
