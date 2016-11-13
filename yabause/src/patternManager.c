@@ -8,13 +8,13 @@ Pattern* patternCache[0xFFFF];
 
 #define CACHE_LIFETIME 10;
 
-INLINE void deleteCachePattern(Pattern* pat) {
+static void deleteCachePattern(Pattern* pat) {
 	if (pat == NULL) return;
 	glDeleteTextures(1, &pat->tex);
 	free(pat);
 }
 
-INLINE u16 getHash(int param0, int param1) {
+static u16 getHash(int param0, int param1) {
 	u8 c[8];
 	int i;
 	u16 hash = 0xAAAA;
@@ -36,7 +36,7 @@ INLINE u16 getHash(int param0, int param1) {
 	return hash;
 }
 
-INLINE void recycleCache() {
+void recycleCache() {
 	int i;
 	for (i = 0; i < 0xFFFF; i++) {
 		Pattern* tmp = patternCache[i];
@@ -49,7 +49,7 @@ INLINE void recycleCache() {
 	}
 }
 
-INLINE Pattern* getCachePattern(int param0, int param1, int param2, int w, int h) {
+Pattern* getCachePattern(int param0, int param1, int param2, int w, int h) {
   Pattern *pat = patternCache[getHash(param0, param1)];
   if ((pat!= NULL) && (pat->param[0]==param0) && (pat->param[1]==param1) && (pat->param[2]==param2) && (pat->width == w) && (pat->height == h)) {
         pat->frameout = CACHE_LIFETIME;
@@ -60,7 +60,7 @@ INLINE Pattern* getCachePattern(int param0, int param1, int param2, int w, int h
 }
 int size = 0;
 
-INLINE void addCachePattern(Pattern* pat) {
+void addCachePattern(Pattern* pat) {
 	Pattern *collider = patternCache[getHash(pat->param[0], pat->param[1])];
 	if (collider != NULL) {
 		deleteCachePattern(collider);
@@ -68,7 +68,7 @@ INLINE void addCachePattern(Pattern* pat) {
 	patternCache[getHash(pat->param[0], pat->param[1])] = pat;
 }
 
-INLINE Pattern* createCachePattern(int param0, int param1, int param2, int w, int h, float tw, float th, int mesh) {
+Pattern* createCachePattern(int param0, int param1, int param2, int w, int h, float tw, float th, int mesh) {
 	Pattern* new = malloc(sizeof(Pattern));
 	new->param[0] = param0;
 	new->param[1] = param1;
