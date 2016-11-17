@@ -133,12 +133,14 @@ void addToDisplayList(numberedFrame* frame, controledFbo* clist) {
 
 numberedFrame* removeFromDisplayList(controledFbo* clist) {
 	numberedFrame* cur;
+	renderFrame* pivot = clist->frame;
 	renderFrame* tbd;
 	while (sem_wait(&clist->elem) != 0);
 	while (sem_wait(&clist->lock) != 0);
-	cur = clist->frame->current;
-	tbd = clist->frame;
-	clist->frame = clist->frame->next;
+	while(pivot->next != NULL) pivot = pivot->next;
+	cur = pivot->current;
+	tbd = pivot;
+	if (pivot->previous != NULL) pivot->previous->next = NULL;
 	free(tbd);
 	while (sem_post(&clist->lock) != 0);
 	return cur;
