@@ -22,6 +22,7 @@ void FUNC_NAME(void* data) \
 { \
    render_context *ctx = (render_context *)calloc(sizeof(render_context), 1); \
    SDL_GLContext gl_context = -1;\
+   sem_init(&(ctx->frameDisplayed), 0, 0); \
    for (;;) \
    { \
 	renderingStack* frame = removeFromList(&mRenderList); \
@@ -41,6 +42,12 @@ void FUNC_NAME(void* data) \
 		} \
 		glFinish(); \
 		SDL_GL_MakeCurrent(frame->glWindow, NULL); \
+		numberedFrame* newFrame = malloc(sizeof(numberedFrame)); \
+		newFrame->id = ctx->frameId; \
+		newFrame->fbo = &(ctx->tt_context->fbo); \
+		newFrame->done = &(ctx->frameDisplayed); \
+		addToDisplayList(newFrame, &mDisplayList); \
+		while (sem_wait(&(ctx->frameDisplayed)) != 0); \
 	} \
 	releaseRenderingStack(frame); \
    } \

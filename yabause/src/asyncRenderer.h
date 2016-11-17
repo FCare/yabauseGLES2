@@ -25,6 +25,7 @@ typedef struct {
 	struct CellScrollData *cell_scroll_data;
 	struct TitanGLContext* tt_context;
 	int frameId;
+	sem_t frameDisplayed;
 } render_context;
 
 typedef struct s_operation operationList;
@@ -63,7 +64,8 @@ typedef struct {
 
 typedef struct {
 	gl_fbo *fbo;
-	int id;	
+	int id;
+	sem_t *done;
 } numberedFrame;
 
 typedef struct s_Fbo renderFrame;
