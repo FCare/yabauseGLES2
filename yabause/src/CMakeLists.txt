@@ -20,7 +20,7 @@ set(yabause_HEADERS
 	osdcore.h
 	peripheral.h profile.h
 	scsp.h scspdsp.h scu.h sh2core.h sh2d.h sh2iasm.h sh2idle.h sh2int.h sh2trace.h smpc.h sock.h
-	threads.h titan/titan.h
+	threads.h titan/titan.h titangl/titangl.h asyncRenderer.h
 	glutils/gles20utils.h
 	glutils/gles20programs.h
         profiler.h
@@ -39,11 +39,11 @@ set(yabause_SOURCES
 	osdcore.c
 	peripheral.c profile.c
 	scspdsp.c scu.c sh2core.c sh2d.c sh2iasm.c sh2idle.c sh2int.c sh2trace.c smpc.c snddummy.c
-	titan/titan.c
+	titan/titan.c titangl/titangl.c asyncRenderer.c
 	glutils/gles20utils.c
 	glutils/gles20programs.c
         profiler.c
-	vdp1.c vdp2.c vdp2debug.c vidshared.c
+	vdp1.c vdp2.c vdp2debug.c vidshared.c vidsoft.c
 	yabause.c sh2cache.c sh7034.c ygr.c cd_drive.c tsunami/yab_tsunami.c tsunami/Tsunami.c mpeg_card.c)
 
 option(YAB_WANT_MPEG "Enable MPEG decoding" OFF)
@@ -256,7 +256,7 @@ if (YAB_WANT_OPENGL AND (YAB_RGB STREQUAL ""))
 		include_directories( ${OPENGLES2_INCLUDE_DIR})
 		add_definitions(-D_OGLES_)
 		set(yabause_HEADERS ${yabause_HEADERS} vidsoftgles.h)
-                set(yabause_SOURCES ${yabause_SOURCES} vidsoftgles.c vidsoftnogl.c patternManager.c)
+                set(yabause_SOURCES ${yabause_SOURCES} vidsoftgles.c patternManager.c)
 	endif(OPENGLES2_FOUND)
 	endif(OPENGL_FOUND)
 endif ()
@@ -699,7 +699,7 @@ else ()
 	set(yabause_SOURCES ${yabause_SOURCES} sock-dummy.c thr-dummy.c)
 endif ()
 
-set(YAB_OPTIMIZATION "-O3" CACHE STRING "Override optimization level")
+set(YAB_OPTIMIZATION "-O3 -g" CACHE STRING "Override optimization level")
 
 
 if(DEFINED RPI)

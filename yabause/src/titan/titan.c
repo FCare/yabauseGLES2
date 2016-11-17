@@ -22,8 +22,6 @@
 #include "../vidsoft.h"
 #include "../threads.h"
 
-#include "../profiler.h"
-
 #include <stdlib.h>
 
 /* private */
@@ -33,49 +31,25 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line);
 extern int vdp2_interlace;
 
 int vidsoft_num_priority_threads = 0;
-typedef u32 PixelData;
 
-static GLuint g_VertexSWBuffer = 0;
-static GLuint programObject  = 0;
-static GLuint positionLoc    = 0;
-static GLuint texCoordLoc    = 0;
-static GLuint stexCoordLoc   = 0;
-static GLuint samplerLoc     = 0;
-static GLuint backLoc        = 0;
-
-static GLuint programGeneralPriority = 0;
-static GLuint posGPrioLoc = 0;
-static GLuint tCoordGPrioLoc = 0;
-static GLuint sCoordGPrioLoc = 0;
-static GLuint spriteLoc = 0;
-static GLuint layerLoc = 0;
-static GLuint prioLoc = 0;
-static GLuint refPrioLoc = 0;
-
-
-
-struct StencilData{
-   u8 linescreen : 2 ;
-   u8 shadow_type : 2 ;
-   u8 shadow_enabled : 1;
+struct PixelData
+{
+   u32 pixel;
+   u8 priority;
+   u8 linescreen;
+   u8 shadow_type;
+   u8 shadow_enabled;
 };
-
 
 static struct TitanContext {
    int inited;
-   PixelData * vdp2framebuffer[6];
-   struct StencilData * vdp2stencil[6];
-   u8 *vdp2priority[6];
-   int vdp2fbo[6];
-   int vdp2prio[6];
+   struct PixelData * vdp2framebuffer[6];
    u32 * linescreen[4];
    int vdp2width;
    int vdp2height;
-   int glwidth;
-   int glheight;
    TitanBlendFunc blend;
    TitanTransFunc trans;
-   PixelData * backscreen;
+   struct PixelData * backscreen;
    int layer_priority[6];
 } tt_context = {
    0,
@@ -131,14 +105,6 @@ static INLINE u32 TitanCreatePixel(u8 alpha, u8 red, u8 green, u8 blue) { return
 #endif
 
 
-void TitanSetVdp2Fbo(int fb, int nb){
-	tt_context.vdp2fbo[nb] = fb;
-}
-
-void TitanSetVdp2Priority(int fb, int nb) {
-	tt_context.vdp2prio[nb] = fb;
-}
-
 void set_layer_y(const int start_line, int * layer_y)
 {
    if (vdp2_interlace)
@@ -149,7 +115,6 @@ void set_layer_y(const int start_line, int * layer_y)
 
 void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_line)
 {
-
    int x, y, i, layer, j, layer_y;
    int line_increment, interlace_line;
    int sorted_layers[8] = { 0 };
@@ -188,9 +153,7 @@ void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_li
 
          for (j = 0; j < num_layers; j++)
          {
-            PixelData pixel = tt_context.vdp2framebuffer[TITAN_SPRITE][layer_pos];
-	    struct StencilData stencil = tt_context.vdp2stencil[TITAN_SPRITE][layer_pos];
-            u8 prio = tt_context.vdp2priority[TITAN_SPRITE][layer_pos];
+            struct PixelData sprite = tt_context.vdp2framebuffer[TITAN_SPRITE][layer_pos];
 
             int bg_layer = sorted_layers[j];
 
@@ -198,34 +161,34 @@ void TitanRenderLinesSimplified(pixel_t * dispbuffer, int start_line, int end_li
             if (bg_layer == TITAN_BACK)
             {
                //use a sprite pixel if it is not transparent
-               if (pixel)
+               if (sprite.pixel)
                {
-                  dispbuffer[i] = TitanFixAlpha(pixel);
+                  dispbuffer[i] = TitanFixAlpha(sprite.pixel);
                   break;
                }
                else
                {
                   //otherwise use the back screen pixel
-                  dispbuffer[i] = TitanFixAlpha(tt_context.backscreen[y]);
+                  dispbuffer[i] = TitanFixAlpha(tt_context.backscreen[y].pixel);
                   break;
                }
             }
             //if the top layer is a sprite pixel
-            else if (prio >= tt_context.layer_priority[bg_layer])
+            else if (sprite.priority >= tt_context.layer_priority[bg_layer])
             {
                //use the sprite pixel if it is not transparent
-               if (pixel)
+               if (sprite.pixel)
                {
-                  dispbuffer[i] = TitanFixAlpha(pixel);
+                  dispbuffer[i] = TitanFixAlpha(sprite.pixel);
                   break;
                }
             }
             else
             {
                //use the bg layer if it is not covered with a sprite pixel and not transparent
-               if (tt_context.vdp2framebuffer[bg_layer][layer_pos])
+               if (tt_context.vdp2framebuffer[bg_layer][layer_pos].pixel)
                {
-                  dispbuffer[i] = TitanFixAlpha(tt_context.vdp2framebuffer[bg_layer][layer_pos]);
+                  dispbuffer[i] = TitanFixAlpha(tt_context.vdp2framebuffer[bg_layer][layer_pos].pixel);
                   break;
                }
             }
@@ -330,9 +293,7 @@ static INLINE int FASTCALL TitanTransBit(u32 pixel)
 
 static u32 TitanDigPixel(int pos, int y)
 {
-   PixelData pixel_stack[2] = { 0 };
-   struct StencilData stencil_stack[2] = { 0 };
-   u8 prio_stack[2] = { 0 };
+   struct PixelData pixel_stack[2] = { 0 };
 
    int pixel_stack_pos = 0;
 
@@ -345,11 +306,9 @@ static u32 TitanDigPixel(int pos, int y)
 
       for (which_layer = TITAN_SPRITE; which_layer >= 0; which_layer--)
       {
-         if (tt_context.vdp2priority[which_layer][pos] == priority)
+         if (tt_context.vdp2framebuffer[which_layer][pos].priority == priority)
          {
             pixel_stack[pixel_stack_pos] = tt_context.vdp2framebuffer[which_layer][pos];
-            stencil_stack[pixel_stack_pos] = tt_context.vdp2stencil[which_layer][pos];
-	    prio_stack[pixel_stack_pos] = tt_context.vdp2priority[which_layer][pos];
             pixel_stack_pos++;
 
             if (pixel_stack_pos == 2)
@@ -357,62 +316,61 @@ static u32 TitanDigPixel(int pos, int y)
          }
       }
    }
-   pixel_stack[pixel_stack_pos] = tt_context.backscreen[y];
-   memset(&stencil_stack[pixel_stack_pos], 0, sizeof(struct StencilData));
-   memset(&prio_stack[pixel_stack_pos], 0, sizeof(u8));
 
+   pixel_stack[pixel_stack_pos] = tt_context.backscreen[pos];
 
 finished:
-   if (stencil_stack[0].linescreen)
+
+   if (pixel_stack[0].linescreen)
    {
-      pixel_stack[0] = tt_context.blend(pixel_stack[0], tt_context.linescreen[stencil_stack[0].linescreen][y]);
+      pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, tt_context.linescreen[pixel_stack[0].linescreen][y]);
    }
 
-   if ((stencil_stack[0].shadow_type == TITAN_MSB_SHADOW) && ((pixel_stack[0] & 0xFFFFFF) == 0))
+   if ((pixel_stack[0].shadow_type == TITAN_MSB_SHADOW) && ((pixel_stack[0].pixel & 0xFFFFFF) == 0))
    {
       //transparent sprite shadow
-      if (stencil_stack[1].shadow_enabled)
+      if (pixel_stack[1].shadow_enabled)
       {
-         pixel_stack[0] = TitanBlendPixelsTop(0x20000000, pixel_stack[1]);
+         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[1].pixel);
       }
       else
       {
-         pixel_stack[0] = pixel_stack[1];
+         pixel_stack[0].pixel = pixel_stack[1].pixel;
       }
    }
-   else if (stencil_stack[0].shadow_type == TITAN_MSB_SHADOW && ((pixel_stack[0] & 0xFFFFFF) != 0))
+   else if (pixel_stack[0].shadow_type == TITAN_MSB_SHADOW && ((pixel_stack[0].pixel & 0xFFFFFF) != 0))
    {
-      if (tt_context.trans(pixel_stack[0]))
+      if (tt_context.trans(pixel_stack[0].pixel))
       {
-         u32 bottom = pixel_stack[1];
-         pixel_stack[0] = tt_context.blend(pixel_stack[0], bottom);
+         u32 bottom = pixel_stack[1].pixel;
+         pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
       }
 
       //sprite self-shadowing, only if sprite window is not enabled
       if (!(Vdp2Regs->SPCTL & 0x10))
-         pixel_stack[0] = TitanBlendPixelsTop(0x20000000, pixel_stack[0]);
+         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[0].pixel);
    }
-   else if (stencil_stack[0].shadow_type == TITAN_NORMAL_SHADOW)
+   else if (pixel_stack[0].shadow_type == TITAN_NORMAL_SHADOW)
    {
-      if (stencil_stack[1].shadow_enabled)
+      if (pixel_stack[1].shadow_enabled)
       {
-         pixel_stack[0] = TitanBlendPixelsTop(0x20000000, pixel_stack[1]);
+         pixel_stack[0].pixel = TitanBlendPixelsTop(0x20000000, pixel_stack[1].pixel);
       }
       else
       {
-         pixel_stack[0] = pixel_stack[1];
+         pixel_stack[0].pixel = pixel_stack[1].pixel;
       }
    }
    else
    {
-      if (tt_context.trans(pixel_stack[0]))
+      if (tt_context.trans(pixel_stack[0].pixel))
       {
-         u32 bottom = pixel_stack[1];
-         pixel_stack[0] = tt_context.blend(pixel_stack[0], bottom);
+         u32 bottom = pixel_stack[1].pixel;
+         pixel_stack[0].pixel = tt_context.blend(pixel_stack[0].pixel, bottom);
       }
    }
 
-   return pixel_stack[0];
+   return pixel_stack[0].pixel;
 }
 
 /* public */
@@ -424,18 +382,9 @@ int TitanInit()
    {
       for(i = 0;i < 6;i++)
       {
-         if ((tt_context.vdp2framebuffer[i] = (PixelData *)calloc(sizeof(PixelData), 704 * 256)) == NULL)
+         if ((tt_context.vdp2framebuffer[i] = (struct PixelData *)calloc(sizeof(struct PixelData), 704 * 256)) == NULL)
             return -1;
-         if ((tt_context.vdp2stencil[i] = (struct StencilData*)calloc(sizeof(struct StencilData), 704 * 256)) == NULL)
-	    return -1;
-         if ((tt_context.vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 256)) == NULL)
-	    return -1;
-	 tt_context.vdp2fbo[i] = -1;
-         tt_context.vdp2prio[i] = -1;
       }
-
-      tt_context.glwidth = 0;
-      tt_context.glheight= 0;
 
       /* linescreen 0 is not initialized as it's not used... */
       for(i = 1;i < 4;i++)
@@ -444,7 +393,7 @@ int TitanInit()
             return -1;
       }
 
-      if ((tt_context.backscreen = (PixelData  *)calloc(sizeof(PixelData), 512)) == NULL)
+      if ((tt_context.backscreen = (struct PixelData  *)calloc(sizeof(struct PixelData), 704 * 512)) == NULL)
          return -1;
 
       for (i = 0; i < 5; i++)
@@ -462,16 +411,11 @@ int TitanInit()
       tt_context.inited = 1;
    }
 
-   for(i = 0;i < 6;i++) {
+   for(i = 0;i < 6;i++)
       memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 256);
-      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
-      memset(tt_context.vdp2priority[i], 0, sizeof(u8) * 704 * 256);
-   }
 
    for(i = 1;i < 4;i++)
       memset(tt_context.linescreen[i], 0, sizeof(u32) * 512);
-
-   createGLPrograms();
 
    return 0;
 }
@@ -485,33 +429,19 @@ void TitanErase()
    if (vdp2_interlace)
       height /= 2;
 
-   for (i = 0; i < 6; i++) {
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * tt_context.vdp2width * height);
-      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * tt_context.vdp2width * height);
-      memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * tt_context.vdp2width * height);
-   }
+   for (i = 0; i < 6; i++)
+      memset(tt_context.vdp2framebuffer[i], 0, sizeof(struct PixelData) * tt_context.vdp2width * height);
 }
 
 int TitanDeInit()
 {
    int i;
 
-   for(i = 0;i < 6;i++) {
-      if (tt_context.vdp2framebuffer[i] != NULL) free(tt_context.vdp2framebuffer[i]);
-      if (tt_context.vdp2stencil[i] != NULL) free(tt_context.vdp2stencil[i]);
-      if (tt_context.vdp2priority[i] != NULL) free(tt_context.vdp2priority[i]);
-      tt_context.vdp2framebuffer[i] = NULL;
-      tt_context.vdp2stencil[i] = NULL;
-      tt_context.vdp2priority[i] = NULL;
-   }
+   for(i = 0;i < 6;i++)
+      free(tt_context.vdp2framebuffer[i]);
 
-   for(i = 1;i < 4;i++) {
-      if (tt_context.linescreen[i] != NULL) free(tt_context.linescreen[i]);
-      tt_context.linescreen[i] = NULL;
-   }
-
-   if (tt_context.backscreen != NULL) free(tt_context.backscreen);
-   tt_context.backscreen = NULL;
+   for(i = 1;i < 4;i++)
+      free(tt_context.linescreen[i]);
 
    return 0;
 }
@@ -549,10 +479,11 @@ void TitanSetBlendingMode(int blend_mode)
 
 void TitanPutBackHLine(s32 y, u32 color)
 {
-   PixelData* buffer = &tt_context.backscreen[(y)];
+   struct PixelData* buffer = &tt_context.backscreen[(y * tt_context.vdp2width)];
    int i;
 
-   *buffer = color;
+   for (i = 0; i < tt_context.vdp2width; i++)
+      buffer[i].pixel = color;
 }
 
 void TitanPutLineHLine(int linescreen, s32 y, u32 color)
@@ -571,11 +502,11 @@ void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2dr
 
    {
       int pos = (y * tt_context.vdp2width) + x;
-      tt_context.vdp2framebuffer[info->titan_which_layer][pos] = color;
-      tt_context.vdp2priority[info->titan_which_layer][pos] = priority;
-      tt_context.vdp2stencil[info->titan_which_layer][pos].linescreen = linescreen;
-      tt_context.vdp2stencil[info->titan_which_layer][pos].shadow_enabled = info->titan_shadow_enabled;
-      tt_context.vdp2stencil[info->titan_which_layer][pos].shadow_type = info->titan_shadow_type;
+      tt_context.vdp2framebuffer[info->titan_which_layer][pos].pixel = color;
+      tt_context.vdp2framebuffer[info->titan_which_layer][pos].priority = priority;
+      tt_context.vdp2framebuffer[info->titan_which_layer][pos].linescreen = linescreen;
+      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_enabled = info->titan_shadow_enabled;
+      tt_context.vdp2framebuffer[info->titan_which_layer][pos].shadow_type = info->titan_shadow_type;
    }
 }
 
@@ -584,10 +515,11 @@ void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color)
    if (priority == 0) return;
 
    {
-      PixelData * buffer = &tt_context.vdp2framebuffer[priority][ (y * tt_context.vdp2width) + x];
+      struct PixelData * buffer = &tt_context.vdp2framebuffer[priority][ (y * tt_context.vdp2width) + x];
       int i;
 
-      memset(buffer, color, width*sizeof(PixelData));
+      for (i = 0; i < width; i++)
+         buffer[i].pixel = color;
    }
 }
 
@@ -601,7 +533,6 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
    {
       return;
    }
-
 
    Vdp2GetInterlaceInfo(&interlace_line, &line_increment);
 
@@ -626,7 +557,6 @@ void TitanRenderLines(pixel_t * dispbuffer, int start_line, int end_line)
 
       layer_y++;
    }
-
 }
 
 //num + 1 needs to be an even number to avoid issues with interlace modes
@@ -690,284 +620,6 @@ void TitanRenderThreads(pixel_t * dispbuffer, int can_use_simplified)
    for (i = 0; i < vidsoft_num_priority_threads; i++)
    {
       TitanWaitForPriorityThread(i);
-   }
-}
-
-void createGLPrograms(void) {
-
-   GLbyte vShaderStr[] =
-      "attribute vec4 a_position;   \n"
-      "attribute vec2 a_texCoord;   \n"
-      "attribute vec2 b_texCoord;   \n"
-      "varying vec2 v_texCoord;     \n"
-      "varying vec2 s_texCoord;     \n"
-      "void main()                  \n"
-      "{                            \n"
-      "   gl_Position = a_position; \n"
-      "   v_texCoord = a_texCoord;  \n"
-      "   s_texCoord = b_texCoord;  \n"
-      "}                            \n";
-
-   GLbyte fShaderStr[] =
-      "varying vec2 v_texCoord;                            \n"
-      "varying vec2 s_texCoord;                            \n"
-      "uniform sampler2D s_texture;                        \n"
-      "uniform sampler2D b_texture;                        \n"
-      "void main()                                         \n"
-      "{                                                   \n"
-      "  vec4 sprite = texture2D( s_texture, s_texCoord );\n"
-      "  vec4 back = texture2D( b_texture, v_texCoord );\n"
-      "  gl_FragColor = sprite.a*sprite + (1.0 - sprite.a)*back; \n"
-      "}                                                   \n";
-
-   GLbyte vShaderGPrioStr[] =
-      "attribute vec4 a_position;   \n"
-      "attribute vec2 a_texCoord;   \n"
-      "attribute vec2 b_texCoord;   \n"
-      "varying vec2 v_texCoord;     \n"
-      "varying vec2 s_texCoord;     \n"
-      "void main()                  \n"
-      "{                            \n"
-      "   gl_Position = a_position; \n"
-      "   v_texCoord = a_texCoord;  \n"
-      "   s_texCoord = b_texCoord;  \n"
-      "}                            \n";
-
-   GLbyte fShaderGPrioStr[] =
-      "varying vec2 v_texCoord;                            \n"
-      "varying vec2 s_texCoord;                            \n"
-      "uniform sampler2D sprite;                        \n"
-      "uniform sampler2D layer;                        \n"
-      "uniform sampler2D priority;                        \n"
-      "uniform float layerpriority;                        \n"
-      "void main()                                         \n"
-      "{                                                   \n"
-      "  vec4 prio = texture2D( priority, s_texCoord );\n"  
-      "  vec4 spritepix = texture2D( sprite, s_texCoord );\n"
-      "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
-      "  if ((prio.a*255.0 + 0.5) >= layerpriority) {\n"
-      "        if (spritepix.a >= (1.0/255.0))\n"
-      "            gl_FragColor = spritepix.a*spritepix + (1.0 - spritepix.a)*layerpix; \n"
-      "        else discard;\n"
-      "  } else {;\n"
-      "        if (layerpix.a >= (1.0/255.0))\n"
-      "             gl_FragColor = layerpix.a*layerpix + (1.0 - layerpix.a)*spritepix;\n"
-      "        else discard;\n"
-      "  }\n"
-      "}                                                   \n";
-
-
-   // Create the program object
-   programObject = gles20_createProgram (vShaderStr, fShaderStr);
-
-   if ( programObject == 0 ){
-      fprintf (stderr,"Can not create a program\n");
-      return 0;
-   }
-
-   // Get the attribute locations
-   positionLoc = glGetAttribLocation ( programObject, "a_position" );
-   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
-   stexCoordLoc = glGetAttribLocation ( programObject, "b_texCoord" );
-
-   // Get the sampler location
-   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
-   // Get the sampler location
-   backLoc = glGetUniformLocation ( programObject, "b_texture" );
-
-   programGeneralPriority = gles20_createProgram (vShaderGPrioStr, fShaderGPrioStr);
-
-   if (programGeneralPriority == 0) {
-      fprintf(stderr, "Can not create programGeneralPriority\n");
-   }
-
-   posGPrioLoc = glGetAttribLocation( programGeneralPriority, "a_position");
-   tCoordGPrioLoc = glGetAttribLocation( programGeneralPriority, "a_texCoord");
-   sCoordGPrioLoc = glGetAttribLocation ( programGeneralPriority, "b_texCoord" );
-   spriteLoc = glGetUniformLocation( programGeneralPriority, "sprite");
-   layerLoc = glGetUniformLocation( programGeneralPriority, "layer");
-   prioLoc = glGetUniformLocation( programGeneralPriority, "priority");
-   refPrioLoc = glGetUniformLocation( programGeneralPriority, "layerpriority");
-}
-
-static float swVertices [] = {
-   -1.0f, -1.0f, 0, 0, 0, 0,
-   1.0f, -1.0f, 1.0f, 0, 1.0f, 0,
-   1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-   -1.0f,1.0f, 0, 1.0f, 0, 1.0f,
-};
-
-static int layer_tex = -1;
-static int back_tex = -1;
-static int sprite_tex = -1;
-static int stencil_tex = -1;
-
-void TitanRenderFBO(gl_fbo *fbo) {
-
-   int width = tt_context.vdp2width;
-   int height = tt_context.vdp2height;
-   int error;
-
-   if ((tt_context.glwidth != tt_context.vdp2width) || (tt_context.glheight != tt_context.vdp2height)) {
-       tt_context.glwidth = tt_context.vdp2width;
-       tt_context.glheight = tt_context.vdp2height;
-       if (back_tex == -1) glDeleteTextures(1,&back_tex);
-       if (layer_tex == -1) glDeleteTextures(1,&layer_tex);
-       if (sprite_tex == -1) glDeleteTextures(1,&sprite_tex);
-       if (stencil_tex == -1) glDeleteTextures(1,&stencil_tex);
-       back_tex = layer_tex = sprite_tex = stencil_tex = -1;
-   }
-
-   if (tt_context.vdp2fbo[TITAN_SPRITE] != -1) {
-	swVertices[4] = (fbo->width - (float)width)/fbo->width;
-	swVertices[5] = (fbo->height - (float)height)/fbo->height;
-	swVertices[11] = (fbo->height - (float)height)/fbo->height;
-	swVertices[22] = (fbo->width - (float)width)/fbo->width;
-   }
-
-   int x, y, i, layer, j;
-   int sorted_layers[8] = { 0 };
-   int num_layers = 0;
-
-   if ((width == 0) || (height == 0)) return;
-
-   if (!tt_context.inited || (!tt_context.trans))
-   {
-      return;
-   }
-
-   tt_context.layer_priority[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
-   tt_context.layer_priority[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
-   tt_context.layer_priority[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
-   tt_context.layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
-   tt_context.layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
-
-   glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
-   glViewport(0,0,fbo->width, fbo->height);
-   glClearColor(0.0, 0.0, 0.0, 0.0);
-   glClear(GL_COLOR_BUFFER_BIT);
-
-   if (back_tex == -1) {
-	glGenTextures(1, &back_tex);
-	glBindTexture(GL_TEXTURE_2D, back_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//NULL means reserve texture memory, but texels are undefined
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-   }
-
-   if (sprite_tex == -1) {
-	glGenTextures(1, &sprite_tex);
-	glBindTexture(GL_TEXTURE_2D, sprite_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//NULL means reserve texture memory, but texels are undefined
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-   }
-
-   if (layer_tex == -1) {
-	glGenTextures(1, &layer_tex);
-	glBindTexture(GL_TEXTURE_2D, layer_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//NULL means reserve texture memory, but texels are undefined
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-   }
-
-   if (stencil_tex == -1) {
-	glGenTextures(1, &stencil_tex);
-        glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, stencil_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//NULL means reserve texture memory, but texels are undefined
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
-   }
-
-   sorted_layers[num_layers++] = TITAN_BACK;
-
-   //pre-sort the layers so it doesn't have to be done per-pixel
-   for (i = 0; i < 8; i++)
-   {
-      for (layer = 0; layer <= TITAN_RBG0; layer++)
-      {
-         if (tt_context.layer_priority[layer] > 0 && tt_context.layer_priority[layer] == i)
-            sorted_layers[num_layers++] = layer;
-      }
-   }
-   
-   if( g_VertexSWBuffer == 0 )
-   {
-	glGenBuffers(1, &g_VertexSWBuffer);
-   }
-
-   for (j = 0; j < num_layers; j++)
-   {
-	int bg_layer = sorted_layers[j];
-        if (bg_layer == TITAN_BACK) {
-	    glActiveTexture(GL_TEXTURE0);
-	    glBindTexture(GL_TEXTURE_2D, back_tex);
-	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,1,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.backscreen);
-	    glActiveTexture(GL_TEXTURE1);
-	    if (tt_context.vdp2fbo[TITAN_SPRITE] == -1) {
-		    glBindTexture(GL_TEXTURE_2D, sprite_tex);
-		    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
-	    } else {
-		   glBindTexture(GL_TEXTURE_2D, tt_context.vdp2fbo[TITAN_SPRITE]);
-	    }
-	    glUseProgram(programObject);
-	    glUniform1i(backLoc, 0);
-	    glUniform1i(samplerLoc, 1);
-	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
-	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
-	    glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), 0 );
-	    glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
-	    glVertexAttribPointer ( stexCoordLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*4) );
-	    glEnableVertexAttribArray ( positionLoc );
-	    glEnableVertexAttribArray ( texCoordLoc );
-	    glEnableVertexAttribArray ( stexCoordLoc );
-	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        } else {
-	    glActiveTexture(GL_TEXTURE0);
-	    glBindTexture(GL_TEXTURE_2D, layer_tex);
-	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[bg_layer]);
-	    glActiveTexture(GL_TEXTURE1);
-	    if (tt_context.vdp2fbo[TITAN_SPRITE] == -1) {
-	    	glBindTexture(GL_TEXTURE_2D, sprite_tex);
-	    	glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context.vdp2framebuffer[TITAN_SPRITE]);
-	    } else {
-		glBindTexture(GL_TEXTURE_2D, tt_context.vdp2fbo[TITAN_SPRITE]);
-	    }
-	    glActiveTexture(GL_TEXTURE2);
-	    if (tt_context.vdp2prio[TITAN_SPRITE] == -1) {
-	    	glBindTexture(GL_TEXTURE_2D, stencil_tex);
-	    	glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_ALPHA,GL_UNSIGNED_BYTE,tt_context.vdp2priority[TITAN_SPRITE]);
-            } else {
-		glBindTexture(GL_TEXTURE_2D, tt_context.vdp2prio[TITAN_SPRITE]);
-	    }
-	    glUseProgram(programGeneralPriority);
-	    glUniform1i(layerLoc, 0);
-	    glUniform1i(spriteLoc, 1);
-	    glUniform1i(prioLoc, 2);
-	    glUniform1f(refPrioLoc, (float)(tt_context.layer_priority[bg_layer]));
-	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
-	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
-	    glVertexAttribPointer ( posGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), 0 );
-	    glVertexAttribPointer ( tCoordGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
-	    glVertexAttribPointer ( sCoordGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), (void*)(sizeof(float)*4) );
-	    glEnableVertexAttribArray ( posGPrioLoc );
-	    glEnableVertexAttribArray ( tCoordGPrioLoc );
-	    glEnableVertexAttribArray ( sCoordGPrioLoc );
-	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	}
    }
 }
 

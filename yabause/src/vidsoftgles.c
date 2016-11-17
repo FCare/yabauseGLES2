@@ -23,7 +23,7 @@
 /*! \file vidsoftgles.c
     \brief Software video renderer interface.
 */
-
+#include <SDL2/SDL.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
@@ -34,7 +34,7 @@
 #include "vidshared.h"
 #include "debug.h"
 #include "vdp2.h"
-#include "titan/titan.h"
+#include "titangl/titangl.h"
 #include "glutils/gles20utils.h"
 #include "patternManager.h"
 
@@ -45,12 +45,17 @@
 #include <limits.h>
 #include <math.h>
 
-//#define DO_NOT_RENDER_SW
-#define IMPROVE_TRANSPARENCY
+#include "asyncRenderer.h"
 
-#ifndef DO_NOT_RENDER_SW
-#define DEBUG_SW
-#endif
+SDL_Window *gl_window;
+SDL_GLContext gl_context;
+
+//#define USE_THREAD
+
+#define WINDOW_WIDTH 600
+#define WINDOW_HEIGHT 600
+
+#define IMPROVE_TRANSPARENCY
 
 #if defined WORDS_BIGENDIAN
 static INLINE u32 COLSAT2YAB16(int priority,u32 temp)            { return (priority | (temp & 0x7C00) << 1 | (temp & 0x3E0) << 14 | (temp & 0x1F) << 27); }
@@ -87,37 +92,26 @@ static int VIDSoftGLESIsFullscreen(void);
 static int VIDSoftGLESVdp1Reset(void);
 static void VIDSoftGLESVdp1DrawStart(void);
 static void VIDSoftGLESVdp1DrawEnd(void);
-static void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 
-static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
-static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
+static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer,render_context *ctx);
+static void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer,render_context *ctx);
+static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer,render_context *ctx);
 
 static void VIDSoftGLESVdp1PolylineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1LineDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1UserClipping(u8 * ram, Vdp1 * regs);
 static void VIDSoftGLESVdp1SystemClipping(u8 * ram, Vdp1 * regs);
 static void VIDSoftGLESVdp1LocalCoordinate(u8 * ram, Vdp1 * regs);
-static void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out);
-static void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val);
-static void VIDSoftGLESVdp1ReadFrameBufferGL(u32 type, u32 addr, void * out);
-static void VIDSoftGLESVdp1WriteFrameBufferGL(u32 type, u32 addr, u32 val);
 static int VIDSoftGLESVdp2Reset(void);
 static void VIDSoftGLESVdp2DrawStart(void);
 static void VIDSoftGLESVdp2DrawEnd(void);
 static void VIDSoftGLESVdp2DrawScreens(void);
-static void VIDSoftGLESVdp2SetResolution(u16 TVMD);
+static void VIDSoftGLESVdp2SetResolution(u16 TVMD, render_context *ctx);
 static void VIDSoftGLESGetGlSize(int *width, int *height);
 static void VIDSoftGLESVdp1SwapFrameBuffer(void);
 static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer);
-static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram);
 static void VIDSoftGLESGetNativeResolution(int *width, int *height, int*interlace);
 static void VIDSoftGLESVdp2DispOff(void);
-static pixel_t* VIDSoftGLESgetFramebuffer(void);
-static int VidSoftGLESgetDevFbo(void);
-static u8 * VidSoftGLESgetSWFbo(void);
 
 VideoInterface_struct VIDSoftGLES = {
 VIDCORE_OGLES,
@@ -129,40 +123,17 @@ VIDSoftGLESIsFullscreen,
 VIDSoftGLESVdp1Reset,
 VIDSoftGLESVdp1DrawStart,
 VIDSoftGLESVdp1DrawEnd,
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1NormalSpriteDraw,
-VIDSoftGLESVdp1ScaledSpriteDraw,
-#else
-VIDSoftGLESVdp1NormalSpriteDrawGL,
-VIDSoftGLESVdp1ScaledSpriteDrawGL,
-#endif
-
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1DistortedSpriteDraw,
-#else
-VIDSoftGLESVdp1DistortedSpriteDrawGL,
-#endif
-//for the actual hardware, polygons are essentially identical to distorted sprites
-//the actual hardware draws using diagonal lines, which is why using half-transparent processing
-//on distorted sprites and polygons is not recommended since the hardware overdraws to prevent gaps
-//thus, with half-transparent processing some pixels will be processed more than once, producing moire patterns in the drawn shapes
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1DistortedSpriteDraw,
-#else
-VIDSoftGLESVdp1DistortedSpriteDrawGL,
-#endif
+NULL,
+NULL,
+NULL,
+NULL,
 VIDSoftGLESVdp1PolylineDraw,
 VIDSoftGLESVdp1LineDraw,
 VIDSoftGLESVdp1UserClipping,
 VIDSoftGLESVdp1SystemClipping,
 VIDSoftGLESVdp1LocalCoordinate,
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1ReadFrameBuffer,
-VIDSoftGLESVdp1WriteFrameBuffer,
-#else
-VIDSoftGLESVdp1ReadFrameBufferGL,
-VIDSoftGLESVdp1WriteFrameBufferGL,
-#endif
+NULL,
+NULL,
 VIDSoftGLESVdp2Reset,
 VIDSoftGLESVdp2DrawStart,
 VIDSoftGLESVdp2DrawEnd,
@@ -170,22 +141,10 @@ VIDSoftGLESVdp2DrawScreens,
 VIDSoftGLESGetGlSize,
 VIDSoftGLESGetNativeResolution,
 VIDSoftGLESVdp2DispOff,
-VIDSoftGLESgetFramebuffer,
-VidSoftGLESgetDevFbo,
-VidSoftGLESgetSWFbo
+NULL,
+NULL,
+NULL
 };
-
-typedef struct {
-	u8* fb;
-	gl_fbo fbo;	
-	gl_fbo priority;
-} framebuffer;
-
-static gl_fbo fbo;
-
-static pixel_t *dispbuffergles=NULL;
-static framebuffer* vdp1framebuffer= NULL;
-static u8 sprite_window_mask[704 * 512];
 
 static int vdp1width;
 static int vdp1height;
@@ -199,7 +158,6 @@ static int vdp2_x_hires = 0;
 static int vdp2_interlace = 0;
 static int rbg0height = 0;
 static int bilinear = 0;
-static int bad_cycle_setting[6] = { 0 };
 
 typedef struct { s16 x; s16 y; } vdp1vertex;
 
@@ -218,9 +176,12 @@ typedef struct
 struct
 {
    volatile int need_draw[5];
+   volatile render_context* ctx[5];
    volatile int draw_finished[5];
-   volatile void (*draw[5])(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data);
+   volatile void (*draw[5])(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx);
 } screen_render_thread_context;
+
+renderingStack* currentRenderer = NULL;
 
 #define DECLARE_SCREEN_RENDER_THREAD(FUNC_NAME, THREAD_NUMBER) \
 void FUNC_NAME(void* data) \
@@ -230,19 +191,21 @@ void FUNC_NAME(void* data) \
       if (screen_render_thread_context.need_draw[THREAD_NUMBER]) \
       { \
          screen_render_thread_context.need_draw[THREAD_NUMBER] = 0; \
-         if (screen_render_thread_context.draw[THREAD_NUMBER] != NULL) screen_render_thread_context.draw[THREAD_NUMBER](Vdp2Lines, Vdp2Regs, Vdp2Ram, Vdp2ColorRam, cell_scroll_data); \
+	 render_context* ctx = screen_render_thread_context.ctx[THREAD_NUMBER]; \
+         if (screen_render_thread_context.draw[THREAD_NUMBER] != NULL) screen_render_thread_context.draw[THREAD_NUMBER](ctx->Vdp2Lines, ctx->Vdp2Regs, ctx->Vdp2Ram, ctx->Vdp2ColorRam, ctx->cell_scroll_data, ctx); \
          screen_render_thread_context.draw_finished[THREAD_NUMBER] = 1; \
       } \
       YabThreadSleep(); \
    } \
 }
 
+#ifdef USE_THREAD
 DECLARE_SCREEN_RENDER_THREAD(screenRenderThread0, 0);
 DECLARE_SCREEN_RENDER_THREAD(screenRenderThread1, 1);
 DECLARE_SCREEN_RENDER_THREAD(screenRenderThread2, 2);
 DECLARE_SCREEN_RENDER_THREAD(screenRenderThread3, 3);
 DECLARE_SCREEN_RENDER_THREAD(screenRenderThread4, 4);
-
+#endif
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -521,7 +484,7 @@ static int TestSpriteWindow(int wctl, int x, int y)
    if (addr >= (704 * 512))
       return 0;
 
-   mask = sprite_window_mask[addr];
+   mask = 0;//sprite_window_mask[addr];
 
    if (wctl & 0x20)//sprite window enabled on layer
    {
@@ -859,7 +822,7 @@ static int PixelIsSpecialPriority(int specialcode, int dot)
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    int i, j;
@@ -872,7 +835,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
    int *mosaic_y, *mosaic_x;
    clipping_struct colorcalcwindow[2];
    int start_line = 0, line_increment = 0;
-   int bad_cycle = bad_cycle_setting[info->titan_which_layer];
+   int bad_cycle = ctx->bad_cycle_setting[info->titan_which_layer];
    int charaddr, paladdr;
    int output_y = 0;
    u32 linescrollx_table[512] = { 0 };
@@ -1112,7 +1075,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
             else
                alpha = GetAlpha(info, color, dot);
 
-            TitanPutPixel(priority, i, output_y, info->PostPixelFetchCalc(info, COLSAT2YAB32(alpha, color)), info->linescreen, info);
+            TitanGLPutPixel(priority, i, output_y, info->PostPixelFetchCalc(info, COLSAT2YAB32(alpha, color)), info->linescreen, info, ctx->tt_context);
          }
       }
       output_y++;
@@ -1121,26 +1084,26 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Rbg0PutHiresPixel(vdp2draw_struct *info, u32 color, u32 dot, int i, int j)
+static void Rbg0PutHiresPixel(vdp2draw_struct *info, u32 color, u32 dot, int i, int j, render_context *ctx)
 {
 
    u32 pixel = info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color));
    int x_pos = i * 2;
-   TitanPutPixel(info->priority, x_pos, j, pixel, info->linescreen, info);
-   TitanPutPixel(info->priority, x_pos + 1, j, pixel, info->linescreen, info);
+   TitanGLPutPixel(info->priority, x_pos, j, pixel, info->linescreen, info, ctx->tt_context);
+   TitanGLPutPixel(info->priority, x_pos + 1, j, pixel, info->linescreen, info, ctx->tt_context);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Rbg0PutPixel(vdp2draw_struct *info, u32 color, u32 dot, int i, int j)
+static void Rbg0PutPixel(vdp2draw_struct *info, u32 color, u32 dot, int i, int j, render_context *ctx)
 {
 
    if (vdp2_x_hires)
    {
-      Rbg0PutHiresPixel(info, color, dot, i, j);
+      Rbg0PutHiresPixel(info, color, dot, i, j, ctx);
    }
    else
-      TitanPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color)), info->linescreen, info);
+      TitanGLPutPixel(info->priority, i, j, info->PostPixelFetchCalc(info, COLSAT2YAB32(GetAlpha(info, color, dot), color)), info->linescreen, info, ctx->tt_context);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1173,7 +1136,7 @@ static int Rbg0CheckRam(Vdp2* regs)
    return 0;
 }
 
-static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparameterfp_struct *parameter, Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparameterfp_struct *parameter, Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    int i, j;
@@ -1241,7 +1204,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
                   continue;
                }
 
-               Rbg0PutPixel(info, color, dot, i, j);
+               Rbg0PutPixel(info, color, dot, i, j, ctx);
             }
             xmul += p->deltaXst;
             ymul += p->deltaYst;
@@ -1349,7 +1312,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
             lineColorAddr = (T1ReadWord(ram, lineAddr) & 0x780) | p->linescreen;
             lineColor = Vdp2ColorRamGetColor(lineColorAddr, color_ram);
             lineAddr += lineInc;
-            TitanPutLineHLine(info->linescreen, j, COLSAT2YAB32(0xFF, lineColor));
+            TitanGLPutLineHLine(info->linescreen, j, COLSAT2YAB32(0xFF, lineColor), ctx->tt_context);
          }
 
          info->LoadLineParams(info, &sinfo, j, lines);
@@ -1452,7 +1415,7 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
                continue;
             }
 
-            Rbg0PutPixel(info, color, dot, i, j);
+            Rbg0PutPixel(info, color, dot, i, j, ctx);
          }
          xmul += p->deltaXst;
          ymul += p->deltaYst;
@@ -1477,12 +1440,12 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
       return;
    }
 
-   Vdp2DrawScroll(info, lines, regs, ram, color_ram, cell_data);
+   Vdp2DrawScroll(info, lines, regs, ram, color_ram, cell_data, ctx);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawBackScreen(void)
+static void Vdp2DrawBackScreen(render_context *ctx)
 {
 
    int i, j;
@@ -1492,7 +1455,7 @@ static void Vdp2DrawBackScreen(void)
    {
       // Draw Black
       for (j = 0; j < vdp2height; j++)
-         TitanPutBackHLine(j, COLSAT2YAB32(0xFF, 0));
+         TitanGLPutBackHLine(j, COLSAT2YAB32(0xFF, 0), ctx->tt_context);
    }
    else
    {
@@ -1516,7 +1479,7 @@ static void Vdp2DrawBackScreen(void)
             dot = T1ReadWord(Vdp2Ram, scrAddr);
             scrAddr += 2;
 
-            TitanPutBackHLine(i, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0xFF, dot)));
+            TitanGLPutBackHLine(i, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0xFF, dot)), ctx->tt_context);
          }
       }
       else
@@ -1525,14 +1488,14 @@ static void Vdp2DrawBackScreen(void)
          dot = T1ReadWord(Vdp2Ram, scrAddr);
 
          for (j = 0; j < vdp2height; j++)
-            TitanPutBackHLine(j, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0xFF, dot)));
+            TitanGLPutBackHLine(j, info.PostPixelFetchCalc(&info, COLSAT2YAB16(0xFF, dot)), ctx->tt_context);
       }
    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawLineScreen(void)
+static void Vdp2DrawLineScreen(render_context *ctx)
 {
 
    u32 scrAddr;
@@ -1561,7 +1524,7 @@ static void Vdp2DrawLineScreen(void)
          dot = Vdp2ColorRamGetColor(color, Vdp2ColorRam);
          scrAddr += 2;
 
-         TitanPutLineHLine(1, i, COLSAT2YAB32(alpha, dot));
+         TitanGLPutLineHLine(1, i, COLSAT2YAB32(alpha, dot), ctx->tt_context);
       }
    }
    else
@@ -1570,7 +1533,7 @@ static void Vdp2DrawLineScreen(void)
       color = T1ReadWord(Vdp2Ram, scrAddr) & 0x7FF;
       dot = Vdp2ColorRamGetColor(color, Vdp2ColorRam);
       for (i = 0; i < vdp2height; i++)
-         TitanPutLineHLine(1, i, COLSAT2YAB32(alpha, dot));
+         TitanGLPutLineHLine(1, i, COLSAT2YAB32(alpha, dot), ctx->tt_context);
    }
 }
 
@@ -1591,7 +1554,7 @@ static void LoadLineParamsNBG0(vdp2draw_struct * info, screeninfo_struct * sinfo
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    vdp2draw_struct info = { 0 };
@@ -1717,12 +1680,12 @@ static void Vdp2DrawNBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
    if (info.enable == 1)
    {
       // NBG0 draw
-      Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data);
+      Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data, ctx);
    }
    else
    {
       // RBG1 draw
-      Vdp2DrawRotationFP(&info, parameter, lines, regs, ram, color_ram, cell_data);
+      Vdp2DrawRotationFP(&info, parameter, lines, regs, ram, color_ram, cell_data, ctx);
    }
 }
 
@@ -1743,7 +1706,7 @@ static void LoadLineParamsNBG1(vdp2draw_struct * info, screeninfo_struct * sinfo
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    vdp2draw_struct info = { 0 };
@@ -1831,7 +1794,7 @@ static void Vdp2DrawNBG1(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
 
    info.LoadLineParams = (void(*)(void *, void*, int, Vdp2*)) LoadLineParamsNBG1;
 
-   Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data);
+   Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data, ctx);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1851,7 +1814,7 @@ static void LoadLineParamsNBG2(vdp2draw_struct * info, screeninfo_struct * sinfo
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    vdp2draw_struct info = { 0 };
@@ -1905,7 +1868,7 @@ static void Vdp2DrawNBG2(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
 
    info.LoadLineParams = (void(*)(void *,void*, int, Vdp2*)) LoadLineParamsNBG2;
 
-   Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data);
+   Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data, ctx);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1925,7 +1888,7 @@ static void LoadLineParamsNBG3(vdp2draw_struct * info, screeninfo_struct * sinfo
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    vdp2draw_struct info = { 0 };
@@ -1981,7 +1944,7 @@ static void Vdp2DrawNBG3(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
 
    info.LoadLineParams = (void(*)(void *, void*, int, Vdp2*)) LoadLineParamsNBG3;
 
-   Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data);
+   Vdp2DrawScroll(&info, lines, regs, ram, color_ram, cell_data, ctx);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1999,7 +1962,7 @@ static void LoadLineParamsRBG0(vdp2draw_struct * info, screeninfo_struct * sinfo
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data)
+static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct CellScrollData * cell_data, render_context *ctx)
 {
 
    vdp2draw_struct info = { 0 };
@@ -2107,7 +2070,7 @@ static void Vdp2DrawRBG0(Vdp2* lines, Vdp2* regs, u8* ram, u8* color_ram, struct
 
    info.LoadLineParams = (void(*)(void *, void*, int, Vdp2*)) LoadLineParamsRBG0;
 
-   Vdp2DrawRotationFP(&info, parameter, lines, regs, ram, color_ram, cell_data);
+   Vdp2DrawRotationFP(&info, parameter, lines, regs, ram, color_ram, cell_data, ctx);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2131,18 +2094,59 @@ static GLfloat swVertices [] = {
 
 //////////////////////////////////////////////////////////////////////////////
 
+void SDLInit(void) {
+	SDL_Renderer* rdr;
+
+	SDL_InitSubSystem(SDL_INIT_VIDEO);
+
+#if HAVE_LIBGLES
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+#endif
+
+	SDL_GL_SetSwapInterval(1);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
+
+	gl_window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
+	if (!gl_window) {
+    		fprintf(stderr, "Couldn't create window: %s\n", SDL_GetError());
+    		return;
+	}
+
+	gl_context = SDL_GL_CreateContext(gl_window);
+	if (!gl_context) {
+    		fprintf(stderr, "Couldn't create context: %s\n", SDL_GetError());
+    		return;
+	}
+
+	rdr = SDL_CreateRenderer(gl_window, -1, SDL_RENDERER_ACCELERATED);
+
+        glClearColor( 0.0f,0.0f,0.0f,0.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+	SDL_GL_SwapWindow(gl_window);
+
+	//SDL_GL_MakeCurrent(gl_window, NULL);
+}
+
 int VIDSoftGLESInit(void)
 {
 
    int i;
 
-   if (TitanInit() == -1)
-      return -1;
-
+   SDLInit();
+#ifdef USE_THREAD
     for (i = 0; i < 5; i++)
       {
          screen_render_thread_context.draw_finished[i] = 1;
          screen_render_thread_context.need_draw[i] = 0;
+	 screen_render_thread_context.ctx[i] = NULL;
       }
 
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG3, screenRenderThread0, NULL);
@@ -2150,27 +2154,12 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, screenRenderThread2, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
-
-   if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
-      return -1;
- 
-   gles20_createFBO(&fbo, 704, 512, 0);
-
-   // Initialize VDP1 framebuffer
-   if ((vdp1framebuffer = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
-      return -1;
-
-   if ((vdp1framebuffer->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
-      return -1;
-
-   gles20_createFBO(&vdp1framebuffer->fbo, 1024, 512, 0);
-   gles20_createFBO(&vdp1framebuffer->priority, 1024, 512, 1);
+#endif
 
    rbg0width = vdp2width = 320;
    vdp2height = 224;
 
-   createPatternProgram();
-   createPriorityProgram();
+   createRenderingStacks(3, gl_window, &gl_context);
 
    return 0;
 }
@@ -2187,19 +2176,6 @@ void VIDSoftGLESSetBilinear(int b)
 
 void VIDSoftGLESDeInit(void)
 {
-
-   if (dispbuffergles != NULL)
-   {
-      free(dispbuffergles);
-      dispbuffergles = NULL;
-   }
-
-   if (vdp1framebuffer != NULL) {
-      free(vdp1framebuffer->fb);
-      free(vdp1framebuffer);
-      vdp1framebuffer = NULL;
-   }
-
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2261,9 +2237,6 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
       vdp1height = 256;
       vdp1pixelsize = 2;
    }
-#ifndef DO_NOT_RENDER_SW
-   VIDSoftGLESVdp1EraseFrameBuffer(regs, back_framebuffer);
-#endif
 
    //night warriors doesn't set clipping most frames and uses
    //the last part of the vdp1 framebuffer as scratch ram
@@ -2273,10 +2246,96 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 
 void VIDSoftGLESVdp1DrawStart()
 {
-      VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1framebuffer);
-      Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1framebuffer);
+//AJouter l'operation VDP1DRAWSTART
+      currentRenderer = addOperation(currentRenderer, VDP1START);
 }
 
+void VIDSoftGLESDrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer, render_context *ctx)
+{
+   u16 command = T1ReadWord(ram, regs->addr);
+   u32 commandCounter = 0;
+   u32 returnAddr = 0xffffffff;
+
+   while (!(command & 0x8000) && commandCounter < 2000) { // fix me
+      // First, process the command
+      if (!(command & 0x4000)) { // if (!skip)
+         switch (command & 0x000F) {
+         case 0: // normal sprite draw
+            VIDSoftGLESVdp1NormalSpriteDrawGL(ram, regs, back_framebuffer, ctx);
+            break;
+         case 1: // scaled sprite draw
+            VIDSoftGLESVdp1ScaledSpriteDrawGL(ram, regs, back_framebuffer, ctx);
+            break;
+         case 2: // distorted sprite draw
+         case 3: /* this one should be invalid, but some games
+                 (Hardcore 4x4 for instance) use it instead of 2 */
+            VIDSoftGLESVdp1DistortedSpriteDrawGL(ram, regs, back_framebuffer, ctx);
+            break;
+         case 4: // polygon draw
+            VIDSoftGLESVdp1DistortedSpriteDrawGL(ram, regs, back_framebuffer, ctx);
+            break;
+         case 5: // polyline draw
+         case 7: // undocumented mirror
+            VIDSoftGLESVdp1PolylineDraw(ram, regs, back_framebuffer);
+            break;
+         case 6: // line draw
+            VIDSoftGLESVdp1LineDraw(ram, regs, back_framebuffer);
+            break;
+         case 8: // user clipping coordinates
+         case 11: // undocumented mirror
+            VIDSoftGLESVdp1UserClipping(ram, regs);
+            break;
+         case 9: // system clipping coordinates
+            VIDSoftGLESVdp1SystemClipping(ram, regs);
+            break;
+         case 10: // local coordinate
+            VIDSoftGLESVdp1LocalCoordinate(ram, regs);
+            break;
+         default: // Abort
+            VDP1LOG("vdp1\t: Bad command: %x\n", command);
+            regs->EDSR |= 2;
+            VIDCore->Vdp1DrawEnd();
+            regs->LOPR = regs->addr >> 3;
+            regs->COPR = regs->addr >> 3;
+            return;
+         }
+      }
+
+      // Next, determine where to go next
+      switch ((command & 0x3000) >> 12) {
+      case 0: // NEXT, jump to following table
+         regs->addr += 0x20;
+         break;
+      case 1: // ASSIGN, jump to CMDLINK
+         regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         break;
+      case 2: // CALL, call a subroutine
+         if (returnAddr == 0xFFFFFFFF)
+            returnAddr = regs->addr + 0x20;
+
+         regs->addr = T1ReadWord(ram, regs->addr + 2) * 8;
+         break;
+      case 3: // RETURN, return from subroutine
+         if (returnAddr != 0xFFFFFFFF) {
+            regs->addr = returnAddr;
+            returnAddr = 0xFFFFFFFF;
+         }
+         else
+            regs->addr += 0x20;
+         break;
+      }
+
+      command = T1ReadWord(ram, regs->addr);
+      commandCounter++;
+   }
+}
+
+void FrameVdp1DrawStart(render_context *ctx)
+{
+	//printf("FrameVdp1DrawStart\n");
+	VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, ctx->tt_context->vdp1framebuffer);
+      VIDSoftGLESDrawCommands(Vdp1Ram, Vdp1Regs, ctx->tt_context->vdp1framebuffer, ctx);
+}
 //////////////////////////////////////////////////////////////////////////////
 
 void VIDSoftGLESVdp1DrawEnd(void)
@@ -3355,7 +3414,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     return curPattern;
 }
 
-void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer){
+void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer, render_context *ctx){
 	s32 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
         float xa,ya,xb,yb,xc,yc,xd,yd;
 	int x0,y0,x1,y1;
@@ -3472,16 +3531,16 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 
 	drawPattern(pattern, quadVertices);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
+        glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 
         drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
+        glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
 }
 
-void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
+void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer,render_context *ctx) {
 	float xa,ya,xb,yb,xc,yc,xd,yd;
 	int spriteWidth;
 	int spriteHeight;
@@ -3525,16 +3584,16 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 
 	drawPattern(pattern, quadVertices);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
+        glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 
         drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
+        glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
 }
 
-void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
+void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer,render_context *ctx) {
    
     float xa,ya,xb,yb,xc,yc,xd,yd;
     vdp1cmd_struct cmd;
@@ -3590,13 +3649,13 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 
     drawPattern(pattern, quadVertices);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-    glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
+    glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 
     drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-    glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
+    glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
 
 }
 
@@ -3696,75 +3755,6 @@ void VIDSoftGLESVdp1LocalCoordinate(u8* ram, Vdp1*regs)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-void VIDSoftGLESVdp1ReadFrameBufferGL(u32 type, u32 addr, void * out) {
-}
-
-void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
-{
-   u32 val;
-
-   switch (type)
-   {
-   case 0:
-      val = T1ReadByte(vdp1framebuffer->fb, addr);
-      *(u8*)out = val;
-      break;
-   case 1:
-      val = T1ReadWord(vdp1framebuffer->fb, addr);
-#ifndef WORDS_BIGENDIAN
-      val = BSWAP16L(val);
-#endif
-      *(u16*)out = val;
-      break;
-   case 2:
-#if 0 //enable when burning rangers is fixed
-      val = T1ReadLong(vdp1framebuffer->fb, addr);
-#ifndef WORDS_BIGENDIAN
-      val = BSWAP32(val);
-#endif
-      val = (val & 0xffff) << 16 | (val & 0xffff0000) >> 16;
-      *(u32*)out = val;
-#else
-      *(u32*)out = 0;
-#endif
-      break;
-   default:
-      break;
-   }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void VIDSoftGLESVdp1WriteFrameBufferGL(u32 type, u32 addr, u32 val)
-{ }
-
-void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
-{
-
-   switch (type)
-   {
-   case 0:
-      T1WriteByte(vdp1framebuffer->fb, addr, val);
-      break;
-   case 1:
-#ifndef WORDS_BIGENDIAN
-      val = BSWAP16L(val);
-#endif
-      T1WriteWord(vdp1framebuffer->fb, addr, val);
-      break;
-   case 2:
-#ifndef WORDS_BIGENDIAN
-      val = BSWAP32(val);
-#endif
-      val = (val & 0xffff) << 16 | (val & 0xffff0000) >> 16;
-      T1WriteLong(vdp1framebuffer->fb, addr, val);
-      break;
-   default:
-      break;
-   }
-}
-
-//////////////////////////////////////////////////////////////////////////////
 
 int VIDSoftGLESVdp2Reset(void)
 {
@@ -3774,16 +3764,30 @@ int VIDSoftGLESVdp2Reset(void)
 
 //////////////////////////////////////////////////////////////////////////////
 
-void VIDSoftGLESVdp2DrawStart(void)
+
+void VIDSoftGLESVdp2DrawStart(void) {
+	currentRenderer = getFrame();
+	initRenderingStack(currentRenderer, Vdp2Regs, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
+	currentRenderer = addOperation(currentRenderer, VDP2START);
+}
+
+void FrameVdp2DrawStart(render_context *ctx)
 {
+	//printf("FrameVdp2DrawStart\n");
+//Recuperer un FBO dans une liste.
+//Initialiser une liste d'operation.
+//Ajouter l'operation VDP2START
+//Dupliquer Vdp2Regs, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam
+
+
    int titanblendmode = TITAN_BLEND_TOP;
 
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
+glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
 glClear(GL_COLOR_BUFFER_BIT);
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
+glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
 glClear(GL_COLOR_BUFFER_BIT);
 
@@ -3794,10 +3798,10 @@ recycleCache();
 
    if (Vdp2Regs->CCCTL & 0x100) titanblendmode = TITAN_BLEND_ADD;
    else if (Vdp2Regs->CCCTL & 0x200) titanblendmode = TITAN_BLEND_BOTTOM;
-   TitanSetBlendingMode(titanblendmode);
+   TitanGLSetBlendingMode(titanblendmode, ctx->tt_context);
 
-   Vdp2DrawBackScreen();
-   Vdp2DrawLineScreen();
+   Vdp2DrawBackScreen(ctx);
+   Vdp2DrawLineScreen(ctx);
 
    //dracula x bad cycle setting
    if (Vdp2Regs->CYCA0L == 0x5566 &&
@@ -3809,398 +3813,193 @@ recycleCache();
       Vdp2Regs->CYCB1L == 0xffff &&
       Vdp2Regs->CYCB1U == 0xffff)
    {
-      bad_cycle_setting[TITAN_NBG3] = 1;
+      ctx->bad_cycle_setting[TITAN_NBG3] = 1;
    }
    else
-      bad_cycle_setting[TITAN_NBG3] = 0;
+      ctx->bad_cycle_setting[TITAN_NBG3] = 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
+static GLint g_VertexDevBuffer = 0;
 
-static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram)
+static GLint programObject  = 0;
+static GLint positionLoc    = 0;
+static GLint texCoordLoc    = 0;
+static GLint samplerLoc     = 0;
+
+int fbo_buf_width = -1;
+int fbo_buf_height = -1;
+
+static float vertices [] = {
+   -1.0f, 1.0f, 0, 0,
+   1.0f, 1.0f, 1.0f, 0,
+   1.0f, -1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f
+};
+
+static const float squareVertices [] = {
+   -1.0f, 1.0f, 0, 0,
+   1.0f, 1.0f, 1.0f, 0,
+   1.0f, -1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f
+};
+
+static float devVertices [] = {
+   -1.0f, 1.0f, 0, 0,
+   1.0f, 1.0f, 1.0f, 0,
+   1.0f, -1.0f, 1.0f, 1.0f,
+   -1.0f,-1.0f, 0, 1.0f
+};
+
+int InitProgramForSoftwareRendering()
 {
-   int i, i2;
-   u16 pixel;
-   u8 prioritytable[8];
-   u32 vdp1coloroffset;
-   int colormode = vdp2_regs->SPCTL & 0x20;
-   vdp2draw_struct info = { 0 };
-   int islinewindow;
-   clipping_struct clip[2];
-   u32 linewnd0addr, linewnd1addr;
-   int wctl;
-   clipping_struct colorcalcwindow[2];
-   int framebuffer_readout_y = 0;
-   int start_line = 0, line_increment = 0;
-   int sprite_window_enabled = vdp2_regs->SPCTL & 0x10;
-   int vdp1spritetype = 0;
+   GLbyte vShaderStr[] =
+      "attribute vec4 a_position;   \n"
+      "attribute vec2 a_texCoord;   \n"
+      "varying vec2 v_texCoord;     \n"
+      "void main()                  \n"
+      "{                            \n"
+      "   gl_Position = a_position; \n"
+      "   v_texCoord = a_texCoord;  \n"
+      "}                            \n";
 
-   if (sprite_window_enabled)
-   {
-      memset(spr_window_mask, 0, 704 * 512);
+   GLbyte fShaderStr[] =
+      "varying vec2 v_texCoord;                            \n"
+      "uniform sampler2D s_texture;                        \n"
+      "void main()                                         \n"
+      "{                                                   \n"
+      "  vec4 color = texture2D( s_texture, v_texCoord );\n"    
+      "  gl_FragColor = color;\n"    
+      "}                                                   \n";
+
+   // Create the program object
+   programObject = gles20_createProgram (vShaderStr, fShaderStr);
+
+   if ( programObject == 0 ){
+      fprintf (stderr,"Can not create a program\n");
+      return 0;
    }
 
-   // Figure out whether to draw vdp1 framebuffer or vdp2 framebuffer pixels
-   // based on priority
-   if (Vdp1External.disptoggle && (vdp2_regs->TVMD & 0x8000))
+   // Get the attribute locations
+   positionLoc = glGetAttribLocation ( programObject, "a_position" );
+   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
+
+   // Get the sampler location
+   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
+
+   //initFBOFree(mFBOFree, 3, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+   return GL_TRUE;
+}
+
+void DrawFBO(render_context* ctx) {
+    int error,i;
+    int tex = ctx->tt_context->fbo.fb;;
+    if (programObject == 0) InitProgramForSoftwareRendering();
+    glUseProgram(programObject);
+
+    glActiveTexture ( GL_TEXTURE0 );
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+   if( g_VertexDevBuffer == 0 )
    {
-      int SPCCCS = (vdp2_regs->SPCTL >> 12) & 0x3;
-      int SPCCN = (vdp2_regs->SPCTL >> 8) & 0x7;
-      u8 colorcalctable[8];
-      vdp2rotationparameterfp_struct p;
-      int x, y;
-      int output_y = 0;
-
-      prioritytable[0] = vdp2_regs->PRISA & 0x7;
-      prioritytable[1] = (vdp2_regs->PRISA >> 8) & 0x7;
-      prioritytable[2] = vdp2_regs->PRISB & 0x7;
-      prioritytable[3] = (vdp2_regs->PRISB >> 8) & 0x7;
-      prioritytable[4] = vdp2_regs->PRISC & 0x7;
-      prioritytable[5] = (vdp2_regs->PRISC >> 8) & 0x7;
-      prioritytable[6] = vdp2_regs->PRISD & 0x7;
-      prioritytable[7] = (vdp2_regs->PRISD >> 8) & 0x7;
-      colorcalctable[0] = ((~vdp2_regs->CCRSA & 0x1F) << 1) + 1;
-      colorcalctable[1] = ((~vdp2_regs->CCRSA >> 7) & 0x3E) + 1;
-      colorcalctable[2] = ((~vdp2_regs->CCRSB & 0x1F) << 1) + 1;
-      colorcalctable[3] = ((~vdp2_regs->CCRSB >> 7) & 0x3E) + 1;
-      colorcalctable[4] = ((~vdp2_regs->CCRSC & 0x1F) << 1) + 1;
-      colorcalctable[5] = ((~vdp2_regs->CCRSC >> 7) & 0x3E) + 1;
-      colorcalctable[6] = ((~vdp2_regs->CCRSD & 0x1F) << 1) + 1;
-      colorcalctable[7] = ((~vdp2_regs->CCRSD >> 7) & 0x3E) + 1;
-
-      vdp1coloroffset = (vdp2_regs->CRAOFB & 0x70) << 4;
-      vdp1spritetype = vdp2_regs->SPCTL & 0xF;
-
-      ReadVdp2ColorOffset(vdp2_regs, &info, 0x40, 0x40);
-
-      wctl = vdp2_regs->WCTLC >> 8;
-      clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
-      clip[1].xstart = clip[1].ystart = clip[1].xend = clip[1].yend = 0;
-      ReadWindowData(wctl, clip, vdp2_regs);
-      linewnd0addr = linewnd1addr = 0;
-      ReadLineWindowData(&islinewindow, wctl, &linewnd0addr, &linewnd1addr, vdp2_regs);
-
-      /* color calculation window: in => no color calc, out => color calc */
-      ReadWindowData(vdp2_regs->WCTLD >> 8, colorcalcwindow, vdp2_regs);
-
-      if (vdp1_regs->TVMR & 2)
-         Vdp2ReadRotationTableFP(0, &p, vdp2_regs, vdp2_ram);
-
-      info.titan_which_layer = TITAN_SPRITE;
-
-      info.linescreen = (vdp2_regs->LNCLEN >> 5) & 1;
-
-      Vdp2GetInterlaceInfo(&start_line, &line_increment);
-
-      for (i2 = start_line; i2 < vdp2height; i2 += line_increment)
-      {
-         float framebuffer_readout_pos = 0;
-
-         ReadLineWindowClip(islinewindow, clip, &linewnd0addr, &linewnd1addr, vdp2_ram, vdp2_regs);
-
-         if (vdp2_interlace)
-            LoadLineParamsSprite(&info, i2 / 2, vdp2_lines);
-         else
-            LoadLineParamsSprite(&info, i2, vdp2_lines);
-
-         if (vdp2_interlace)
-         {
-            y = framebuffer_readout_y;
-            framebuffer_readout_y += 1;
-         }
-         else
-         {
-            y = i2;
-         }
-
-         for (i = 0; i < vdp2width; i++)
-         {
-
-            info.titan_shadow_type = 0;
-            // See if screen position is clipped, if it isn't, continue
-            if (!(vdp2_regs->SPCTL & 0x10))
-            {
-               if (!TestBothWindow(wctl, clip, i, i2))
-               {
-                  continue;
-               }
-            }
-
-            if (vdp1_regs->TVMR & 2) {
-               x = (touint(p.Xst + i * p.deltaX + i2 * p.deltaXst)) & (vdp1width - 1);
-               y = (touint(p.Yst + i * p.deltaY + i2 * p.deltaYst)) & (vdp1height - 1);
-            }
-            else
-            {
-               if (vdp1width == 1024 && vdp2_x_hires)
-               {
-                  //hi res vdp1 and hi res vdp2
-                  //pixels 1:1
-                  x = (int)framebuffer_readout_pos;
-                  framebuffer_readout_pos += 1;
-               }
-               else if (vdp1width == 512 && vdp2_x_hires)
-               {
-                  //low res vdp1,hi res vdp2
-                  //vdp1 pixel doubling
-                  x = (int)framebuffer_readout_pos;
-                  framebuffer_readout_pos += .5;
-               }
-               else if (vdp1width == 1024 && (!vdp2_x_hires))
-               {
-                  //hi res vdp1, low res vdp2
-                  //the vdp1 framebuffer is read out at half-res
-                  x = (int)framebuffer_readout_pos;
-                  framebuffer_readout_pos += 2;
-               }
-               else
-                  x = i;
-            }
-            if (vdp1pixelsize == 2)
-            {
-               // 16-bit pixel size
-               pixel = ((u16 *)vdp1_front_framebuffer)[(y * vdp1width) + x];
-               if (pixel == 0)
-                  ;
-               else if (pixel & 0x8000 && colormode)
-               {
-                  // 16 BPP               
-                  u8 alpha = 0x3F;
-                  if (TestBothWindow(vdp2_regs->WCTLD >> 8, colorcalcwindow, i, i2) && (vdp2_regs->CCCTL & 0x40))
-                  {
-                     switch (SPCCCS) {
-                     case 0:
-                        if (prioritytable[0] <= SPCCN)
-                        {
-                           alpha = colorcalctable[0];
-                           if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        }
-                        break;
-                     case 1:
-                        if (prioritytable[0] == SPCCN)
-                        {
-                           alpha = colorcalctable[0];
-                           if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        }
-                        break;
-                     case 2:
-                        if (prioritytable[0] >= SPCCN)
-                        {
-                           alpha = colorcalctable[0];
-                           if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        }
-                        break;
-                     case 3:
-                        alpha = colorcalctable[0];
-                        if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        break;
-                     }
-                  }
-
-                  // if pixel is 0x8000, only draw pixel if sprite window
-                  // is disabled/sprite type 2-7. sprite types 0 and 1 are
-                  // -always- drawn and sprite types 8-F are always
-                  // transparent.
-
-                  if (pixel != 0x8000 || vdp1spritetype < 2 || (vdp1spritetype < 8 && !(vdp2_regs->SPCTL & 0x10)))
-                     TitanPutPixel(prioritytable[0], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB16(alpha, pixel)), info.linescreen, &info);
-               }
-               else
-               {
-                  // Color bank
-                  spritepixelinfo_struct spi;
-                  u8 alpha = 0x3F;
-                  u32 dot;
-
-                  Vdp1GetSpritePixelInfo(vdp1spritetype, &pixel, &spi);
-                  if (spi.normalshadow)
-                  {
-                     info.titan_shadow_type = TITAN_NORMAL_SHADOW;
-                     TitanPutPixel(prioritytable[spi.priority], i, output_y, COLSAT2YAB16(0x3f, 0), info.linescreen, &info);
-                     continue;
-                  }
-
-                  dot = Vdp2ColorRamGetColor(vdp1coloroffset + pixel,color_ram);
-
-                  if (TestBothWindow(vdp2_regs->WCTLD >> 8, colorcalcwindow, i, i2) && (vdp2_regs->CCCTL & 0x40))
-                  {
-                     int transparent = 0;
-
-                     /* Sprite color calculation */
-                     switch (SPCCCS) {
-                     case 0:
-                        if (prioritytable[spi.priority] <= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 1:
-                        if (prioritytable[spi.priority] == SPCCN)
-                           transparent = 1;
-                        break;
-                     case 2:
-                        if (prioritytable[spi.priority] >= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 3:
-                        if (dot & 0x80000000)
-                           transparent = 1;
-                        break;
-                     }
-
-                     if (vdp2_regs->CCCTL & 0x200) {
-                        /* "bottom" mode, the alpha channel will be used by another layer,
-                        so we set it regardless of whether sprites are transparent or not.
-                        The highest priority bit is only set if the sprite is transparent
-                        (in this case, it's the alpha channel of the lower priority layer
-                        that will be used. */
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (transparent) alpha |= 0x80;
-                     }
-                     else if (transparent) {
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (vdp2_regs->CCCTL & 0x100) alpha |= 0x80;
-                     }
-                  }
-                  if (spi.msbshadow)
-                  {
-                     if (sprite_window_enabled) {
-                        spr_window_mask[(y*vdp2width) + x] = 1;
-                        info.titan_shadow_type = TITAN_MSB_SHADOW;
-                     }
-                     else
-                     {
-                        info.titan_shadow_type = TITAN_MSB_SHADOW;
-                     }
-
-                     if (pixel == 0)
-                     {
-                        TitanPutPixel(prioritytable[spi.priority], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, 0)), info.linescreen, &info);
-                        continue;
-                     }
-                  }
-
-                  if ((sprite_window_enabled))
-                  {
-                     if (!TestBothWindow(wctl, clip, i, i2))
-                     {
-                        continue;
-                     }
-                  }
-
-                  TitanPutPixel(prioritytable[spi.priority], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), info.linescreen, &info);
-               }
-            }
-            else
-            {
-               // 8-bit pixel size
-               pixel = vdp1_front_framebuffer[(y * vdp1width) + x];
-
-               if (pixel != 0)
-               {
-                  // Color bank(fix me)
-                  spritepixelinfo_struct spi;
-                  u8 alpha = 0x3F;
-                  u32 dot;
-
-                  Vdp1GetSpritePixelInfo(vdp1spritetype, &pixel, &spi);
-                  if (spi.normalshadow)
-                  {
-                     info.titan_shadow_type = TITAN_NORMAL_SHADOW;
-                     TitanPutPixel(prioritytable[spi.priority], i, output_y, COLSAT2YAB16(0x3f, 0), info.linescreen, &info);
-                     continue;
-                  }
-
-                  dot = Vdp2ColorRamGetColor(vdp1coloroffset + pixel, color_ram);
-
-                  if (TestBothWindow(vdp2_regs->WCTLD >> 8, colorcalcwindow, i, i2) && (vdp2_regs->CCCTL & 0x40))
-                  {
-                     int transparent = 0;
-
-                     /* Sprite color calculation */
-                     switch (SPCCCS) {
-                     case 0:
-                        if (prioritytable[spi.priority] <= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 1:
-                        if (prioritytable[spi.priority] == SPCCN)
-                           transparent = 1;
-                        break;
-                     case 2:
-                        if (prioritytable[spi.priority] >= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 3:
-                        if (dot & 0x80000000)
-                           transparent = 1;
-                        break;
-                     }
-
-                     if (vdp2_regs->CCCTL & 0x200) {
-                        /* "bottom" mode, the alpha channel will be used by another layer,
-                        so we set it regardless of whether sprites are transparent or not.
-                        The highest priority bit is only set if the sprite is transparent
-                        (in this case, it's the alpha channel of the lower priority layer
-                        that will be used. */
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (transparent) alpha |= 0x80;
-                     }
-                     else if (transparent) {
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (vdp2_regs->CCCTL & 0x100) alpha |= 0x80;
-                     }
-                  }
-
-                  TitanPutPixel(prioritytable[spi.priority], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), info.linescreen, &info);
-               }
-            }
-         }
-
-         output_y++;
-      }
+      glGenBuffers(1, &g_VertexDevBuffer);
    }
+
+   if ((vdp2width == 0) || (vdp2height == 0)) return;
+
+   if( vdp2width != fbo_buf_width ||  vdp2height != fbo_buf_height )
+   {
+       fbo_buf_width = vdp2width;
+       fbo_buf_height = vdp2height;
+    }
+
+      glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(devVertices),devVertices,GL_STATIC_DRAW);
+      glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
+      glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+      glEnableVertexAttribArray ( positionLoc );
+      glEnableVertexAttribArray ( texCoordLoc );
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+	currentRenderer = addOperation(currentRenderer, VDP2END);
+}
 
+unsigned long lastFrameTime = 0;
+unsigned long delayUs = 1000000/60;
+
+static unsigned long getCurrentTimeUs(unsigned long offset) {
+    struct timeval s;
+
+    gettimeofday(&s, NULL);
+
+    return (s.tv_sec * 1000000 + s.tv_usec) - offset;
+}
+
+
+void FrameVdp2DrawEnd(render_context *ctx)
+{
+   unsigned long currentTime;
+   if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
+#ifdef USE_THREAD
    screenRenderWait(0);
    screenRenderWait(1);
    screenRenderWait(2);
    screenRenderWait(3);
    screenRenderWait(4);
-
+#endif
    glDisable(GL_SCISSOR_TEST);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    glViewport(0,0,800, 600);
-#ifndef DO_NOT_RENDER_SW
-   TitanRender(dispbuffergles);
-#else
-   TitanSetVdp2Fbo(vdp1framebuffer->fbo.fb, TITAN_SPRITE);
-   TitanSetVdp2Priority(vdp1framebuffer->priority.fb, TITAN_SPRITE);
-   TitanRenderFBO(&fbo);
-#endif
+   TitanGLSetVdp2Fbo(ctx->tt_context->vdp1framebuffer->fbo.fb, TITAN_SPRITE, ctx->tt_context);
+   TitanGLSetVdp2Priority(ctx->tt_context->vdp1framebuffer->priority.fb, TITAN_SPRITE, ctx->tt_context);
+   TitanGLRenderFBO(ctx->tt_context);
    VIDSoftGLESVdp1SwapFrameBuffer();
 
-#ifndef DO_NOT_RENDER_SW
-   if (OSDUseBuffer())
-      OSDDisplayMessages(dispbuffergles, vdp2width, vdp2height);
-#endif
+   int glWidth, glHeight;
 
+   float ar = (float)vdp2width/(float)vdp2height;
+   float dar = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
 
-//VIDSoftGLESDrawSoftwareBuffer();
+   if (ar <= dar) {
+     glHeight = WINDOW_HEIGHT;
+     glWidth = ar * glHeight;
+   } else {
+     glWidth = WINDOW_WIDTH;
+     glHeight = glWidth/ar;
+   }
 
+   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+   glViewport((WINDOW_WIDTH-glWidth)/2,(WINDOW_HEIGHT-glHeight)/2,glWidth, glHeight);
+
+   DrawFBO(ctx);
    YuiSwapBuffers();
+   
+   currentTime = getCurrentTimeUs(0);
+   if ((currentTime - lastFrameTime) < delayUs) {
+	usleep((delayUs - (currentTime - lastFrameTime)));
+   }   
+   SDL_GL_SwapWindow(gl_window);
+
+   lastFrameTime = getCurrentTimeUs(0);
 
    if (updateProfiler()) {
        resetProfiler(3*1000);
    }
 }
 
-void screenRenderThread(void (*pt[5])(Vdp2*, Vdp2*, u8*, u8*, struct CellScrollData *), int which) {
+void screenRenderThread(void (*pt[5])(Vdp2*, Vdp2*, u8*, u8*, struct CellScrollData *), int which, render_context *ctx) {
    screen_render_thread_context.draw[which] = pt;
    screen_render_thread_context.need_draw[which] = 1;
    screen_render_thread_context.draw_finished[which] = 0;
+   screen_render_thread_context.ctx[which] = ctx;
    YabThreadWake(YAB_THREAD_VIDSOFT_LAYER_NBG3 + which);
 }
 
@@ -4223,63 +4022,52 @@ static int IsSpriteWindowEnabled(u16 wtcl)
 
 static void VIDSoftGLESVdp2DrawScreens(void)
 {
+	currentRenderer = addOperation(currentRenderer, VDP2SCREENS);
+}
+
+void FrameVdp2DrawScreens(render_context *ctx)
+{
+   //printf("FrameVdp2DrawScreens\n");
+//Ajouter l'operation VDP2SCREENS
+
    int draw_priority_0[6] = { 0 };
    int layer_priority[6] = { 0 };
    
-   VIDSoftGLESVdp2SetResolution(Vdp2Regs->TVMD);
-   layer_priority[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
-   layer_priority[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
-   layer_priority[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
-   layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
-   layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
+   VIDSoftGLESVdp2SetResolution(ctx->Vdp2Regs->TVMD, ctx);
+   layer_priority[TITAN_NBG0] = ctx->Vdp2Regs->PRINA & 0x7;
+   layer_priority[TITAN_NBG1] = ((ctx->Vdp2Regs->PRINA >> 8) & 0x7);
+   layer_priority[TITAN_NBG2] = (ctx->Vdp2Regs->PRINB & 0x7);
+   layer_priority[TITAN_NBG3] = ((ctx->Vdp2Regs->PRINB >> 8) & 0x7);
+   layer_priority[TITAN_RBG0] = (ctx->Vdp2Regs->PRIR & 0x7);
 
-   TitanErase();
+   TitanGLErase(ctx->tt_context);
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {
-      draw_priority_0[TITAN_NBG0] = (Vdp2Regs->SFPRMD >> 0) & 0x3;
-      draw_priority_0[TITAN_NBG1] = (Vdp2Regs->SFPRMD >> 2) & 0x3;
-      draw_priority_0[TITAN_NBG2] = (Vdp2Regs->SFPRMD >> 4) & 0x3;
-      draw_priority_0[TITAN_NBG3] = (Vdp2Regs->SFPRMD >> 6) & 0x3;
-      draw_priority_0[TITAN_RBG0] = (Vdp2Regs->SFPRMD >> 8) & 0x3;
+      draw_priority_0[TITAN_NBG0] = (ctx->Vdp2Regs->SFPRMD >> 0) & 0x3;
+      draw_priority_0[TITAN_NBG1] = (ctx->Vdp2Regs->SFPRMD >> 2) & 0x3;
+      draw_priority_0[TITAN_NBG2] = (ctx->Vdp2Regs->SFPRMD >> 4) & 0x3;
+      draw_priority_0[TITAN_NBG3] = (ctx->Vdp2Regs->SFPRMD >> 6) & 0x3;
+      draw_priority_0[TITAN_RBG0] = (ctx->Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
-
-   screenRenderThread(Vdp2DrawNBG0, 0);
-   screenRenderThread(Vdp2DrawNBG1, 1);
-   screenRenderThread(Vdp2DrawNBG2, 2);
-   screenRenderThread(Vdp2DrawNBG3, 3);
-   screenRenderThread(Vdp2DrawRBG0, 4);
-#ifndef DO_NOT_RENDER_SW
-   VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1framebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
-#endif
-}
-
-
-static pixel_t* VIDSoftGLESgetFramebuffer(void) {
-    return dispbuffergles;
-}
-
-static int VidSoftGLESgetDevFbo(void) {
-#ifdef DO_NOT_RENDER_SW
-    return fbo.fb;
-
-    //return vdp1framebuffer->fbo.fb;
+#ifdef USE_THREAD
+   screenRenderThread(Vdp2DrawNBG0, 0, ctx);
+   screenRenderThread(Vdp2DrawNBG1, 1, ctx);
+   screenRenderThread(Vdp2DrawNBG2, 2, ctx);
+   screenRenderThread(Vdp2DrawNBG3, 3, ctx);
+   screenRenderThread(Vdp2DrawRBG0, 4, ctx);
 #else
-    return -1;
+	Vdp2DrawNBG0(ctx->Vdp2Lines, ctx->Vdp2Regs, ctx->Vdp2Ram, ctx->Vdp2ColorRam, ctx->cell_scroll_data, ctx);
+	Vdp2DrawNBG1(ctx->Vdp2Lines, ctx->Vdp2Regs, ctx->Vdp2Ram, ctx->Vdp2ColorRam, ctx->cell_scroll_data, ctx);
+	Vdp2DrawNBG2(ctx->Vdp2Lines, ctx->Vdp2Regs, ctx->Vdp2Ram, ctx->Vdp2ColorRam, ctx->cell_scroll_data, ctx);
+	Vdp2DrawNBG3(ctx->Vdp2Lines, ctx->Vdp2Regs, ctx->Vdp2Ram, ctx->Vdp2ColorRam, ctx->cell_scroll_data, ctx);
+	Vdp2DrawRBG0(ctx->Vdp2Lines, ctx->Vdp2Regs, ctx->Vdp2Ram, ctx->Vdp2ColorRam, ctx->cell_scroll_data, ctx);
 #endif
-}
-
-static u8 * VidSoftGLESgetSWFbo(void) {
-#ifdef DEBUG_SW
-    return vdp1framebuffer->fb; //Manque taille et le type... Il faut renvoyer une structure
-#else
-    return NULL;
-#endif;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-static void VIDSoftGLESVdp2SetResolution(u16 TVMD)
+static void VIDSoftGLESVdp2SetResolution(u16 TVMD, render_context *ctx)
 {
    // This needs some work
 
@@ -4350,7 +4138,7 @@ static void VIDSoftGLESVdp2SetResolution(u16 TVMD)
          break;
    }
 
-   TitanSetResolution(vdp2width, vdp2height);
+   TitanGLSetResolution(vdp2width, vdp2height, ctx->tt_context);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -4419,8 +4207,6 @@ static void VIDSoftGLESGetNativeResolution(int *width, int *height, int* interla
    *interlace = vdp2_interlace;
 }
 
-static void VIDSoftGLESVdp2DispOff()
-{
-
-   TitanErase();
+void VIDSoftGLESVdp2DispOff(void) {
 }
+
