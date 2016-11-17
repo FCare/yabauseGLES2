@@ -70,6 +70,7 @@ typedef struct s_Fbo renderFrame;
 struct s_Fbo{
   numberedFrame *current;
   struct s_Fbo* next;
+  struct s_Fbo* previous;
 };
 
 typedef struct {

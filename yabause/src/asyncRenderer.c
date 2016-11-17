@@ -99,7 +99,6 @@ void addToList(renderingStack* stack, controledList* clist) {
 	clist->list = curList;
 	while (sem_post(&clist->lock) != 0);
 	while (sem_post(&clist->elem) != 0);
-	return curList;
 }
 
 renderingStack* removeFromList(controledList* clist) {
@@ -117,14 +116,19 @@ renderingStack* removeFromList(controledList* clist) {
 
 void addToDisplayList(numberedFrame* frame, controledFbo* clist) {
 	renderFrame* curList;
-	while (sem_wait(&clist->lock) != 0);
+	renderFrame* insertFrame = clist->frame; 
+	renderFrame* previousFrame;
+	while (sem_wait(&clist->lock) != 0);		
+	while ((insertFrame != NULL) && (insertFrame->current != NULL) && (insertFrame->current->id > frame->id))  insertFrame=insertFrame->next;
+	previousFrame = (insertFrame == NULL)?NULL:insertFrame->previous;
 	curList = (renderFrame*) calloc(sizeof(renderFrame),1);
 	curList->current = frame;
-	curList->next = clist->frame;
-	clist->frame = curList;
+	curList->next = insertFrame;
+	curList->previous = previousFrame;
+	insertFrame->previous = curList;
+	if (clist->frame == NULL) clist->frame = curList;
 	while (sem_post(&clist->lock) != 0);
 	while (sem_post(&clist->elem) != 0);
-	return curList;
 }
 
 numberedFrame* removeFromDisplayList(controledFbo* clist) {
