@@ -24,6 +24,7 @@ typedef struct {
 	u8* Vdp2ColorRam; //0x1000
 	struct CellScrollData *cell_scroll_data;
 	struct TitanGLContext* tt_context;
+	int frameId;
 } render_context;
 
 typedef struct s_operation operationList;
@@ -34,6 +35,7 @@ struct s_operation{
 };
 
 typedef struct {
+	int id;
 	operationList* operation;
 	Vdp2* Vdp2Regs;
 	u8* Vdp2Ram; //0x80000
@@ -58,6 +60,24 @@ typedef struct {
 	sem_t lock;
 	sem_t elem;
 } controledList;
+
+typedef struct {
+	gl_fbo *fbo;
+	int id;	
+} numberedFrame;
+
+typedef struct s_Fbo renderFrame;
+struct s_Fbo{
+  numberedFrame *current;
+  struct s_Fbo* next;
+};
+
+typedef struct {
+	renderFrame* frame;
+	sem_t lock;
+	sem_t elem;
+} controledFbo;
+
 
 
 

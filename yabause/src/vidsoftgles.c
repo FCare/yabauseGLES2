@@ -50,6 +50,8 @@
 SDL_Window *gl_window;
 SDL_GLContext gl_context;
 
+int frameID = 0;
+
 //#define USE_THREAD
 
 #define WINDOW_WIDTH 600
@@ -3767,7 +3769,7 @@ int VIDSoftGLESVdp2Reset(void)
 
 void VIDSoftGLESVdp2DrawStart(void) {
 	currentRenderer = getFrame();
-	initRenderingStack(currentRenderer, Vdp2Regs, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
+	initRenderingStack(currentRenderer, frameID++, Vdp2Regs, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
 	currentRenderer = addOperation(currentRenderer, VDP2START);
 }
 

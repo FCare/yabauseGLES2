@@ -3,6 +3,7 @@
 
 controledList mFrameList;
 controledList mRenderList;
+controledFbo mDisplayList;
 
 struct
 {
@@ -57,6 +58,7 @@ void setupCtxFromFrame(render_context *ctx, renderingStack* frame) {
 	ctx->Vdp2ColorRam = frame->Vdp2ColorRam;
 	ctx->cell_scroll_data = frame->cell_scroll_data;
 	ctx->tt_context = frame->tt_context;
+	ctx->frameId = frame->id;
 }
 
 int initRender_context(render_context *ctx) {
@@ -113,6 +115,31 @@ renderingStack* removeFromList(controledList* clist) {
 	return cur;
 }
 
+void addToDisplayList(numberedFrame* frame, controledFbo* clist) {
+	renderFrame* curList;
+	while (sem_wait(&clist->lock) != 0);
+	curList = (renderFrame*) calloc(sizeof(renderFrame),1);
+	curList->current = frame;
+	curList->next = clist->frame;
+	clist->frame = curList;
+	while (sem_post(&clist->lock) != 0);
+	while (sem_post(&clist->elem) != 0);
+	return curList;
+}
+
+numberedFrame* removeFromDisplayList(controledFbo* clist) {
+	numberedFrame* cur;
+	renderFrame* tbd;
+	while (sem_wait(&clist->elem) != 0);
+	while (sem_wait(&clist->lock) != 0);
+	cur = clist->frame->current;
+	tbd = clist->frame;
+	clist->frame = clist->frame->next;
+	free(tbd);
+	while (sem_post(&clist->lock) != 0);
+	return cur;
+}
+
 renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLContext *gl_context) {
 	int i;
 	renderingStack* render = (renderingStack*)calloc(sizeof(renderingStack), nb);
@@ -121,6 +148,7 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 	sem_init(&mRenderList.lock, 0, 1);
 	sem_init(&mRenderList.elem, 0, 0);
 	for (i=0; i < nb; i++) {
+		render[i].id = -1;
 		render[i].fb = (u8 *)calloc(sizeof(u8), 0x40000);
 		render[i].Vdp2Regs = (Vdp2*)calloc(sizeof(Vdp2), 1);
 		render[i].Vdp2Lines = (Vdp2*)calloc(sizeof(Vdp2), 270);
@@ -147,8 +175,9 @@ void releaseRenderingStack(renderingStack* old) {
 	addToList(old, &mFrameList);
 }
 
-void initRenderingStack(renderingStack* stack, Vdp2* Vdp2Regs, u8* Vdp2Ram,Vdp1* Vdp1Regs,Vdp2* Vdp2Lines,u8* Vdp2ColorRam)
+void initRenderingStack(renderingStack* stack, int id, Vdp2* Vdp2Regs, u8* Vdp2Ram,Vdp1* Vdp1Regs,Vdp2* Vdp2Lines,u8* Vdp2ColorRam)
 {
+	stack->id = id;
 	memcpy(stack->Vdp2Regs, Vdp2Regs, sizeof(Vdp2));
 	memcpy(stack->Vdp2Lines, Vdp2Lines, sizeof(Vdp2)*270);
 	memcpy(stack->Vdp1Regs, Vdp1Regs, sizeof(Vdp1));
