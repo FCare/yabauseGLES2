@@ -28,7 +28,7 @@
 
 /* private */
 
-static sem_t lockGL;
+sem_t lockGL;
 
 #if defined WORDS_BIGENDIAN
 #ifdef USE_RGB_555
@@ -221,77 +221,76 @@ finished:
 }
 
 /* public */
-int TitanGLInit(struct TitanGLContext* tt_context)
+int TitanGLInit(render_context *ctx)
 {
    int i;
-   if (tt_context->inited == 0)
+   if (ctx->tt_context->inited == 0)
    {
-	sem_init(&lockGL, 0, 1);
-   	tt_context->g_VertexSWBuffer = 0;
-   	tt_context->titanBackProg = 0;
-   	tt_context->positionLoc = 0;
-   	tt_context->texCoordLoc = 0;
-   	tt_context->stexCoordLoc = 0;
-   	tt_context->samplerLoc = 0;
-   	tt_context->backLoc = 0;
+   	ctx->tt_context->g_VertexSWBuffer = 0;
+   	ctx->tt_context->titanBackProg = 0;
+   	ctx->tt_context->positionLoc = 0;
+   	ctx->tt_context->texCoordLoc = 0;
+   	ctx->tt_context->stexCoordLoc = 0;
+   	ctx->tt_context->samplerLoc = 0;
+   	ctx->tt_context->backLoc = 0;
 
-   	tt_context->programGeneralPriority = 0;
-   	tt_context->posGPrioLoc = 0;
-   	tt_context->tCoordGPrioLoc = 0;
-   	tt_context->sCoordGPrioLoc = 0;
-   	tt_context->spriteLoc = 0;
-   	tt_context->layerLoc = 0;
-   	tt_context->prioLoc = 0;
-   	tt_context->refPrioLoc = 0;
+   	ctx->tt_context->programGeneralPriority = 0;
+   	ctx->tt_context->posGPrioLoc = 0;
+   	ctx->tt_context->tCoordGPrioLoc = 0;
+   	ctx->tt_context->sCoordGPrioLoc = 0;
+   	ctx->tt_context->spriteLoc = 0;
+   	ctx->tt_context->layerLoc = 0;
+   	ctx->tt_context->prioLoc = 0;
+   	ctx->tt_context->refPrioLoc = 0;
 
-	gles20_createFBO(&tt_context->fbo, 704, 512, 0);
+	gles20_createFBO(&ctx->tt_context->fbo, 704, 512, 0);
    	// Initialize VDP1 framebuffer
-   	if ((tt_context->vdp1framebuffer = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
+   	if ((ctx->tt_context->vdp1framebuffer = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
       		return -1;
 
-   	if ((tt_context->vdp1framebuffer->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+   	if ((ctx->tt_context->vdp1framebuffer->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       		return -1;
 
-	gles20_createFBO(&tt_context->vdp1framebuffer->fbo, 1024, 512, 0);
-   	gles20_createFBO(&tt_context->vdp1framebuffer->priority, 1024, 512, 1);
+	gles20_createFBO(&ctx->tt_context->vdp1framebuffer->fbo, 1024, 512, 0);
+   	gles20_createFBO(&ctx->tt_context->vdp1framebuffer->priority, 1024, 512, 1);
 
       for(i = 0;i < 6;i++)
       {
-         if ((tt_context->vdp2framebuffer[i] = (PixelData *)calloc(sizeof(PixelData), 704 * 256)) == NULL)
+         if ((ctx->tt_context->vdp2framebuffer[i] = (PixelData *)calloc(sizeof(PixelData), 704 * 256)) == NULL)
             printf("Error during vdp2framebuffer[%d] init\n", i);
-         if ((tt_context->vdp2stencil[i] = (struct StencilData*)calloc(sizeof(struct StencilData), 704 * 256)) == NULL)
+         if ((ctx->tt_context->vdp2stencil[i] = (struct StencilData*)calloc(sizeof(struct StencilData), 704 * 256)) == NULL)
             printf("Error during vdp2stencil[%d] init\n", i);
-         if ((tt_context->vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 256)) == NULL)
+         if ((ctx->tt_context->vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 256)) == NULL)
             printf("Error during vdp2framebuffer[%d] init\n", i);
-	 tt_context->vdp2fbo[i] = -1;
-         tt_context->vdp2prio[i] = -1;
+	 ctx->tt_context->vdp2fbo[i] = -1;
+         ctx->tt_context->vdp2prio[i] = -1;
       }
 
-      tt_context->glwidth = 0;
-      tt_context->glheight= 0;
+      ctx->tt_context->glwidth = 0;
+      ctx->tt_context->glheight= 0;
 
       /* linescreen 0 is not initialized as it's not used... */
       for(i = 1;i < 4;i++)
       {
-         if ((tt_context->linescreen[i] = (u32 *)calloc(sizeof(u32), 512)) == NULL)
+         if ((ctx->tt_context->linescreen[i] = (u32 *)calloc(sizeof(u32), 512)) == NULL)
             return -1;
       }
 
-      if ((tt_context->backscreen = (PixelData  *)calloc(sizeof(PixelData), 512)) == NULL)
+      if ((ctx->tt_context->backscreen = (PixelData  *)calloc(sizeof(PixelData), 512)) == NULL)
          return -1;
 
-      createGLPrograms(tt_context);
-      tt_context->inited = 1;
+      createGLPrograms(ctx);
+      ctx->tt_context->inited = 1;
    }
 
    for(i = 0;i < 6;i++) {
-      if (tt_context->vdp2framebuffer[i] != NULL) memset(tt_context->vdp2framebuffer[i], 0, sizeof(u32) * 704 * 256);
-      if (tt_context->vdp2stencil[i] != NULL) memset(tt_context->vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
-      if (tt_context->vdp2priority[i] != NULL) memset(tt_context->vdp2priority[i], 0, sizeof(u8) * 704 * 256);
+      if (ctx->tt_context->vdp2framebuffer[i] != NULL) memset(ctx->tt_context->vdp2framebuffer[i], 0, sizeof(u32) * 704 * 256);
+      if (ctx->tt_context->vdp2stencil[i] != NULL) memset(ctx->tt_context->vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
+      if (ctx->tt_context->vdp2priority[i] != NULL) memset(ctx->tt_context->vdp2priority[i], 0, sizeof(u8) * 704 * 256);
    }
 
    for(i = 1;i < 4;i++)
-      memset(tt_context->linescreen[i], 0, sizeof(u32) * 512);
+      memset(ctx->tt_context->linescreen[i], 0, sizeof(u32) * 512);
 
    return 0;
 }
@@ -410,7 +409,7 @@ void TitanGLPutHLine(int priority, s32 x, s32 y, s32 width, u32 color, struct Ti
    }
 }
 
-void createGLPrograms(struct TitanGLContext* tt_context) {
+void createGLPrograms(render_context *ctx) {
 
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
@@ -474,37 +473,45 @@ void createGLPrograms(struct TitanGLContext* tt_context) {
       "}                                                   \n";
 
 
-   // Create the program object
-   tt_context->titanBackProg = gles20_createProgram (vShaderStr, fShaderStr);
+   while (sem_wait(&lockGL) != 0);
+   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, ctx->glContext);
 
-   if ( tt_context->titanBackProg == 0 ){
+   // Create the program object
+   ctx->tt_context->titanBackProg = gles20_createProgram (vShaderStr, fShaderStr);
+
+   if ( ctx->tt_context->titanBackProg == 0 ){
       fprintf (stderr,"Can not create a program\n");
+      SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
+      while (sem_post(&lockGL) != 0);
       return 0;
    }
 
    // Get the attribute locations
-   tt_context->positionLoc = glGetAttribLocation ( tt_context->titanBackProg, "a_position" );
-   tt_context->texCoordLoc = glGetAttribLocation ( tt_context->titanBackProg, "a_texCoord" );
-   tt_context->stexCoordLoc = glGetAttribLocation ( tt_context->titanBackProg, "b_texCoord" );
+   ctx->tt_context->positionLoc = glGetAttribLocation ( ctx->tt_context->titanBackProg, "a_position" );
+   ctx->tt_context->texCoordLoc = glGetAttribLocation ( ctx->tt_context->titanBackProg, "a_texCoord" );
+   ctx->tt_context->stexCoordLoc = glGetAttribLocation ( ctx->tt_context->titanBackProg, "b_texCoord" );
 
    // Get the sampler location
-   tt_context->samplerLoc = glGetUniformLocation ( tt_context->titanBackProg, "s_texture" );
+   ctx->tt_context->samplerLoc = glGetUniformLocation ( ctx->tt_context->titanBackProg, "s_texture" );
    // Get the sampler location
-   tt_context->backLoc = glGetUniformLocation ( tt_context->titanBackProg, "b_texture" );
+   ctx->tt_context->backLoc = glGetUniformLocation ( ctx->tt_context->titanBackProg, "b_texture" );
 
-   tt_context->programGeneralPriority = gles20_createProgram (vShaderGPrioStr, fShaderGPrioStr);
+   ctx->tt_context->programGeneralPriority = gles20_createProgram (vShaderGPrioStr, fShaderGPrioStr);
 
-   if (tt_context->programGeneralPriority == 0) {
+   if (ctx->tt_context->programGeneralPriority == 0) {
       fprintf(stderr, "Can not create programGeneralPriority\n");
    }
 
-   tt_context->posGPrioLoc = glGetAttribLocation( tt_context->programGeneralPriority, "a_position");
-   tt_context->tCoordGPrioLoc = glGetAttribLocation( tt_context->programGeneralPriority, "a_texCoord");
-   tt_context->sCoordGPrioLoc = glGetAttribLocation ( tt_context->programGeneralPriority, "b_texCoord" );
-   tt_context->spriteLoc = glGetUniformLocation( tt_context->programGeneralPriority, "sprite");
-   tt_context->layerLoc = glGetUniformLocation( tt_context->programGeneralPriority, "layer");
-   tt_context->prioLoc = glGetUniformLocation( tt_context->programGeneralPriority, "priority");
-   tt_context->refPrioLoc = glGetUniformLocation( tt_context->programGeneralPriority, "layerpriority");
+   ctx->tt_context->posGPrioLoc = glGetAttribLocation( ctx->tt_context->programGeneralPriority, "a_position");
+   ctx->tt_context->tCoordGPrioLoc = glGetAttribLocation( ctx->tt_context->programGeneralPriority, "a_texCoord");
+   ctx->tt_context->sCoordGPrioLoc = glGetAttribLocation ( ctx->tt_context->programGeneralPriority, "b_texCoord" );
+   ctx->tt_context->spriteLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "sprite");
+   ctx->tt_context->layerLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "layer");
+   ctx->tt_context->prioLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "priority");
+   ctx->tt_context->refPrioLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "layerpriority");
+
+   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
+   while (sem_post(&lockGL) != 0);
 }
 
 static float swVertices [] = {
@@ -519,12 +526,27 @@ static int back_tex = -1;
 static int sprite_tex = -1;
 static int stencil_tex = -1;
 
-void TitanGLRenderFBO(struct TitanGLContext *tt_context) {
-
+void TitanGLRenderFBO(render_context *ctx) {
+   struct TitanGLContext *tt_context = ctx->tt_context;
    int width = tt_context->vdp2width;
    int height = tt_context->vdp2height;
    gl_fbo *fbo = &tt_context->fbo;
    int error;
+
+   int x, y, i, layer, j;
+   int sorted_layers[8] = { 0 };
+   int num_layers = 0;
+
+   if ((width == 0) || (height == 0)) return;
+
+   if (!tt_context->inited || (!tt_context->trans))
+   {
+      return;
+   }
+
+   while (sem_wait(&lockGL) != 0);
+   SDL_GL_MakeCurrent(tt_context->glWindow, ctx->glContext);
+
    if ((tt_context->glwidth != tt_context->vdp2width) || (tt_context->glheight != tt_context->vdp2height)) {
        tt_context->glwidth = tt_context->vdp2width;
        tt_context->glheight = tt_context->vdp2height;
@@ -540,17 +562,6 @@ void TitanGLRenderFBO(struct TitanGLContext *tt_context) {
 	swVertices[5] = (fbo->height - (float)height)/fbo->height;
 	swVertices[11] = (fbo->height - (float)height)/fbo->height;
 	swVertices[22] = (fbo->width - (float)width)/fbo->width;
-   }
-
-   int x, y, i, layer, j;
-   int sorted_layers[8] = { 0 };
-   int num_layers = 0;
-
-   if ((width == 0) || (height == 0)) return;
-
-   if (!tt_context->inited || (!tt_context->trans))
-   {
-      return;
    }
 
    tt_context->layer_priority[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
@@ -690,4 +701,7 @@ void TitanGLRenderFBO(struct TitanGLContext *tt_context) {
 	if (err != GL_NO_ERROR) {
 		printf("GL error 0x%x\n", err);
 	}
+
+   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
+   while (sem_post(&lockGL) != 0);
 }

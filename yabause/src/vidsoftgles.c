@@ -2177,6 +2177,7 @@ int VIDSoftGLESInit(void)
 	sem_init(&frameDisplayedDone[i], 0, 0);
    }
    sem_init(&patternLock, 0, 1);
+   sem_init(&lockGL, 0, 1);
 
    initPatternCache();
 
@@ -3997,7 +3998,7 @@ void FrameVdp2DrawEnd(render_context *ctx)
    glViewport(0,0,800, 600);
    TitanGLSetVdp2Fbo(ctx->tt_context->vdp1framebuffer->fbo.fb, TITAN_SPRITE, ctx->tt_context);
    TitanGLSetVdp2Priority(ctx->tt_context->vdp1framebuffer->priority.fb, TITAN_SPRITE, ctx->tt_context);
-   TitanGLRenderFBO(ctx->tt_context);
+   TitanGLRenderFBO(ctx);
    VIDSoftGLESVdp1SwapFrameBuffer();
 }
 

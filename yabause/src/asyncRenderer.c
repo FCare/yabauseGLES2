@@ -25,7 +25,6 @@ void FUNC_NAME(void* data) \
 	renderingStack* frame = removeFromList(&mRenderList); \
 	if (frame != NULL) { \
 		if (ctx->glContext == -1) ctx->glContext = SDL_GL_CreateContext(frame->tt_context->glWindow); \
-		SDL_GL_MakeCurrent(frame->tt_context->glWindow, ctx->glContext); \
 		setupCtxFromFrame(ctx, frame); \
 	   	if (initRender_context(ctx)!= 0) { \
 			printf("Error during init of frame render thread\n"); \
@@ -67,7 +66,7 @@ void setupCtxFromFrame(render_context *ctx, renderingStack* frame) {
 }
 
 int initRender_context(render_context *ctx) {
-	if (TitanGLInit(ctx->tt_context) != 0) printf("Error TitanGLInit\n");
+	if (TitanGLInit(ctx) != 0) printf("Error TitanGLInit\n");
    createPatternProgram();
    createPriorityProgram();
 	memset(ctx->bad_cycle_setting, 0, 6*sizeof(int));

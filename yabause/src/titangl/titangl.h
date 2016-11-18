@@ -21,6 +21,9 @@
 #define TITANGL_H
 
 #include <SDL2/SDL.h>
+#include <semaphore.h>
+#include "../vdp2.h"
+#include "../vdp1.h"
 #include "../core.h"
 #include "../vidshared.h"
 #include "../glutils/gles20utils.h"
@@ -40,7 +43,7 @@
 #define TITAN_NORMAL_SHADOW 1
 #define TITAN_MSB_SHADOW 2
 
-typedef struct StencilData{
+struct StencilData{
    u8 linescreen : 2 ;
    u8 shadow_type : 2 ;
    u8 shadow_enabled : 1;
@@ -51,11 +54,26 @@ typedef struct {
 	gl_fbo priority;
 } framebuffer;
 
+typedef struct {
+	int bad_cycle_setting[6];
+	Vdp2* Vdp2Regs;
+	u8* Vdp2Ram; //0x80000
+	Vdp1* Vdp1Regs;
+	Vdp2* Vdp2Lines;
+	u8* Vdp2ColorRam; //0x1000
+	struct CellScrollData *cell_scroll_data;
+	struct TitanGLContext* tt_context;
+	int frameId;
+        SDL_GLContext glContext;
+} render_context;
+
+extern sem_t lockGL;
+
 typedef u32 (*TitanGLBlendFunc)(u32 top, u32 bottom);
 typedef int FASTCALL (*TitanGLTransFunc)(u32 pixel);
 typedef u32 PixelData;
 
-typedef struct TitanGLContext {
+struct TitanGLContext {
    int inited;
    PixelData * vdp2framebuffer[6];
    struct StencilData * vdp2stencil[6];
@@ -93,7 +111,7 @@ typedef struct TitanGLContext {
    SDL_Window *glWindow;	
 };
 
-int TitanGLInit(struct TitanGLContext *tt_context);
+int TitanGLInit(render_context *ctx);
 int TitanGLDeInit(struct TitanGLContext *tt_context);
 void TitanGLErase(struct TitanGLContext *tt_context);
 
@@ -109,7 +127,7 @@ void TitanGLPutLineHLine(int linescreen, s32 y, u32 color, struct TitanGLContext
 void TitanGLPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2draw_struct* info, struct TitanGLContext *tt_context);
 void TitanGLPutHLine(int priority, s32 x, s32 y, s32 width, u32 color, struct TitanGLContext *tt_context);
 
-void TitanGLRenderFBO(struct TitanGLContext *tt_context);
+void TitanGLRenderFBO(render_context *ctx);
 void TitanGLSetVdp2Fbo(int fb, int nb, struct TitanGLContext *tt_context);
 void TitanGLSetVdp2Priority(int fb, int nb, struct TitanGLContext *tt_context);
 
