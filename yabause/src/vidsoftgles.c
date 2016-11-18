@@ -50,7 +50,10 @@
 SDL_Window *gl_window;
 SDL_GLContext gl_context;
 
-int frameID = 0;
+volatile int frameID = 0;
+sem_t frameDisplayedReady[NB_GL_RENDERER];
+sem_t frameDisplayedDone[NB_GL_RENDERER];
+sem_t patternLock;
 
 //#define USE_THREAD
 
@@ -84,6 +87,17 @@ static INLINE u32 COLSATSTRIPPRIORITY(u32 pixel) { return (0xFF000000 | pixel); 
                                 (COLOR_ADDb((l >> 16) & 0xFF, b) << 16) | \
 				(l & 0xFF000000)
 #endif
+
+void vSyncScheduler(void* data)
+{
+   int i=0;
+   for (;;)
+   {
+ 	while (sem_post(&frameDisplayedReady[i]) != 0);
+	while (sem_wait(&frameDisplayedDone[i]) != 0);
+	i = (i+1)%NB_GL_RENDERER;
+   }
+}
 
 
 static int VIDSoftGLESInit(void);
@@ -2158,10 +2172,20 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
 #endif
 
+   for (i=0; i<NB_GL_RENDERER; i++) {
+	sem_init(&frameDisplayedReady[i], 0, 0);
+	sem_init(&frameDisplayedDone[i], 0, 0);
+   }
+   sem_init(&patternLock, 0, 1);
+
+   initPatternCache();
+
+   YabThreadStart(YAB_THREAD_VIDSOFT_VSYNC_ORDER, vSyncScheduler, NULL);
+
    rbg0width = vdp2width = 320;
    vdp2height = 224;
 
-   createRenderingStacks(3, gl_window, &gl_context);
+   createRenderingStacks(NB_GL_RENDERER, gl_window, &gl_context);
 
    return 0;
 }
@@ -3224,8 +3248,7 @@ void VIDSoftGLESVdp1DistortedSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffe
     drawQuad(xa, ya, xd, yd, xb, yb, xc, yc, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
 }
 
-
-Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
+Pattern* getPatternLocked(vdp1cmd_struct cmd, u8* ram) {	
     int i = 0, j=0;
 
     int characterWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
@@ -3414,6 +3437,14 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     addCachePattern(curPattern);
 
     return curPattern;
+}
+
+Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
+	Pattern* ret;
+	while (sem_wait(&patternLock) != 0);
+	ret = getPatternLocked(cmd, ram);
+	while (sem_post(&patternLock) != 0);
+	return ret;
 }
 
 void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer, render_context *ctx){
@@ -3773,6 +3804,12 @@ void VIDSoftGLESVdp2DrawStart(void) {
 	currentRenderer = addOperation(currentRenderer, VDP2START);
 }
 
+void recycleCache() {
+	while (sem_wait(&patternLock) != 0);
+	recycleCacheLock();
+	while (sem_post(&patternLock) != 0);
+}
+
 void FrameVdp2DrawStart(render_context *ctx)
 {
 	//printf("FrameVdp2DrawStart\n");
@@ -3948,8 +3985,6 @@ static unsigned long getCurrentTimeUs(unsigned long offset) {
 
 void FrameVdp2DrawEnd(render_context *ctx)
 {
-   unsigned long currentTime;
-   if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
 #ifdef USE_THREAD
    screenRenderWait(0);
    screenRenderWait(1);
@@ -3964,11 +3999,22 @@ void FrameVdp2DrawEnd(render_context *ctx)
    TitanGLSetVdp2Priority(ctx->tt_context->vdp1framebuffer->priority.fb, TITAN_SPRITE, ctx->tt_context);
    TitanGLRenderFBO(ctx->tt_context);
    VIDSoftGLESVdp1SwapFrameBuffer();
+}
+
+
+void PushFrameToDisplay(render_context *ctx, SDL_Window *gl_window, SDL_GLContext* gl_context) {
 
    int glWidth, glHeight;
+   unsigned long currentTime;
+   int i = ctx->frameId%NB_GL_RENDERER;
 
    float ar = (float)vdp2width/(float)vdp2height;
    float dar = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
+
+   while (sem_wait(&frameDisplayedReady[i]) != 0);
+   SDL_GL_MakeCurrent(gl_window, *gl_context);
+
+   if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
 
    if (ar <= dar) {
      glHeight = WINDOW_HEIGHT;
@@ -3995,6 +4041,10 @@ void FrameVdp2DrawEnd(render_context *ctx)
    if (updateProfiler()) {
        resetProfiler(3*1000);
    }
+
+   SDL_GL_MakeCurrent(gl_window, NULL);
+
+   while (sem_post(&frameDisplayedDone[i]) != 0);
 }
 
 void screenRenderThread(void (*pt[5])(Vdp2*, Vdp2*, u8*, u8*, struct CellScrollData *), int which, render_context *ctx) {

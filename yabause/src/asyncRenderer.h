@@ -8,6 +8,15 @@
 #include "threads.h"
 #include "titangl/titangl.h"
 
+#ifndef NB_GL_RENDERER
+#define NB_GL_RENDERER 1
+#endif
+
+#if NB_GL_RENDERER > 3
+#undef NB_GL_RENDERER
+#define NB_GL_RENDERER 3
+#endif
+
 typedef enum {
 	VDP2START,
 	VDP2END,
@@ -25,7 +34,6 @@ typedef struct {
 	struct CellScrollData *cell_scroll_data;
 	struct TitanGLContext* tt_context;
 	int frameId;
-	sem_t frameDisplayed;
 } render_context;
 
 typedef struct s_operation operationList;
@@ -61,28 +69,6 @@ typedef struct {
 	sem_t lock;
 	sem_t elem;
 } controledList;
-
-typedef struct {
-	gl_fbo *fbo;
-	int id;
-	sem_t *done;
-} numberedFrame;
-
-typedef struct s_Fbo renderFrame;
-struct s_Fbo{
-  numberedFrame *current;
-  struct s_Fbo* next;
-  struct s_Fbo* previous;
-};
-
-typedef struct {
-	renderFrame* frame;
-	sem_t lock;
-	sem_t elem;
-} controledFbo;
-
-
-
 
 renderingStack* createRenderingStacks(int nb, SDL_Window *glWindow, SDL_GLContext *gl_context);
 

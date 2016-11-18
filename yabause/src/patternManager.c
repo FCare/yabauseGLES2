@@ -4,14 +4,23 @@
 
 #include "patternManager.h"
 
-Pattern* patternCache[0xFFFF];
+Pattern** patternCache;
 
 #define CACHE_LIFETIME 10;
+
+void initPatternCache() {
+	int i;
+	patternCache = (Pattern**) calloc(sizeof(Pattern*), 0xFFFF);
+	for (i = 0; i < 0xFFFF; i++) {
+		patternCache[i] = NULL;
+	}
+}
 
 static void deleteCachePattern(Pattern* pat) {
 	if (pat == NULL) return;
 	glDeleteTextures(1, &pat->tex);
 	free(pat);
+	pat = NULL;
 }
 
 static u16 getHash(int param0, int param1) {
@@ -36,7 +45,7 @@ static u16 getHash(int param0, int param1) {
 	return hash;
 }
 
-void recycleCache() {
+void recycleCacheLock() {
 	int i;
 	for (i = 0; i < 0xFFFF; i++) {
 		Pattern* tmp = patternCache[i];
@@ -69,7 +78,7 @@ void addCachePattern(Pattern* pat) {
 }
 
 Pattern* createCachePattern(int param0, int param1, int param2, int w, int h, float tw, float th, int mesh) {
-	Pattern* new = malloc(sizeof(Pattern));
+	Pattern* new = calloc(sizeof(Pattern),1);
 	new->param[0] = param0;
 	new->param[1] = param1;
 	new->param[2] = param2;

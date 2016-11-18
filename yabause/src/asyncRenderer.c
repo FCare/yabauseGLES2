@@ -3,7 +3,6 @@
 
 controledList mFrameList;
 controledList mRenderList;
-controledFbo mDisplayList;
 
 struct
 {
@@ -22,7 +21,6 @@ void FUNC_NAME(void* data) \
 { \
    render_context *ctx = (render_context *)calloc(sizeof(render_context), 1); \
    SDL_GLContext gl_context = -1;\
-   sem_init(&(ctx->frameDisplayed), 0, 0); \
    for (;;) \
    { \
 	renderingStack* frame = removeFromList(&mRenderList); \
@@ -42,20 +40,21 @@ void FUNC_NAME(void* data) \
 		} \
 		glFinish(); \
 		SDL_GL_MakeCurrent(frame->glWindow, NULL); \
-		numberedFrame* newFrame = calloc(sizeof(numberedFrame),1); \
-		newFrame->id = ctx->frameId; \
-		newFrame->fbo = &(ctx->tt_context->fbo); \
-		newFrame->done = &(ctx->frameDisplayed); \
-		addToDisplayList(newFrame, &mDisplayList); \
-		while (sem_wait(&(ctx->frameDisplayed)) != 0); \
+		PushFrameToDisplay(ctx, frame->glWindow, &gl_context); \
+		releaseRenderingStack(frame); \
 	} \
-	releaseRenderingStack(frame); \
    } \
 }
 
+#if NB_GL_RENDERER >= 1
 DECLARE_FRAME_RENDER_THREAD(frameRenderThread0, 0);
+#endif
+#if NB_GL_RENDERER >= 2
 DECLARE_FRAME_RENDER_THREAD(frameRenderThread1, 1);
-//DECLARE_FRAME_RENDER_THREAD(frameRenderThread2, 2);
+#endif
+#if NB_GL_RENDERER >= 3
+DECLARE_FRAME_RENDER_THREAD(frameRenderThread2, 2);
+#endif
 
 void setupCtxFromFrame(render_context *ctx, renderingStack* frame) {
 	ctx->Vdp2Regs = frame->Vdp2Regs;
@@ -121,52 +120,6 @@ renderingStack* removeFromList(controledList* clist) {
 	return cur;
 }
 
-int isAfterFrame(renderFrame* a, int id) {
-	if (a == NULL) return 1;
-	if (a->current == NULL) return 1;
-	if (a->current->id > id) return 1;
-	return 0;
-}
-
-void addToDisplayList(numberedFrame* frame, controledFbo* clist) {
-	renderFrame* curList;
-	renderFrame* insertFrame = clist->frame; 
-	renderFrame* previousFrame;
-	while (sem_wait(&clist->lock) != 0);		
-	while (isAfterFrame(insertFrame, frame->id) == 0)  insertFrame=insertFrame->next;
-	previousFrame = (insertFrame == NULL)?NULL:insertFrame->previous;
-	curList = (renderFrame*) calloc(sizeof(renderFrame),1);
-	curList->current = frame;
-	curList->next = insertFrame;
-	curList->previous = previousFrame;
-	if (insertFrame != NULL) insertFrame->previous = curList;
-	if (clist->frame == NULL) clist->frame = curList;
-	while (sem_post(&clist->lock) != 0);
-	while (sem_post(&clist->elem) != 0);
-}
-
-int isEndOfList(renderFrame* a) {
-	if (a == NULL) return 1;
-	if (a->next == NULL) return 1;
-	return 0;
-}
-
-numberedFrame* removeFromDisplayList(controledFbo* clist) {
-	numberedFrame* cur;
-	renderFrame* pivot = clist->frame;
-	renderFrame* tbd;
-	while (sem_wait(&clist->elem) != 0);
-	while (sem_wait(&clist->lock) != 0);
-	while(isEndOfList(pivot)==0) pivot = pivot->next;
-	cur = pivot->current;
-	tbd = pivot;
-	if (pivot->previous != NULL) pivot->previous->next = NULL;
-	else clist->frame = NULL;
-	free(tbd);
-	while (sem_post(&clist->lock) != 0);
-	return cur;
-}
-
 renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLContext *gl_context) {
 	int i;
 	renderingStack* render = (renderingStack*)calloc(sizeof(renderingStack), nb);
@@ -174,8 +127,6 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 	sem_init(&mFrameList.elem, 0, 0);
 	sem_init(&mRenderList.lock, 0, 1);
 	sem_init(&mRenderList.elem, 0, 0);
-	sem_init(&mDisplayList.lock, 0, 1);
-	sem_init(&mDisplayList.elem, 0, 0);
 	for (i=0; i < nb; i++) {
 		render[i].id = -1;
 		render[i].fb = (u8 *)calloc(sizeof(u8), 0x40000);
@@ -191,9 +142,15 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 		render[i].tt_context = (struct TitanGLContext*) calloc(sizeof(struct TitanGLContext), 1);
 		addToList(&render[i], &mFrameList);
 	}
+#if NB_GL_RENDERER >= 1
 	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_0, frameRenderThread0, NULL);
-      	//YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_1, frameRenderThread1, NULL);
-      	//YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_2, frameRenderThread2, NULL);
+#endif
+#if NB_GL_RENDERER >= 2
+      	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_1, frameRenderThread1, NULL);
+#endif
+#if NB_GL_RENDERER >= 3
+      	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_2, frameRenderThread2, NULL);
+#endif
 }
 
 renderingStack* getFrame() {
