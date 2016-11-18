@@ -20,6 +20,7 @@
 #ifndef TITANGL_H
 #define TITANGL_H
 
+#include <SDL2/SDL.h>
 #include "../core.h"
 #include "../vidshared.h"
 #include "../glutils/gles20utils.h"
@@ -88,6 +89,8 @@ typedef struct TitanGLContext {
    GLuint layerLoc;
    GLuint prioLoc;
    GLuint refPrioLoc;
+
+   SDL_Window *glWindow;	
 };
 
 int TitanGLInit(struct TitanGLContext *tt_context);

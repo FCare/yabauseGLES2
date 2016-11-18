@@ -4002,7 +4002,7 @@ void FrameVdp2DrawEnd(render_context *ctx)
 }
 
 
-void PushFrameToDisplay(render_context *ctx, SDL_Window *gl_window, SDL_GLContext* gl_context) {
+void PushFrameToDisplay(render_context *ctx) {
 
    int glWidth, glHeight;
    unsigned long currentTime;
@@ -4012,7 +4012,7 @@ void PushFrameToDisplay(render_context *ctx, SDL_Window *gl_window, SDL_GLContex
    float dar = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
 
    while (sem_wait(&frameDisplayedReady[i]) != 0);
-   SDL_GL_MakeCurrent(gl_window, *gl_context);
+   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, ctx->glContext);
 
    if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
 
@@ -4034,7 +4034,7 @@ void PushFrameToDisplay(render_context *ctx, SDL_Window *gl_window, SDL_GLContex
    if ((currentTime - lastFrameTime) < delayUs) {
 	usleep((delayUs - (currentTime - lastFrameTime)));
    }   
-   SDL_GL_SwapWindow(gl_window);
+   SDL_GL_SwapWindow(ctx->tt_context->glWindow);
 
    lastFrameTime = getCurrentTimeUs(0);
 
@@ -4042,7 +4042,7 @@ void PushFrameToDisplay(render_context *ctx, SDL_Window *gl_window, SDL_GLContex
        resetProfiler(3*1000);
    }
 
-   SDL_GL_MakeCurrent(gl_window, NULL);
+   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
 
    while (sem_post(&frameDisplayedDone[i]) != 0);
 }

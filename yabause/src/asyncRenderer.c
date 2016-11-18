@@ -1,4 +1,3 @@
-#include <SDL2/SDL.h>
 #include "asyncRenderer.h"
 
 controledList mFrameList;
@@ -20,13 +19,13 @@ void setupCtxFromFrame(render_context *ctx, renderingStack* frame);
 void FUNC_NAME(void* data) \
 { \
    render_context *ctx = (render_context *)calloc(sizeof(render_context), 1); \
-   SDL_GLContext gl_context = -1;\
+   ctx->glContext = -1;\
    for (;;) \
    { \
 	renderingStack* frame = removeFromList(&mRenderList); \
 	if (frame != NULL) { \
-		if (gl_context == -1) gl_context = SDL_GL_CreateContext(frame->glWindow); \
-		SDL_GL_MakeCurrent(frame->glWindow, gl_context); \
+		if (ctx->glContext == -1) ctx->glContext = SDL_GL_CreateContext(frame->tt_context->glWindow); \
+		SDL_GL_MakeCurrent(frame->tt_context->glWindow, ctx->glContext); \
 		setupCtxFromFrame(ctx, frame); \
 	   	if (initRender_context(ctx)!= 0) { \
 			printf("Error during init of frame render thread\n"); \
@@ -39,8 +38,8 @@ void FUNC_NAME(void* data) \
 			free(tmp); \
 		} \
 		glFinish(); \
-		SDL_GL_MakeCurrent(frame->glWindow, NULL); \
-		PushFrameToDisplay(ctx, frame->glWindow, &gl_context); \
+		SDL_GL_MakeCurrent(frame->tt_context->glWindow, NULL); \
+		PushFrameToDisplay(ctx); \
 		releaseRenderingStack(frame); \
 	} \
    } \
@@ -137,9 +136,8 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 		render[i].Vdp2ColorRam = (u8*)calloc(0x1000, 1);
 		render[i].cell_scroll_data = (struct CellScrollData*) calloc(sizeof(struct CellScrollData), 270);
 		render[i].operation = NULL;
-		render[i].glContext = gl_context;
-		render[i].glWindow = gl_window;
 		render[i].tt_context = (struct TitanGLContext*) calloc(sizeof(struct TitanGLContext), 1);
+		render[i].tt_context->glWindow = gl_window;
 		addToList(&render[i], &mFrameList);
 	}
 #if NB_GL_RENDERER >= 1
