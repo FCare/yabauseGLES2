@@ -303,8 +303,8 @@ int TitanGLSetup(render_context *ctx)
    		if ((ctx->tt_context->vdp1framebuffer[i]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       			return -1;
 
-		gles20_createFBO(&ctx->tt_context->vdp1framebuffer[i]->fbo, 1024, 512, 0);
-   		gles20_createFBO(&ctx->tt_context->vdp1framebuffer[i]->priority, 1024, 512, 1);
+		gles20_createFBO(&ctx->tt_context->vdp1framebuffer[i]->fbo, 768, 256, 0);
+   		gles20_createFBO(&ctx->tt_context->vdp1framebuffer[i]->priority, 768, 256, 1);
 	}
 
 	ctx->tt_context->vdp1backbuffer = ctx->tt_context->vdp1framebuffer[0];

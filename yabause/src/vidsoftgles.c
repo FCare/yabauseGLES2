@@ -3960,13 +3960,6 @@ static unsigned long getCurrentTimeUs(unsigned long offset) {
 
 void FrameVdp2DrawEnd(render_context *ctx)
 {
-#ifdef USE_THREAD
-   screenRenderWait(0);
-   screenRenderWait(1);
-   screenRenderWait(2);
-   screenRenderWait(3);
-   screenRenderWait(4);
-#endif
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 glEnable(GL_BLEND);
 
@@ -3977,6 +3970,13 @@ glEnable(GL_BLEND);
    glViewport(0,0,800, 600);
    TitanGLSetVdp2Fbo(ctx->tt_context->vdp1frontbuffer->fbo.fb, TITAN_SPRITE, ctx->tt_context);
    TitanGLSetVdp2Priority(ctx->tt_context->vdp1frontbuffer->priority.fb, TITAN_SPRITE, ctx->tt_context);
+#ifdef USE_THREAD
+   screenRenderWait(0);
+   screenRenderWait(1);
+   screenRenderWait(2);
+   screenRenderWait(3);
+   screenRenderWait(4);
+#endif
    TitanGLRenderFBO(ctx);
    VIDSoftGLESVdp1SwapFrameBuffer(ctx);
 }
