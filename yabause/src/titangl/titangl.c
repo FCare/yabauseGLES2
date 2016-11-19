@@ -281,6 +281,13 @@ int TitanGLSetup(render_context *ctx)
    	ctx->tt_context->sprite_tex = -1;
    	ctx->tt_context->stencil_tex = -1;
 
+   	ctx->tt_context->g_VertexDevBuffer = -1;
+
+   	ctx->tt_context->fboProgramObject = 0;
+   	ctx->tt_context->fboPositionLoc = 0;
+   	ctx->tt_context->fboTexCoordLoc = 0;
+   	ctx->tt_context->fboSamplerLoc = 0;
+
    	ctx->tt_context->vertexSWBuffer = -1;
 
 	ctx->tt_context->hasGL = 0;
@@ -569,6 +576,7 @@ void TitanGLRenderFBO(render_context *ctx) {
    int x, y, i, layer, j;
    int sorted_layers[8] = { 0 };
    int num_layers = 0;
+   int err;
 
    if ((width == 0) || (height == 0)) return;
 
@@ -582,10 +590,10 @@ void TitanGLRenderFBO(render_context *ctx) {
    if ((tt_context->glwidth != tt_context->vdp2width) || (tt_context->glheight != tt_context->vdp2height)) {
        tt_context->glwidth = tt_context->vdp2width;
        tt_context->glheight = tt_context->vdp2height;
-       if (ctx->tt_context->back_tex == -1) glDeleteTextures(1,&ctx->tt_context->back_tex);
-       if (ctx->tt_context->layer_tex == -1) glDeleteTextures(1,&ctx->tt_context->layer_tex);
-       if (ctx->tt_context->sprite_tex == -1) glDeleteTextures(1,&ctx->tt_context->sprite_tex);
-       if (ctx->tt_context->stencil_tex == -1) glDeleteTextures(1,&ctx->tt_context->stencil_tex);
+       if (ctx->tt_context->back_tex != -1) glDeleteTextures(1,&ctx->tt_context->back_tex);
+       if (ctx->tt_context->layer_tex != -1) glDeleteTextures(1,&ctx->tt_context->layer_tex);
+       if (ctx->tt_context->sprite_tex != -1) glDeleteTextures(1,&ctx->tt_context->sprite_tex);
+       if (ctx->tt_context->stencil_tex != -1) glDeleteTextures(1,&ctx->tt_context->stencil_tex);
        ctx->tt_context->back_tex = ctx->tt_context->layer_tex = ctx->tt_context->sprite_tex = ctx->tt_context->stencil_tex = -1;
    }
 
@@ -729,10 +737,9 @@ void TitanGLRenderFBO(render_context *ctx) {
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	}
    }
-   int err = glGetError();
+   err = glGetError();
 	if (err != GL_NO_ERROR) {
-		printf("GL error 0x%x\n", err);
+		printf("GL error 0x%x %d\n", err, __LINE__);
 	}
-
    releaseGL(ctx);
 }

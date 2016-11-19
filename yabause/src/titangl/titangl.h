@@ -123,6 +123,13 @@ struct TitanGLContext {
    GLint sprite_tex;
    GLint stencil_tex;
 
+   GLint g_VertexDevBuffer;
+
+   GLint fboProgramObject;
+   GLint fboPositionLoc;
+   GLint fboTexCoordLoc;
+   GLint fboSamplerLoc;
+
    GLuint vertexSWBuffer;
 
    SDL_Window *glWindow;

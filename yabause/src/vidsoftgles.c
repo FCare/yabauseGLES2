@@ -2101,13 +2101,6 @@ static void LoadLineParamsSprite(vdp2draw_struct * info, int line, Vdp2* lines)
    ReadVdp2ColorOffset(regs, info, 0x40, 0x40);
 }
 
-static GLfloat swVertices [] = {
-   -1.0f, 1.0f, 0, 0, 1.0f,
-   1.0f, 1.0f, 1.0f, 0, 1.0f,
-   1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
-   -1.0f,-1.0f, 0, 1.0f, 1.0f
-};
-
 //////////////////////////////////////////////////////////////////////////////
 
 void SDLInit(void) {
@@ -3866,29 +3859,8 @@ recycleCache();
 
 //////////////////////////////////////////////////////////////////////////////
 
-static GLint g_VertexDevBuffer = 0;
-
-static GLint programObject  = 0;
-static GLint positionLoc    = 0;
-static GLint texCoordLoc    = 0;
-static GLint samplerLoc     = 0;
-
 int fbo_buf_width = -1;
 int fbo_buf_height = -1;
-
-static float vertices [] = {
-   -1.0f, 1.0f, 0, 0,
-   1.0f, 1.0f, 1.0f, 0,
-   1.0f, -1.0f, 1.0f, 1.0f,
-   -1.0f,-1.0f, 0, 1.0f
-};
-
-static const float squareVertices [] = {
-   -1.0f, 1.0f, 0, 0,
-   1.0f, 1.0f, 1.0f, 0,
-   1.0f, -1.0f, 1.0f, 1.0f,
-   -1.0f,-1.0f, 0, 1.0f
-};
 
 static float devVertices [] = {
    -1.0f, 1.0f, 0, 0,
@@ -3897,7 +3869,7 @@ static float devVertices [] = {
    -1.0f,-1.0f, 0, 1.0f
 };
 
-int InitProgramForSoftwareRendering()
+int InitProgramForSoftwareRendering(render_context* ctx)
 {
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
@@ -3919,19 +3891,19 @@ int InitProgramForSoftwareRendering()
       "}                                                   \n";
 
    // Create the program object
-   programObject = gles20_createProgram (vShaderStr, fShaderStr);
+   ctx->tt_context->fboProgramObject = gles20_createProgram (vShaderStr, fShaderStr);
 
-   if ( programObject == 0 ){
+   if ( ctx->tt_context->fboProgramObject == 0 ){
       fprintf (stderr,"Can not create a program\n");
       return 0;
    }
 
    // Get the attribute locations
-   positionLoc = glGetAttribLocation ( programObject, "a_position" );
-   texCoordLoc = glGetAttribLocation ( programObject, "a_texCoord" );
+   ctx->tt_context->fboPositionLoc = glGetAttribLocation ( ctx->tt_context->fboProgramObject, "a_position" );
+   ctx->tt_context->fboTexCoordLoc = glGetAttribLocation ( ctx->tt_context->fboProgramObject, "a_texCoord" );
 
    // Get the sampler location
-   samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
+   ctx->tt_context->fboSamplerLoc = glGetUniformLocation ( ctx->tt_context->fboProgramObject, "s_texture" );
 
    //initFBOFree(mFBOFree, 3, WINDOW_WIDTH, WINDOW_HEIGHT);
 
@@ -3942,10 +3914,8 @@ void DrawFBO(render_context* ctx) {
     int error,i;
     int tex = ctx->tt_context->fbo.fb;
 
-   lockGL(ctx);
-
-    if (programObject == 0) InitProgramForSoftwareRendering();
-    glUseProgram(programObject);
+    if (ctx->tt_context->fboProgramObject == 0) InitProgramForSoftwareRendering(ctx);
+    glUseProgram(ctx->tt_context->fboProgramObject);
 
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -3953,9 +3923,9 @@ void DrawFBO(render_context* ctx) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-   if( g_VertexDevBuffer == 0 )
+   if( ctx->tt_context->g_VertexDevBuffer == 0 )
    {
-      glGenBuffers(1, &g_VertexDevBuffer);
+      glGenBuffers(1, &ctx->tt_context->g_VertexDevBuffer);
    }
 
    if ((vdp2width == 0) || (vdp2height == 0)) return;
@@ -3966,15 +3936,14 @@ void DrawFBO(render_context* ctx) {
        fbo_buf_height = vdp2height;
     }
 
-      glBindBuffer(GL_ARRAY_BUFFER, g_VertexDevBuffer);
+      glBindBuffer(GL_ARRAY_BUFFER, ctx->tt_context->g_VertexDevBuffer);
       glBufferData(GL_ARRAY_BUFFER, sizeof(devVertices),devVertices,GL_STATIC_DRAW);
-      glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
-      glVertexAttribPointer ( texCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
-      glEnableVertexAttribArray ( positionLoc );
-      glEnableVertexAttribArray ( texCoordLoc );
+      glVertexAttribPointer ( ctx->tt_context->fboPositionLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), 0 );
+      glVertexAttribPointer ( ctx->tt_context->fboTexCoordLoc, 2, GL_FLOAT,  GL_FALSE, 4 * sizeof(GLfloat), (void*)(sizeof(float)*2) );
+      glEnableVertexAttribArray ( ctx->tt_context->fboPositionLoc );
+      glEnableVertexAttribArray ( ctx->tt_context->fboTexCoordLoc );
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
-	releaseGL(ctx);
 }
 
 void VIDSoftGLESVdp2DrawEnd(void)
