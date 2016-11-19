@@ -26,7 +26,7 @@ void createPriorityProgram(render_context *ctx) {
    ctx->tt_context->priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
 
    if ( ctx->tt_context->priorityProgram == 0 ){
-      fprintf (stderr,"Can not create a program\n");
+      fprintf (stderr,"Can not create a program 2\n");
       return;
    }
 
@@ -67,7 +67,7 @@ void createPatternProgram(render_context *ctx) {
    ctx->tt_context->patternObject = gles20_createProgram (vShaderStr, fShaderStr);
 
    if ( ctx->tt_context->patternObject == 0 ){
-      fprintf (stderr,"Can not create a program\n");
+      fprintf (stderr,"Can not create a program 3\n");
       return;
    }
 

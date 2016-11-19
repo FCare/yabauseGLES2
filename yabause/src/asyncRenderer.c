@@ -18,25 +18,29 @@ void setupCtxFromFrame(render_context *ctx, renderingStack* frame);
 void FUNC_NAME(void* data) \
 { \
    render_context *ctx = (render_context *)calloc(sizeof(render_context), 1); \
-   ctx->glContext = -1;\
+   ctx->glWindow = (SDL_Window *) data; \
+   ctx->glContext = ctx->glContext = SDL_GL_CreateContext(ctx->glWindow); \
+   ctx->hasGL = 0; \
+   lockGL(ctx); \
+   initRender_context(ctx); \
+   releaseGL(ctx); \
    for (;;) \
    { \
 	renderingStack* frame = removeFromList(&mRenderList); \
 	if (frame != NULL) { \
-		if (ctx->glContext == -1) ctx->glContext = SDL_GL_CreateContext(frame->tt_context->glWindow); \
 		setupCtxFromFrame(ctx, frame); \
-	   	if (initRender_context(ctx)!= 0) { \
-			printf("Error during init of frame render thread\n"); \
-			return; \
-	   	} \
+		releaseRenderingStack(frame); \
+	   	lockGL(ctx); \
 		while (frame->operation != NULL) { \
 			operationList* tmp = frame->operation; \
 			frame->operation = frame->operation->next; \
 			executeOp(ctx, tmp->current); \
 			free(tmp); \
 		} \
+		releaseGL(ctx); \
+		lockGL(ctx); \
 		PushFrameToDisplay(ctx); \
-		releaseRenderingStack(frame); \
+		releaseGL(ctx); \
 	} \
    } \
 }
@@ -58,16 +62,15 @@ void setupCtxFromFrame(render_context *ctx, renderingStack* frame) {
 	ctx->Vdp2Lines = frame->Vdp2Lines;
 	ctx->Vdp2ColorRam = frame->Vdp2ColorRam;
 	ctx->cell_scroll_data = frame->cell_scroll_data;
-	ctx->tt_context = frame->tt_context;
 	ctx->frameId = frame->id;
 }
 
 int initRender_context(render_context *ctx) {
+	ctx->tt_context = (struct TitanGLContext*) calloc(sizeof(struct TitanGLContext), 1);
+	ctx->fb = (u8 *)calloc(sizeof(u8), 0x40000);
 	if (TitanGLSetup(ctx) != 0) printf("Error TitanGLSetup\n");
-	lockGL(ctx);
    	createPatternProgram(ctx);
    	createPriorityProgram(ctx);
-	releaseGL(ctx);
 	memset(ctx->bad_cycle_setting, 0, 6*sizeof(int));
 	return 0;
 }
@@ -84,7 +87,9 @@ void executeOp(render_context *ctx, RenderingOperation op) {
 			break;
 		case (VDP2SCREENS):
 			//printf("VDP2SCREENS\n");
+			releaseGL(ctx);
 			FrameVdp2DrawScreens(ctx);
+			lockGL(ctx);
 			break;
 		case (VDP1START):
 			//printf("VDP1START\n");
@@ -96,28 +101,28 @@ void executeOp(render_context *ctx, RenderingOperation op) {
 void addToList(renderingStack* stack, controledList* clist) {
 	list* curList;
 	if (stack == NULL) return;
-	while (sem_wait(&clist->lock) != 0);
+	sem_wait(&clist->lock);
 	curList = (list*) calloc(sizeof(list),1);
 	curList->current = stack;
 	curList->next = clist->list;
 	clist->list = curList;
-	while (sem_post(&clist->lock) != 0);
-	while (sem_post(&clist->elem) != 0);
+	sem_post(&clist->lock);
+	sem_post(&clist->elem);
 }
 
 renderingStack* removeFromList(controledList* clist) {
 	renderingStack* cur;
 	list* tbd;
-	while (sem_wait(&clist->elem) != 0);
-	while (sem_wait(&clist->lock) != 0);
+	sem_wait(&clist->elem);
+	sem_wait(&clist->lock);
 	cur = clist->list->current;
 	if (cur != NULL) {
 		tbd = clist->list;
 		clist->list = clist->list->next;
 		free(tbd);
 	}
-	while (sem_post(&clist->lock) != 0);
-	if (cur == NULL) while (sem_post(&clist->elem) != 0);
+	sem_post(&clist->lock);
+	if (cur == NULL) sem_post(&clist->elem);
 	return cur;
 }
 
@@ -130,7 +135,6 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 	sem_init(&mRenderList.elem, 0, 0);
 	for (i=0; i < nb; i++) {
 		render[i].id = -1;
-		render[i].fb = (u8 *)calloc(sizeof(u8), 0x40000);
 		render[i].Vdp2Regs = (Vdp2*)calloc(sizeof(Vdp2), 1);
 		render[i].Vdp2Lines = (Vdp2*)calloc(sizeof(Vdp2), 270);
 		render[i].Vdp1Regs = (Vdp1*)calloc(sizeof(Vdp1), 1);
@@ -138,19 +142,17 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 		render[i].Vdp2ColorRam = (u8*)calloc(0x1000, 1);
 		render[i].cell_scroll_data = (struct CellScrollData*) calloc(sizeof(struct CellScrollData), 270);
 		render[i].operation = NULL;
-		render[i].tt_context = (struct TitanGLContext*) calloc(sizeof(struct TitanGLContext), 1);
-		render[i].tt_context->glWindow = gl_window;
 		addToList(&render[i], &mFrameList);
 
 	}
 #if NB_GL_RENDERER >= 1
-	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_0, frameRenderThread0, NULL);
+	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_0, frameRenderThread0, (void*)gl_window);
 #endif
 #if NB_GL_RENDERER >= 2
-      	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_1, frameRenderThread1, NULL);
+      	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_1, frameRenderThread1, (void*)gl_window);
 #endif
 #if NB_GL_RENDERER >= 3
-      	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_2, frameRenderThread2, NULL);
+      	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_2, frameRenderThread2, (void*)gl_window);
 #endif
 }
 

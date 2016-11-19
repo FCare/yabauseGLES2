@@ -65,6 +65,9 @@ typedef struct {
 	struct TitanGLContext* tt_context;
 	int frameId;
         SDL_GLContext glContext;
+	SDL_Window *glWindow;
+	int hasGL;
+	u8* fb;
 } render_context;
 
 typedef u32 (*TitanGLBlendFunc)(u32 top, u32 bottom);
@@ -84,7 +87,9 @@ struct TitanGLContext {
    int glwidth;
    int glheight;
    gl_fbo fbo;
-   framebuffer* vdp1framebuffer;
+   framebuffer* vdp1framebuffer[2];
+   framebuffer* vdp1frontbuffer;
+   framebuffer* vdp1backbuffer;
    TitanGLBlendFunc blend;
    TitanGLTransFunc trans;
    PixelData * backscreen;
@@ -130,10 +135,7 @@ struct TitanGLContext {
    GLint fboTexCoordLoc;
    GLint fboSamplerLoc;
 
-   GLuint vertexSWBuffer;
-
-   SDL_Window *glWindow;
-   int hasGL;	
+   GLuint vertexSWBuffer;	
 };
 
 void TitanGLInit();

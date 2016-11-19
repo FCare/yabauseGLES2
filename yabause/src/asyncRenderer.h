@@ -6,7 +6,7 @@
 #include "titangl/titangl.h"
 
 #ifndef NB_GL_RENDERER
-#define NB_GL_RENDERER 3
+#define NB_GL_RENDERER 1
 #endif
 
 #if NB_GL_RENDERER > 3
@@ -37,8 +37,6 @@ typedef struct {
 	Vdp2* Vdp2Lines;
 	u8* Vdp2ColorRam; //0x1000
 	struct CellScrollData *cell_scroll_data;
-	u8* fb;
-	struct TitanGLContext* tt_context;
 } renderingStack;
 
 typedef struct s_List list;

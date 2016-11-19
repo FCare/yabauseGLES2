@@ -75,20 +75,24 @@ void TitanGLInit() {
 
 
 void  lockGL(render_context *ctx) {
-   if (ctx->tt_context->hasGL == 0) {
-	while (sem_wait(&guardGL) != 0);
-   	SDL_GL_MakeCurrent(ctx->tt_context->glWindow, ctx->glContext);
+#if NB_GL_RENDERER > 1
+   if (ctx->hasGL == 0) {
+	sem_wait(&guardGL);
+   	SDL_GL_MakeCurrent(ctx->glWindow, ctx->glContext);
    }
-   ctx->tt_context->hasGL = 1;
+   ctx->hasGL = 1;
+#endif
 }
 
 void releaseGL(render_context *ctx) {
-	if (ctx->tt_context->hasGL == 1) {
+#if NB_GL_RENDERER > 1
+	if (ctx->hasGL == 1) {
 		glFinish();
-		SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
-		while (sem_post(&guardGL) != 0);
+		SDL_GL_MakeCurrent(ctx->glWindow, NULL);
+		sem_post(&guardGL);
 	}
-	ctx->tt_context->hasGL = 0;
+	ctx->hasGL = 0;
+#endif
 }
 
 static u32 TitanGLBlendPixelsTop(u32 top, u32 bottom)
@@ -290,18 +294,22 @@ int TitanGLSetup(render_context *ctx)
 
    	ctx->tt_context->vertexSWBuffer = -1;
 
-	ctx->tt_context->hasGL = 0;
-
 	gles20_createFBO(&ctx->tt_context->fbo, 704, 512, 0);
    	// Initialize VDP1 framebuffer
-   	if ((ctx->tt_context->vdp1framebuffer = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
-      		return -1;
+	for(i=0; i <2; i++) {
+   		if ((ctx->tt_context->vdp1framebuffer[i] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
+      			return -1;
 
-   	if ((ctx->tt_context->vdp1framebuffer->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
-      		return -1;
+   		if ((ctx->tt_context->vdp1framebuffer[i]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+      			return -1;
 
-	gles20_createFBO(&ctx->tt_context->vdp1framebuffer->fbo, 1024, 512, 0);
-   	gles20_createFBO(&ctx->tt_context->vdp1framebuffer->priority, 1024, 512, 1);
+		gles20_createFBO(&ctx->tt_context->vdp1framebuffer[i]->fbo, 1024, 512, 0);
+   		gles20_createFBO(&ctx->tt_context->vdp1framebuffer[i]->priority, 1024, 512, 1);
+	}
+
+	ctx->tt_context->vdp1backbuffer = ctx->tt_context->vdp1framebuffer[0];
+	ctx->tt_context->vdp1frontbuffer = ctx->tt_context->vdp1framebuffer[1];
+
 
       for(i = 0;i < 6;i++)
       {
@@ -340,6 +348,8 @@ int TitanGLSetup(render_context *ctx)
 
    for(i = 1;i < 4;i++)
       memset(ctx->tt_context->linescreen[i], 0, sizeof(u32) * 512);
+
+   SDL_GL_MakeCurrent(ctx->glWindow, ctx->glContext);
 
    return 0;
 }
@@ -521,8 +531,6 @@ void createGLPrograms(render_context *ctx) {
       "  }\n"
       "}                                                   \n";
 
-   lockGL(ctx);
-
    // Create the program object
    ctx->tt_context->titanBackProg = gles20_createProgram (vShaderStr, fShaderStr);
 
@@ -555,8 +563,6 @@ void createGLPrograms(render_context *ctx) {
    ctx->tt_context->layerLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "layer");
    ctx->tt_context->prioLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "priority");
    ctx->tt_context->refPrioLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "layerpriority");
-
-   releaseGL(ctx);
 }
 
 static float swVertices [] = {
@@ -584,8 +590,6 @@ void TitanGLRenderFBO(render_context *ctx) {
    {
       return;
    }
-
-   lockGL(ctx);
 
    if ((tt_context->glwidth != tt_context->vdp2width) || (tt_context->glheight != tt_context->vdp2height)) {
        tt_context->glwidth = tt_context->vdp2width;
@@ -741,5 +745,4 @@ void TitanGLRenderFBO(render_context *ctx) {
 	if (err != GL_NO_ERROR) {
 		printf("GL error 0x%x %d\n", err, __LINE__);
 	}
-   releaseGL(ctx);
 }
