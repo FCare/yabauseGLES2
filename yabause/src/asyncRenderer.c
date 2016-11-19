@@ -1,14 +1,13 @@
 #include "asyncRenderer.h"
 
-controledList mFrameList;
-controledList mRenderList;
+static controledList mFrameList;
+static controledList mRenderList;
 
 struct
 {
    volatile int need_draw[5];
    volatile int draw_finished[5];
 } frame_render_thread_context;
-
 
 renderingStack* removeFromList(controledList* clist);
 void executeOp(render_context *ctx, RenderingOperation op);
@@ -36,8 +35,6 @@ void FUNC_NAME(void* data) \
 			executeOp(ctx, tmp->current); \
 			free(tmp); \
 		} \
-		glFinish(); \
-		SDL_GL_MakeCurrent(frame->tt_context->glWindow, NULL); \
 		PushFrameToDisplay(ctx); \
 		releaseRenderingStack(frame); \
 	} \
@@ -66,9 +63,11 @@ void setupCtxFromFrame(render_context *ctx, renderingStack* frame) {
 }
 
 int initRender_context(render_context *ctx) {
-	if (TitanGLInit(ctx) != 0) printf("Error TitanGLInit\n");
-   createPatternProgram();
-   createPriorityProgram();
+	if (TitanGLSetup(ctx) != 0) printf("Error TitanGLSetup\n");
+	lockGL(ctx);
+   	createPatternProgram(ctx);
+   	createPriorityProgram(ctx);
+	releaseGL(ctx);
 	memset(ctx->bad_cycle_setting, 0, 6*sizeof(int));
 	return 0;
 }
@@ -96,6 +95,7 @@ void executeOp(render_context *ctx, RenderingOperation op) {
 
 void addToList(renderingStack* stack, controledList* clist) {
 	list* curList;
+	if (stack == NULL) return;
 	while (sem_wait(&clist->lock) != 0);
 	curList = (list*) calloc(sizeof(list),1);
 	curList->current = stack;
@@ -111,10 +111,13 @@ renderingStack* removeFromList(controledList* clist) {
 	while (sem_wait(&clist->elem) != 0);
 	while (sem_wait(&clist->lock) != 0);
 	cur = clist->list->current;
-	tbd = clist->list;
-	clist->list = clist->list->next;
-	free(tbd);
+	if (cur != NULL) {
+		tbd = clist->list;
+		clist->list = clist->list->next;
+		free(tbd);
+	}
 	while (sem_post(&clist->lock) != 0);
+	if (cur == NULL) while (sem_post(&clist->elem) != 0);
 	return cur;
 }
 
@@ -138,6 +141,7 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 		render[i].tt_context = (struct TitanGLContext*) calloc(sizeof(struct TitanGLContext), 1);
 		render[i].tt_context->glWindow = gl_window;
 		addToList(&render[i], &mFrameList);
+
 	}
 #if NB_GL_RENDERER >= 1
 	YabThreadStart(YAB_THREAD_VIDSOFT_FRAME_RENDER_0, frameRenderThread0, NULL);
@@ -151,7 +155,9 @@ renderingStack* createRenderingStacks(int nb, SDL_Window *gl_window, SDL_GLConte
 }
 
 renderingStack* getFrame() {
-	return removeFromList(&mFrameList);
+	renderingStack* ret;
+	ret = removeFromList(&mFrameList);
+	return ret;
 }
 
 void releaseRenderingStack(renderingStack* old) {

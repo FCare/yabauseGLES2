@@ -1,22 +1,7 @@
 #include "gles20programs.h"
-//#include "program/pattern.h"
 
 
-static GLint patternObject  = -1;
-static GLint positionLoc    = -1;
-static GLint texCoordLoc    = -1;
-static GLint samplerLoc     = -1;
-static GLint alphaValueLoc  = -1;
-
-static GLint priorityProgram = -1;
-static GLint prioPositionLoc = -1;
-static GLint prioTexCoordLoc = -1;
-static GLint prioSamplerLoc  = -1;
-static GLint prioValueLoc = -1;
-
-GLuint vertexSWBuffer = -1;
-
-void createPriorityProgram() {
+void createPriorityProgram(render_context *ctx) {
    GLbyte vShaderPriorityStr[] =
       "attribute vec4 a_position;   \n"
       "attribute vec3 a_texCoord;   \n"
@@ -37,26 +22,26 @@ void createPriorityProgram() {
       "  if (color.a < 0.1) discard;\n" 
       "  gl_FragColor.a = u_priority;\n"
       "}                                                   \n";
-   if (priorityProgram > 0) return;
-   priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
+   if (ctx->tt_context->priorityProgram > 0) return;
+   ctx->tt_context->priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
 
-   if ( priorityProgram == 0 ){
+   if ( ctx->tt_context->priorityProgram == 0 ){
       fprintf (stderr,"Can not create a program\n");
       return;
    }
 
    // Get the attribute locations
-   prioPositionLoc = glGetAttribLocation ( priorityProgram, "a_position" );
-   prioTexCoordLoc = glGetAttribLocation ( priorityProgram, "a_texCoord" );
+   ctx->tt_context->prioPositionLoc = glGetAttribLocation ( ctx->tt_context->priorityProgram, "a_position" );
+   ctx->tt_context->prioTexCoordLoc = glGetAttribLocation ( ctx->tt_context->priorityProgram, "a_texCoord" );
    // Get the sampler location
-   prioSamplerLoc = glGetUniformLocation ( priorityProgram, "s_texture" );
-   prioValueLoc = glGetUniformLocation ( priorityProgram, "u_priority" );
+   ctx->tt_context->prioSamplerLoc = glGetUniformLocation ( ctx->tt_context->priorityProgram, "s_texture" );
+   ctx->tt_context->prioValueLoc = glGetUniformLocation ( ctx->tt_context->priorityProgram, "u_priority" );
 
-   if (vertexSWBuffer == -1) 
-       glGenBuffers(1, &vertexSWBuffer);
+   if (ctx->tt_context->vertexSWBuffer == -1) 
+       glGenBuffers(1, &ctx->tt_context->vertexSWBuffer);
 }
 
-void createPatternProgram() {
+void createPatternProgram(render_context *ctx) {
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
       "attribute vec3 a_texCoord;   \n"
@@ -77,33 +62,33 @@ void createPatternProgram() {
       "  gl_FragColor = color;\n"
 
       "}                                                   \n";
-	if (patternObject > 0) return;
+	if (ctx->tt_context->patternObject > 0) return;
    // Create the program object
-   patternObject = gles20_createProgram (vShaderStr, fShaderStr);
+   ctx->tt_context->patternObject = gles20_createProgram (vShaderStr, fShaderStr);
 
-   if ( patternObject == 0 ){
+   if ( ctx->tt_context->patternObject == 0 ){
       fprintf (stderr,"Can not create a program\n");
       return;
    }
 
    // Get the attribute locations
-   positionLoc = glGetAttribLocation ( patternObject, "a_position" );
-   texCoordLoc = glGetAttribLocation ( patternObject, "a_texCoord" );
+   ctx->tt_context->patPositionLoc = glGetAttribLocation ( ctx->tt_context->patternObject, "a_position" );
+   ctx->tt_context->patTexCoordLoc = glGetAttribLocation ( ctx->tt_context->patternObject, "a_texCoord" );
    // Get the sampler location
-   samplerLoc = glGetUniformLocation ( patternObject, "s_texture" );
+   ctx->tt_context->patSamplerLoc = glGetUniformLocation ( ctx->tt_context->patternObject, "s_texture" );
 
-   if (vertexSWBuffer == -1) 
-       glGenBuffers(1, &vertexSWBuffer);
+   if (ctx->tt_context->vertexSWBuffer == -1) 
+       glGenBuffers(1, &ctx->tt_context->vertexSWBuffer);
 }
 
-void drawPattern(Pattern* pattern, GLfloat* vertex){
+void drawPattern(Pattern* pattern, GLfloat* vertex, render_context *ctx){
 	int i;
 	if (pattern->mesh != 0) {
 		glBlendColor(0.0,0.0,0.0,0.5);
 		glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
 	}
-	glUseProgram(patternObject);
-	glUniform1i(samplerLoc, 0);
+	glUseProgram(ctx->tt_context->patternObject);
+	glUniform1i(ctx->tt_context->patSamplerLoc, 0);
 
         if (pattern->tw != 1.0f) {
 		vertex[2]*=pattern->tw;
@@ -118,15 +103,15 @@ void drawPattern(Pattern* pattern, GLfloat* vertex){
 		vertex[18]*=pattern->th;
 	}
 
-    	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+    	glBindBuffer(GL_ARRAY_BUFFER, ctx->tt_context->vertexSWBuffer);
 
     	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
 
-    	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+    	if (ctx->tt_context->patPositionLoc >= 0) glVertexAttribPointer ( ctx->tt_context->patPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    	if (ctx->tt_context->patTexCoordLoc >= 0) glVertexAttribPointer ( ctx->tt_context->patTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 
-    	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
-    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+    	if (ctx->tt_context->patPositionLoc >= 0) glEnableVertexAttribArray ( ctx->tt_context->patPositionLoc );
+    	if (ctx->tt_context->patTexCoordLoc >= 0) glEnableVertexAttribArray ( ctx->tt_context->patTexCoordLoc );
 
     	glActiveTexture ( GL_TEXTURE0 );
     	glBindTexture(GL_TEXTURE_2D, pattern->tex);
@@ -143,20 +128,20 @@ void drawPattern(Pattern* pattern, GLfloat* vertex){
 	}
 }
 
-void drawPriority(Pattern* pattern, GLfloat* vertex, int priority) {
+void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, render_context *ctx) {
 	glDisable(GL_BLEND);
-    	glUseProgram(priorityProgram);
-	glUniform1i(prioSamplerLoc, 0);
+    	glUseProgram(ctx->tt_context->priorityProgram);
+	glUniform1i(ctx->tt_context->prioSamplerLoc, 0);
 
-    	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+    	glBindBuffer(GL_ARRAY_BUFFER, ctx->tt_context->vertexSWBuffer);
 
     	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
 
-    	if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    	if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
+    	if (ctx->tt_context->prioPositionLoc >= 0) glVertexAttribPointer ( ctx->tt_context->prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+    	if (ctx->tt_context->prioTexCoordLoc >= 0) glVertexAttribPointer ( ctx->tt_context->prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 
-    	if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
-    	if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+    	if (ctx->tt_context->prioPositionLoc >= 0) glEnableVertexAttribArray ( ctx->tt_context->prioPositionLoc );
+    	if (ctx->tt_context->prioTexCoordLoc >= 0) glEnableVertexAttribArray ( ctx->tt_context->prioTexCoordLoc );
 
     	glActiveTexture ( GL_TEXTURE0 );
     	glBindTexture(GL_TEXTURE_2D, pattern->tex);
@@ -165,7 +150,7 @@ void drawPriority(Pattern* pattern, GLfloat* vertex, int priority) {
     	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
     	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
-    	glUniform1f(prioValueLoc, priority/255.0f);
+    	glUniform1f(ctx->tt_context->prioValueLoc, priority/255.0f);
 
     	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	glEnable(GL_BLEND);

@@ -28,7 +28,7 @@
 
 /* private */
 
-sem_t lockGL;
+static sem_t guardGL;
 
 #if defined WORDS_BIGENDIAN
 #ifdef USE_RGB_555
@@ -67,6 +67,28 @@ void TitanGLSetVdp2Fbo(int fb, int nb, struct TitanGLContext *tt_context){
 
 void TitanGLSetVdp2Priority(int fb, int nb, struct TitanGLContext *tt_context) {
 	tt_context->vdp2prio[nb] = fb;
+}
+
+void TitanGLInit() {
+	sem_init(&guardGL, 0, 1);
+}
+
+
+void  lockGL(render_context *ctx) {
+   if (ctx->tt_context->hasGL == 0) {
+	while (sem_wait(&guardGL) != 0);
+   	SDL_GL_MakeCurrent(ctx->tt_context->glWindow, ctx->glContext);
+   }
+   ctx->tt_context->hasGL = 1;
+}
+
+void releaseGL(render_context *ctx) {
+	if (ctx->tt_context->hasGL == 1) {
+		glFinish();
+		SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
+		while (sem_post(&guardGL) != 0);
+	}
+	ctx->tt_context->hasGL = 0;
 }
 
 static u32 TitanGLBlendPixelsTop(u32 top, u32 bottom)
@@ -221,7 +243,7 @@ finished:
 }
 
 /* public */
-int TitanGLInit(render_context *ctx)
+int TitanGLSetup(render_context *ctx)
 {
    int i;
    if (ctx->tt_context->inited == 0)
@@ -242,6 +264,26 @@ int TitanGLInit(render_context *ctx)
    	ctx->tt_context->layerLoc = 0;
    	ctx->tt_context->prioLoc = 0;
    	ctx->tt_context->refPrioLoc = 0;
+
+   	ctx->tt_context->patternObject = 0;
+   	ctx->tt_context->patPositionLoc = 0;
+   	ctx->tt_context->patTexCoordLoc = 0;
+   	ctx->tt_context->patSamplerLoc = 0;
+
+   	ctx->tt_context->priorityProgram = 0;
+   	ctx->tt_context->prioPositionLoc = 0;
+   	ctx->tt_context->prioTexCoordLoc = 0;
+   	ctx->tt_context->prioSamplerLoc = 0;
+   	ctx->tt_context->prioValueLoc = 0;
+
+   	ctx->tt_context->layer_tex = -1;
+   	ctx->tt_context->back_tex = -1;
+   	ctx->tt_context->sprite_tex = -1;
+   	ctx->tt_context->stencil_tex = -1;
+
+   	ctx->tt_context->vertexSWBuffer = -1;
+
+	ctx->tt_context->hasGL = 0;
 
 	gles20_createFBO(&ctx->tt_context->fbo, 704, 512, 0);
    	// Initialize VDP1 framebuffer
@@ -472,17 +514,14 @@ void createGLPrograms(render_context *ctx) {
       "  }\n"
       "}                                                   \n";
 
-
-   while (sem_wait(&lockGL) != 0);
-   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, ctx->glContext);
+   lockGL(ctx);
 
    // Create the program object
    ctx->tt_context->titanBackProg = gles20_createProgram (vShaderStr, fShaderStr);
 
    if ( ctx->tt_context->titanBackProg == 0 ){
       fprintf (stderr,"Can not create a program\n");
-      SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
-      while (sem_post(&lockGL) != 0);
+      releaseGL(ctx);
       return 0;
    }
 
@@ -510,8 +549,7 @@ void createGLPrograms(render_context *ctx) {
    ctx->tt_context->prioLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "priority");
    ctx->tt_context->refPrioLoc = glGetUniformLocation( ctx->tt_context->programGeneralPriority, "layerpriority");
 
-   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
-   while (sem_post(&lockGL) != 0);
+   releaseGL(ctx);
 }
 
 static float swVertices [] = {
@@ -520,11 +558,6 @@ static float swVertices [] = {
    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
    -1.0f,1.0f, 0, 1.0f, 0, 1.0f,
 };
-
-static int layer_tex = -1;
-static int back_tex = -1;
-static int sprite_tex = -1;
-static int stencil_tex = -1;
 
 void TitanGLRenderFBO(render_context *ctx) {
    struct TitanGLContext *tt_context = ctx->tt_context;
@@ -544,17 +577,16 @@ void TitanGLRenderFBO(render_context *ctx) {
       return;
    }
 
-   while (sem_wait(&lockGL) != 0);
-   SDL_GL_MakeCurrent(tt_context->glWindow, ctx->glContext);
+   lockGL(ctx);
 
    if ((tt_context->glwidth != tt_context->vdp2width) || (tt_context->glheight != tt_context->vdp2height)) {
        tt_context->glwidth = tt_context->vdp2width;
        tt_context->glheight = tt_context->vdp2height;
-       if (back_tex == -1) glDeleteTextures(1,&back_tex);
-       if (layer_tex == -1) glDeleteTextures(1,&layer_tex);
-       if (sprite_tex == -1) glDeleteTextures(1,&sprite_tex);
-       if (stencil_tex == -1) glDeleteTextures(1,&stencil_tex);
-       back_tex = layer_tex = sprite_tex = stencil_tex = -1;
+       if (ctx->tt_context->back_tex == -1) glDeleteTextures(1,&ctx->tt_context->back_tex);
+       if (ctx->tt_context->layer_tex == -1) glDeleteTextures(1,&ctx->tt_context->layer_tex);
+       if (ctx->tt_context->sprite_tex == -1) glDeleteTextures(1,&ctx->tt_context->sprite_tex);
+       if (ctx->tt_context->stencil_tex == -1) glDeleteTextures(1,&ctx->tt_context->stencil_tex);
+       ctx->tt_context->back_tex = ctx->tt_context->layer_tex = ctx->tt_context->sprite_tex = ctx->tt_context->stencil_tex = -1;
    }
 
    if (tt_context->vdp2fbo[TITAN_SPRITE] != -1) {
@@ -575,9 +607,9 @@ void TitanGLRenderFBO(render_context *ctx) {
    glClearColor(0.0, 0.0, 0.0, 0.0);
    glClear(GL_COLOR_BUFFER_BIT);
 
-   if (back_tex == -1) {
-	glGenTextures(1, &back_tex);
-	glBindTexture(GL_TEXTURE_2D, back_tex);
+   if (ctx->tt_context->back_tex == -1) {
+	glGenTextures(1, &ctx->tt_context->back_tex);
+	glBindTexture(GL_TEXTURE_2D, ctx->tt_context->back_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -586,9 +618,9 @@ void TitanGLRenderFBO(render_context *ctx) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
    }
 
-   if (sprite_tex == -1) {
-	glGenTextures(1, &sprite_tex);
-	glBindTexture(GL_TEXTURE_2D, sprite_tex);
+   if (ctx->tt_context->sprite_tex == -1) {
+	glGenTextures(1, &ctx->tt_context->sprite_tex);
+	glBindTexture(GL_TEXTURE_2D, ctx->tt_context->sprite_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -597,9 +629,9 @@ void TitanGLRenderFBO(render_context *ctx) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
    }
 
-   if (layer_tex == -1) {
-	glGenTextures(1, &layer_tex);
-	glBindTexture(GL_TEXTURE_2D, layer_tex);
+   if (ctx->tt_context->layer_tex == -1) {
+	glGenTextures(1, &ctx->tt_context->layer_tex);
+	glBindTexture(GL_TEXTURE_2D, ctx->tt_context->layer_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -608,10 +640,10 @@ void TitanGLRenderFBO(render_context *ctx) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
    }
 
-   if (stencil_tex == -1) {
-	glGenTextures(1, &stencil_tex);
+   if (ctx->tt_context->stencil_tex == -1) {
+	glGenTextures(1, &ctx->tt_context->stencil_tex);
         glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, stencil_tex);
+	glBindTexture(GL_TEXTURE_2D, ctx->tt_context->stencil_tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -642,11 +674,11 @@ void TitanGLRenderFBO(render_context *ctx) {
 	int bg_layer = sorted_layers[j];
         if (bg_layer == TITAN_BACK) {
 	    glActiveTexture(GL_TEXTURE0);
-	    glBindTexture(GL_TEXTURE_2D, back_tex);
+	    glBindTexture(GL_TEXTURE_2D, ctx->tt_context->back_tex);
 	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,1,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context->backscreen);
 	    glActiveTexture(GL_TEXTURE1);
 	    if (tt_context->vdp2fbo[TITAN_SPRITE] == -1) {
-		    glBindTexture(GL_TEXTURE_2D, sprite_tex);
+		    glBindTexture(GL_TEXTURE_2D, ctx->tt_context->sprite_tex);
 		    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context->vdp2framebuffer[TITAN_SPRITE]);
 	    } else {
 		   glBindTexture(GL_TEXTURE_2D, tt_context->vdp2fbo[TITAN_SPRITE]);
@@ -665,18 +697,18 @@ void TitanGLRenderFBO(render_context *ctx) {
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         } else {
 	    glActiveTexture(GL_TEXTURE0);
-	    glBindTexture(GL_TEXTURE_2D, layer_tex);
+	    glBindTexture(GL_TEXTURE_2D, ctx->tt_context->layer_tex);
 	    glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context->vdp2framebuffer[bg_layer]);
 	    glActiveTexture(GL_TEXTURE1);
 	    if (tt_context->vdp2fbo[TITAN_SPRITE] == -1) {
-	    	glBindTexture(GL_TEXTURE_2D, sprite_tex);
+	    	glBindTexture(GL_TEXTURE_2D, ctx->tt_context->sprite_tex);
 	    	glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,tt_context->vdp2framebuffer[TITAN_SPRITE]);
 	    } else {
 		glBindTexture(GL_TEXTURE_2D, tt_context->vdp2fbo[TITAN_SPRITE]);
 	    }
 	    glActiveTexture(GL_TEXTURE2);
 	    if (tt_context->vdp2prio[TITAN_SPRITE] == -1) {
-	    	glBindTexture(GL_TEXTURE_2D, stencil_tex);
+	    	glBindTexture(GL_TEXTURE_2D, ctx->tt_context->stencil_tex);
 	    	glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,width,height,GL_ALPHA,GL_UNSIGNED_BYTE,tt_context->vdp2priority[TITAN_SPRITE]);
             } else {
 		glBindTexture(GL_TEXTURE_2D, tt_context->vdp2prio[TITAN_SPRITE]);
@@ -702,6 +734,5 @@ void TitanGLRenderFBO(render_context *ctx) {
 		printf("GL error 0x%x\n", err);
 	}
 
-   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
-   while (sem_post(&lockGL) != 0);
+   releaseGL(ctx);
 }

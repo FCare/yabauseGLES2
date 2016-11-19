@@ -67,8 +67,6 @@ typedef struct {
         SDL_GLContext glContext;
 } render_context;
 
-extern sem_t lockGL;
-
 typedef u32 (*TitanGLBlendFunc)(u32 top, u32 bottom);
 typedef int FASTCALL (*TitanGLTransFunc)(u32 pixel);
 typedef u32 PixelData;
@@ -91,6 +89,7 @@ struct TitanGLContext {
    TitanGLTransFunc trans;
    PixelData * backscreen;
    int layer_priority[6];
+
    GLuint g_VertexSWBuffer;
    GLuint titanBackProg;
    GLuint positionLoc;
@@ -108,10 +107,30 @@ struct TitanGLContext {
    GLuint prioLoc;
    GLuint refPrioLoc;
 
-   SDL_Window *glWindow;	
+   GLint patternObject;
+   GLint patPositionLoc;
+   GLint patTexCoordLoc;
+   GLint patSamplerLoc;
+
+   GLint priorityProgram;
+   GLint prioPositionLoc;
+   GLint prioTexCoordLoc;
+   GLint prioSamplerLoc;
+   GLint prioValueLoc;
+
+   GLint layer_tex;
+   GLint back_tex;
+   GLint sprite_tex;
+   GLint stencil_tex;
+
+   GLuint vertexSWBuffer;
+
+   SDL_Window *glWindow;
+   int hasGL;	
 };
 
-int TitanGLInit(render_context *ctx);
+void TitanGLInit();
+int TitanGLSetup(render_context *ctx);
 int TitanGLDeInit(struct TitanGLContext *tt_context);
 void TitanGLErase(struct TitanGLContext *tt_context);
 

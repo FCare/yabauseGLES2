@@ -2147,8 +2147,6 @@ void SDLInit(void) {
         glClearColor( 0.0f,0.0f,0.0f,0.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 	SDL_GL_SwapWindow(gl_window);
-
-	//SDL_GL_MakeCurrent(gl_window, NULL);
 }
 
 int VIDSoftGLESInit(void)
@@ -2177,7 +2175,7 @@ int VIDSoftGLESInit(void)
 	sem_init(&frameDisplayedDone[i], 0, 0);
    }
    sem_init(&patternLock, 0, 1);
-   sem_init(&lockGL, 0, 1);
+   TitanGLInit();
 
    initPatternCache();
 
@@ -2360,8 +2358,10 @@ void VIDSoftGLESDrawCommands(u8 * ram, Vdp1 * regs, u8* back_framebuffer, render
 void FrameVdp1DrawStart(render_context *ctx)
 {
 	//printf("FrameVdp1DrawStart\n");
+   lockGL(ctx);
 	VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, ctx->tt_context->vdp1framebuffer);
       VIDSoftGLESDrawCommands(Vdp1Ram, Vdp1Regs, ctx->tt_context->vdp1framebuffer, ctx);
+   releaseGL(ctx);
 }
 //////////////////////////////////////////////////////////////////////////////
 
@@ -3563,12 +3563,12 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	drawPattern(pattern, quadVertices);
+	drawPattern(pattern, quadVertices, ctx);
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
         glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 
-        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
+        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), ctx);
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
         glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
@@ -3616,12 +3616,12 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	drawPattern(pattern, quadVertices);
+	drawPattern(pattern, quadVertices, ctx);
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
         glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 
-        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
+        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), ctx);
 
         glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
         glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
@@ -3681,12 +3681,12 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 			xc, yc, u3, u3, u3,
 			xd, yd, 0.0, u4, u4}; 
 
-    drawPattern(pattern, quadVertices);
+    drawPattern(pattern, quadVertices, ctx);
 
     glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
     glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 
-    drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
+    drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7), ctx);
 
     glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.fb);
     glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->fbo.height);
@@ -3822,6 +3822,8 @@ void FrameVdp2DrawStart(render_context *ctx)
 
    int titanblendmode = TITAN_BLEND_TOP;
 
+   lockGL(ctx);
+
 glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.fb);
 glViewport(0,0,((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.width, ((framebuffer *)ctx->tt_context->vdp1framebuffer)->priority.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -3833,6 +3835,9 @@ glClear(GL_COLOR_BUFFER_BIT);
 
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 glEnable(GL_BLEND);
+
+	releaseGL(ctx);
+   
 
 recycleCache();
 
@@ -3935,7 +3940,10 @@ int InitProgramForSoftwareRendering()
 
 void DrawFBO(render_context* ctx) {
     int error,i;
-    int tex = ctx->tt_context->fbo.fb;;
+    int tex = ctx->tt_context->fbo.fb;
+
+   lockGL(ctx);
+
     if (programObject == 0) InitProgramForSoftwareRendering();
     glUseProgram(programObject);
 
@@ -3965,6 +3973,8 @@ void DrawFBO(render_context* ctx) {
       glEnableVertexAttribArray ( positionLoc );
       glEnableVertexAttribArray ( texCoordLoc );
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+	releaseGL(ctx);
 }
 
 void VIDSoftGLESVdp2DrawEnd(void)
@@ -3993,6 +4003,8 @@ void FrameVdp2DrawEnd(render_context *ctx)
    screenRenderWait(3);
    screenRenderWait(4);
 #endif
+   lockGL(ctx);
+
    glDisable(GL_SCISSOR_TEST);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    glViewport(0,0,800, 600);
@@ -4000,6 +4012,8 @@ void FrameVdp2DrawEnd(render_context *ctx)
    TitanGLSetVdp2Priority(ctx->tt_context->vdp1framebuffer->priority.fb, TITAN_SPRITE, ctx->tt_context);
    TitanGLRenderFBO(ctx);
    VIDSoftGLESVdp1SwapFrameBuffer();
+
+   releaseGL(ctx);
 }
 
 
@@ -4012,8 +4026,7 @@ void PushFrameToDisplay(render_context *ctx) {
    float ar = (float)vdp2width/(float)vdp2height;
    float dar = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
 
-   while (sem_wait(&frameDisplayedReady[i]) != 0);
-   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, ctx->glContext);
+   lockGL(ctx);
 
    if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
 
@@ -4043,9 +4056,7 @@ void PushFrameToDisplay(render_context *ctx) {
        resetProfiler(3*1000);
    }
 
-   SDL_GL_MakeCurrent(ctx->tt_context->glWindow, NULL);
-
-   while (sem_post(&frameDisplayedDone[i]) != 0);
+   releaseGL(ctx);
 }
 
 void screenRenderThread(void (*pt[5])(Vdp2*, Vdp2*, u8*, u8*, struct CellScrollData *), int which, render_context *ctx) {

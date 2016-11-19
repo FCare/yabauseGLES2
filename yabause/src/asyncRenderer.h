@@ -6,7 +6,7 @@
 #include "titangl/titangl.h"
 
 #ifndef NB_GL_RENDERER
-#define NB_GL_RENDERER 1
+#define NB_GL_RENDERER 3
 #endif
 
 #if NB_GL_RENDERER > 3
