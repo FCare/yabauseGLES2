@@ -41,7 +41,7 @@
 #ifdef HAVE_LIBGL
 #include "../vidogl.h"
 #endif
-#include "../vidsoftnogl.h"
+#include "../vidsoft.h"
 #include "../cs0.h"
 #include "../cs2.h"
 #include "../cdbase.h"
