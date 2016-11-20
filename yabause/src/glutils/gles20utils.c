@@ -142,9 +142,9 @@ int gles20_createFBO(gl_fbo* fbo, int w, int h, int format)
 	break;
    }
 
-   glGenRenderbuffers(1, &fbo->stencil);
-   glBindRenderbuffer(GL_RENDERBUFFER, fbo->stencil);
-   glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, w, h);
+  // glGenRenderbuffers(1, &fbo->stencil);
+  // glBindRenderbuffer(GL_RENDERBUFFER, fbo->stencil);
+  // glRenderbufferStorage(GL_RENDERBUFFER, GL_STENCIL_INDEX8, w, h);
 
    //-------------------------
    glGenFramebuffers(1, &fbo->fb);
@@ -152,7 +152,7 @@ int gles20_createFBO(gl_fbo* fbo, int w, int h, int format)
    glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
    //Attach 2D texture to this FBO
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo->tex, 0);
-   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fbo->stencil);
+   //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fbo->stencil);
 
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    //Does the GPU support current FBO configuration?
