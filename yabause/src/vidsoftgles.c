@@ -104,6 +104,7 @@ static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer);
 static void VIDSoftGLESGetNativeResolution(int *width, int *height, int*interlace);
 static void VIDSoftGLESVdp2DispOff(void);
 static int VidSoftGLESgetDevFbo(void);
+static pixel_t* VidSoftGLESgetFramebuffer(void);
 
 VideoInterface_struct VIDSoftGLES = {
 VIDCORE_OGLES,
@@ -137,7 +138,7 @@ VIDSoftGLESVdp2DrawScreens,
 VIDSoftGLESGetGlSize,
 VIDSoftGLESGetNativeResolution,
 VIDSoftGLESVdp2DispOff,
-NULL,
+VidSoftGLESgetFramebuffer,
 VidSoftGLESgetDevFbo,
 NULL
 };
@@ -3886,4 +3887,9 @@ static void VIDSoftGLESVdp2DispOff()
 {
 
    TitanErase();
+}
+
+static pixel_t* VidSoftGLESgetFramebuffer(void)
+{
+	return NULL;
 }
