@@ -819,10 +819,10 @@ void TitanRenderFBO(gl_fbo *fbo) {
    }
 
    if (tt_context.vdp2fbo[TITAN_SPRITE] != -1) {
-	swVertices[4] = (fbo->width - (float)width)/fbo->width;
-	swVertices[5] = (fbo->height - (float)height)/fbo->height;
-	swVertices[11] = (fbo->height - (float)height)/fbo->height;
-	swVertices[22] = (fbo->width - (float)width)/fbo->width;
+	swVertices[4] = (704.0f - (float)width)/704.0f;
+	swVertices[5] = (512.0f - (float)height)/512.0f;
+	swVertices[11] = (512.0f - (float)height)/512.0f;
+	swVertices[22] = (704.0f - (float)width)/704.0f;
    }
 
    int x, y, i, layer, j;
