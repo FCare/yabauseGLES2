@@ -2120,7 +2120,7 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
  
-   gles20_createFBO(&fbo, 704, 512, 0);
+   gles20_createFBO(&fbo, 704, 512, 2);
 
    // Initialize VDP1 framebuffer 1
    if ((vdp1framebuffer[0] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)

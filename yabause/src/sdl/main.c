@@ -250,6 +250,8 @@ void DrawDevFBO() {
 
     glUseProgram(programObject);
 
+    glEnable(GL_DITHER);
+
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -277,6 +279,8 @@ void DrawDevFBO() {
       glEnableVertexAttribArray ( positionLoc );
       glEnableVertexAttribArray ( texCoordLoc );
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+   glDisable(GL_DITHER);
 }
 
 void YuiDrawSoftwareBuffer() {
