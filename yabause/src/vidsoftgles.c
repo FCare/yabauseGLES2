@@ -184,7 +184,9 @@ typedef struct {
 static gl_fbo fbo;
 
 static pixel_t *dispbuffergles=NULL;
-static framebuffer* vdp1framebuffer= NULL;
+static framebuffer* vdp1framebuffer[2]= { NULL, NULL };
+static framebuffer* vdp1frontframebuffer;
+static framebuffer* vdp1backframebuffer;
 static u8 sprite_window_mask[704 * 512];
 
 static int vdp1width;
@@ -2156,15 +2158,28 @@ int VIDSoftGLESInit(void)
  
    gles20_createFBO(&fbo, 704, 512, 0);
 
-   // Initialize VDP1 framebuffer
-   if ((vdp1framebuffer = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
+   // Initialize VDP1 framebuffer 1
+   if ((vdp1framebuffer[0] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
       return -1;
 
-   if ((vdp1framebuffer->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+   if ((vdp1framebuffer[0]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       return -1;
 
-   gles20_createFBO(&vdp1framebuffer->fbo, 1024, 512, 0);
-   gles20_createFBO(&vdp1framebuffer->priority, 1024, 512, 1);
+   // Initialize VDP1 framebuffer 2
+   if ((vdp1framebuffer[1] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
+      return -1;
+
+   if ((vdp1framebuffer[1]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
+      return -1;
+
+   gles20_createFBO(&vdp1framebuffer[0]->fbo, 1024, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[1]->fbo, 1024, 512, 0);
+
+   gles20_createFBO(&vdp1framebuffer[0]->priority, 1024, 512, 1);
+   gles20_createFBO(&vdp1framebuffer[1]->priority, 1024, 512, 1);
+
+   vdp1backframebuffer = vdp1framebuffer[0];
+   vdp1frontframebuffer = vdp1framebuffer[1];
 
    rbg0width = vdp2width = 320;
    vdp2height = 224;
@@ -2194,12 +2209,17 @@ void VIDSoftGLESDeInit(void)
       dispbuffergles = NULL;
    }
 
-   if (vdp1framebuffer != NULL) {
-      free(vdp1framebuffer->fb);
-      free(vdp1framebuffer);
-      vdp1framebuffer = NULL;
+   if (vdp1framebuffer[0] != NULL) {
+      free(vdp1framebuffer[0]->fb);
+      free(vdp1framebuffer[0]);
+      vdp1framebuffer[0] = NULL;
    }
 
+   if (vdp1framebuffer[1] != NULL) {
+      free(vdp1framebuffer[1]->fb);
+      free(vdp1framebuffer[1]);
+      vdp1framebuffer[1] = NULL;
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2273,8 +2293,8 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 
 void VIDSoftGLESVdp1DrawStart()
 {
-      VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1framebuffer);
-      Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1framebuffer);
+      VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1backframebuffer);
+      Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3472,13 +3492,13 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 
 	drawPattern(pattern, quadVertices);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
         drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3525,13 +3545,13 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 
 	drawPattern(pattern, quadVertices);
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
         drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-        glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3590,13 +3610,13 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 
     drawPattern(pattern, quadVertices);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-    glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 
     drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
 
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-    glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 
 }
 
@@ -3706,11 +3726,11 @@ void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
    switch (type)
    {
    case 0:
-      val = T1ReadByte(vdp1framebuffer->fb, addr);
+      val = T1ReadByte(vdp1backframebuffer->fb, addr);
       *(u8*)out = val;
       break;
    case 1:
-      val = T1ReadWord(vdp1framebuffer->fb, addr);
+      val = T1ReadWord(vdp1backframebuffer->fb, addr);
 #ifndef WORDS_BIGENDIAN
       val = BSWAP16L(val);
 #endif
@@ -3718,7 +3738,7 @@ void VIDSoftGLESVdp1ReadFrameBuffer(u32 type, u32 addr, void * out)
       break;
    case 2:
 #if 0 //enable when burning rangers is fixed
-      val = T1ReadLong(vdp1framebuffer->fb, addr);
+      val = T1ReadLong(vdp1backframebuffer->fb, addr);
 #ifndef WORDS_BIGENDIAN
       val = BSWAP32(val);
 #endif
@@ -3744,20 +3764,20 @@ void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
    switch (type)
    {
    case 0:
-      T1WriteByte(vdp1framebuffer->fb, addr, val);
+      T1WriteByte(vdp1backframebuffer->fb, addr, val);
       break;
    case 1:
 #ifndef WORDS_BIGENDIAN
       val = BSWAP16L(val);
 #endif
-      T1WriteWord(vdp1framebuffer->fb, addr, val);
+      T1WriteWord(vdp1backframebuffer->fb, addr, val);
       break;
    case 2:
 #ifndef WORDS_BIGENDIAN
       val = BSWAP32(val);
 #endif
       val = (val & 0xffff) << 16 | (val & 0xffff0000) >> 16;
-      T1WriteLong(vdp1framebuffer->fb, addr, val);
+      T1WriteLong(vdp1backframebuffer->fb, addr, val);
       break;
    default:
       break;
@@ -3778,12 +3798,12 @@ void VIDSoftGLESVdp2DrawStart(void)
 {
    int titanblendmode = TITAN_BLEND_TOP;
 
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->priority.fb);
-glViewport(0,0,((framebuffer *)vdp1framebuffer)->priority.width, ((framebuffer *)vdp1framebuffer)->priority.height);
+glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
 glClear(GL_COLOR_BUFFER_BIT);
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1framebuffer)->fbo.fb);
-glViewport(0,0,((framebuffer *)vdp1framebuffer)->fbo.width, ((framebuffer *)vdp1framebuffer)->fbo.height);
+glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 glClearColor(0.0, 0.0, 0.0, 0.0);
 glClear(GL_COLOR_BUFFER_BIT);
 
@@ -4176,8 +4196,8 @@ void VIDSoftGLESVdp2DrawEnd(void)
 #ifndef DO_NOT_RENDER_SW
    TitanRender(dispbuffergles);
 #else
-   TitanSetVdp2Fbo(vdp1framebuffer->fbo.fb, TITAN_SPRITE);
-   TitanSetVdp2Priority(vdp1framebuffer->priority.fb, TITAN_SPRITE);
+   TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
+   TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
    TitanRenderFBO(&fbo);
 #endif
    VIDSoftGLESVdp1SwapFrameBuffer();
@@ -4250,7 +4270,7 @@ static void VIDSoftGLESVdp2DrawScreens(void)
    screenRenderThread(Vdp2DrawNBG3, 3);
    screenRenderThread(Vdp2DrawRBG0, 4);
 #ifndef DO_NOT_RENDER_SW
-   VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1framebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
+   VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
 #endif
 }
 
@@ -4263,7 +4283,7 @@ static int VidSoftGLESgetDevFbo(void) {
 #ifdef DO_NOT_RENDER_SW
     return fbo.fb;
 
-    //return vdp1framebuffer->fbo.fb;
+    //return vdp1frontframebuffer->fbo.fb;
 #else
     return -1;
 #endif
@@ -4271,7 +4291,7 @@ static int VidSoftGLESgetDevFbo(void) {
 
 static u8 * VidSoftGLESgetSWFbo(void) {
 #ifdef DEBUG_SW
-    return vdp1framebuffer->fb; //Manque taille et le type... Il faut renvoyer une structure
+    return vdp1frontframebuffer->fb; //Manque taille et le type... Il faut renvoyer une structure
 #else
     return NULL;
 #endif;
@@ -4359,6 +4379,11 @@ static void VIDSoftGLESVdp1SwapFrameBuffer(void)
 {
    if (((Vdp1Regs->FBCR & 2) == 0) || Vdp1External.manualchange)
    {
+		framebuffer *temp;
+
+      temp = vdp1frontframebuffer;
+      vdp1frontframebuffer = vdp1backframebuffer;
+      vdp1backframebuffer = temp;
       Vdp1External.manualchange = 0;
    }
 }
