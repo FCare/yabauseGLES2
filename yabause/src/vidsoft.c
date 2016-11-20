@@ -44,6 +44,8 @@
 #include "yui.h"
 #include "threads.h"
 
+#include "profiler.h"
+
 #include <stdlib.h>
 #include <limits.h>
 
@@ -104,6 +106,7 @@ void VIDSoftVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer);
 void VidsoftDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram);
 void VIDSoftGetNativeResolution(int *width, int *height, int*interlace);
 void VIDSoftVdp2DispOff(void);
+static pixel_t* VIDSoftgetFramebuffer(void);
 
 VideoInterface_struct VIDSoft = {
 VIDCORE_SOFT,
@@ -136,7 +139,8 @@ VIDSoftVdp2DrawEnd,
 VIDSoftVdp2DrawScreens,
 VIDSoftGetGlSize,
 VIDSoftGetNativeResolution,
-VIDSoftVdp2DispOff
+VIDSoftVdp2DispOff,
+VIDSoftgetFramebuffer
 };
 
 pixel_t *dispbuffer=NULL;
@@ -3902,6 +3906,10 @@ void VIDSoftVdp2DrawEnd(void)
 #endif
 
    YuiSwapBuffers();
+
+   if (updateProfiler()) {
+       resetProfiler(3*1000);
+   }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -4204,4 +4212,8 @@ void VIDSoftGetNativeResolution(int *width, int *height, int* interlace)
 void VIDSoftVdp2DispOff()
 {
    TitanErase();
+}
+
+static pixel_t* VIDSoftgetFramebuffer(void) {
+    return dispbuffer;
 }

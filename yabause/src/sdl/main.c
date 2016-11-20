@@ -279,7 +279,6 @@ void DrawDevFBO() {
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
-#ifdef HAVE_LIBGLES
 void YuiDrawSoftwareBuffer() {
 
     int buf_width, buf_height;
@@ -327,7 +326,6 @@ void YuiDrawSoftwareBuffer() {
 
    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
-#endif
 
 unsigned long lastFrameTime = 0;
 unsigned long delayUs = 1000000/60;
@@ -367,15 +365,13 @@ void YuiSwapBuffers(void) {
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    glViewport((WINDOW_WIDTH-glWidth)/2,(WINDOW_HEIGHT-glHeight)/2,glWidth, glHeight);
 
-#ifdef HAVE_LIBGLES
    if(VIDCore->getFramebuffer() != NULL){
        YuiDrawSoftwareBuffer();
-   }
-#endif
+   } else
 
    if ((VIDCore->getSWFbo != NULL) && (VIDCore->getSWFbo() != NULL)) {
        DrawSWFBO();
-   }
+   } else
 
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
        DrawDevFBO();
@@ -567,6 +563,9 @@ int main(int argc, char *argv[]) {
          // Set sound
          else if (strcmp(argv[i], "-rb") == 0 || strcmp(argv[i], "--resizebilinear") == 0) {
 	    resizeFilter = GL_LINEAR;
+	 }
+	 else if (strcmp(argv[i], "-sc") == 0 || strcmp(argv[i], "--resizebilinear") == 0) {
+	    yinit.vidcoretype = VIDCORE_SOFT;
 	 }
          // Auto frame skip
          else if (strstr(argv[i], "--autoframeskip=")) {

@@ -45,13 +45,6 @@
 #include <limits.h>
 #include <math.h>
 
-//#define DO_NOT_RENDER_SW
-#define IMPROVE_TRANSPARENCY
-
-#ifndef DO_NOT_RENDER_SW
-#define DEBUG_SW
-#endif
-
 #if defined WORDS_BIGENDIAN
 static INLINE u32 COLSAT2YAB16(int priority,u32 temp)            { return (priority | (temp & 0x7C00) << 1 | (temp & 0x3E0) << 14 | (temp & 0x1F) << 27); }
 static INLINE u32 COLSAT2YAB32(int priority,u32 temp)            { return (((temp & 0xFF) << 24) | ((temp & 0xFF00) << 8) | ((temp & 0xFF0000) >> 8) | priority); }
@@ -87,10 +80,6 @@ static int VIDSoftGLESIsFullscreen(void);
 static int VIDSoftGLESVdp1Reset(void);
 static void VIDSoftGLESVdp1DrawStart(void);
 static void VIDSoftGLESVdp1DrawEnd(void);
-static void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1ScaledSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-static void VIDSoftGLESVdp1DistortedSpriteDraw(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
-
 static void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8* back_framebuffer);
 static void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
 static void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer);
@@ -112,12 +101,9 @@ static void VIDSoftGLESVdp2SetResolution(u16 TVMD);
 static void VIDSoftGLESGetGlSize(int *width, int *height);
 static void VIDSoftGLESVdp1SwapFrameBuffer(void);
 static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer);
-static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * sprite_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram);
 static void VIDSoftGLESGetNativeResolution(int *width, int *height, int*interlace);
 static void VIDSoftGLESVdp2DispOff(void);
-static pixel_t* VIDSoftGLESgetFramebuffer(void);
 static int VidSoftGLESgetDevFbo(void);
-static u8 * VidSoftGLESgetSWFbo(void);
 
 VideoInterface_struct VIDSoftGLES = {
 VIDCORE_OGLES,
@@ -129,40 +115,21 @@ VIDSoftGLESIsFullscreen,
 VIDSoftGLESVdp1Reset,
 VIDSoftGLESVdp1DrawStart,
 VIDSoftGLESVdp1DrawEnd,
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1NormalSpriteDraw,
-VIDSoftGLESVdp1ScaledSpriteDraw,
-#else
 VIDSoftGLESVdp1NormalSpriteDrawGL,
 VIDSoftGLESVdp1ScaledSpriteDrawGL,
-#endif
-
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1DistortedSpriteDraw,
-#else
 VIDSoftGLESVdp1DistortedSpriteDrawGL,
-#endif
 //for the actual hardware, polygons are essentially identical to distorted sprites
 //the actual hardware draws using diagonal lines, which is why using half-transparent processing
 //on distorted sprites and polygons is not recommended since the hardware overdraws to prevent gaps
 //thus, with half-transparent processing some pixels will be processed more than once, producing moire patterns in the drawn shapes
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1DistortedSpriteDraw,
-#else
 VIDSoftGLESVdp1DistortedSpriteDrawGL,
-#endif
 VIDSoftGLESVdp1PolylineDraw,
 VIDSoftGLESVdp1LineDraw,
 VIDSoftGLESVdp1UserClipping,
 VIDSoftGLESVdp1SystemClipping,
 VIDSoftGLESVdp1LocalCoordinate,
-#ifndef DO_NOT_RENDER_SW
-VIDSoftGLESVdp1ReadFrameBuffer,
-VIDSoftGLESVdp1WriteFrameBuffer,
-#else
 VIDSoftGLESVdp1ReadFrameBufferGL,
 VIDSoftGLESVdp1WriteFrameBufferGL,
-#endif
 VIDSoftGLESVdp2Reset,
 VIDSoftGLESVdp2DrawStart,
 VIDSoftGLESVdp2DrawEnd,
@@ -170,9 +137,9 @@ VIDSoftGLESVdp2DrawScreens,
 VIDSoftGLESGetGlSize,
 VIDSoftGLESGetNativeResolution,
 VIDSoftGLESVdp2DispOff,
-VIDSoftGLESgetFramebuffer,
+NULL,
 VidSoftGLESgetDevFbo,
-VidSoftGLESgetSWFbo
+NULL
 };
 
 typedef struct {
@@ -183,7 +150,6 @@ typedef struct {
 
 static gl_fbo fbo;
 
-static pixel_t *dispbuffergles=NULL;
 static framebuffer* vdp1framebuffer[2]= { NULL, NULL };
 static framebuffer* vdp1frontframebuffer;
 static framebuffer* vdp1backframebuffer;
@@ -2152,9 +2118,6 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG1, screenRenderThread2, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
-
-   if ((dispbuffergles = (pixel_t *)calloc(sizeof(pixel_t), 704 * 512)) == NULL)
-      return -1;
  
    gles20_createFBO(&fbo, 704, 512, 0);
 
@@ -2202,12 +2165,6 @@ void VIDSoftGLESSetBilinear(int b)
 
 void VIDSoftGLESDeInit(void)
 {
-
-   if (dispbuffergles != NULL)
-   {
-      free(dispbuffergles);
-      dispbuffergles = NULL;
-   }
 
    if (vdp1framebuffer[0] != NULL) {
       free(vdp1framebuffer[0]->fb);
@@ -2281,9 +2238,6 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
       vdp1height = 256;
       vdp1pixelsize = 2;
    }
-#ifndef DO_NOT_RENDER_SW
-   VIDSoftGLESVdp1EraseFrameBuffer(regs, back_framebuffer);
-#endif
 
    //night warriors doesn't set clipping most frames and uses
    //the last part of the vdp1 framebuffer as scratch ram
@@ -3044,146 +2998,6 @@ static void drawQuad(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 tr_y,
 
 }
 
-void VIDSoftGLESVdp1NormalSpriteDraw(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
-	s16 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
-	int spriteWidth;
-	int spriteHeight;
-   vdp1cmd_struct cmd;
-	Vdp1ReadCommand(&cmd, regs->addr, ram);
-
-	topLeftx = cmd.CMDXA + regs->localX;
-	topLefty = cmd.CMDYA + regs->localY;
-	spriteWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
-	spriteHeight = cmd.CMDSIZE & 0xFF;
-
-	topRightx = topLeftx + (spriteWidth - 1);
-	topRighty = topLefty;
-	bottomRightx = topLeftx + (spriteWidth - 1);
-	bottomRighty = topLefty + (spriteHeight - 1);
-	bottomLeftx = topLeftx;
-	bottomLefty = topLefty + (spriteHeight - 1);
-   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
-}
-
-void VIDSoftGLESVdp1ScaledSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer){
-	s32 topLeftx,topLefty,topRightx,topRighty,bottomRightx,bottomRighty,bottomLeftx,bottomLefty;
-	int x0,y0,x1,y1;
-   vdp1cmd_struct cmd;
-   Vdp1ReadCommand(&cmd, regs->addr, ram);
-
-	x0 = cmd.CMDXA + regs->localX;
-	y0 = cmd.CMDYA + regs->localY;
-
-	switch ((cmd.CMDCTRL >> 8) & 0xF)
-	{
-	case 0x0: // Only two coordinates
-	default:
-		x1 = ((int)cmd.CMDXC) - x0 + regs->localX + 1;
-		y1 = ((int)cmd.CMDYC) - y0 + regs->localY + 1;
-		break;
-	case 0x5: // Upper-left
-		x1 = ((int)cmd.CMDXB) + 1;
-		y1 = ((int)cmd.CMDYB) + 1;
-		break;
-	case 0x6: // Upper-Center
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		x0 = x0 - x1/2;
-		x1++;
-		y1++;
-		break;
-	case 0x7: // Upper-Right
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		x0 = x0 - x1;
-		x1++;
-		y1++;
-		break;
-	case 0x9: // Center-left
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		y0 = y0 - y1/2;
-		x1++;
-		y1++;
-		break;
-	case 0xA: // Center-center
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		x0 = x0 - x1/2;
-		y0 = y0 - y1/2;
-		x1++;
-		y1++;
-		break;
-	case 0xB: // Center-right
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		x0 = x0 - x1;
-		y0 = y0 - y1/2;
-		x1++;
-		y1++;
-		break;
-	case 0xD: // Lower-left
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		y0 = y0 - y1;
-		x1++;
-		y1++;
-		break;
-	case 0xE: // Lower-center
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		x0 = x0 - x1/2;
-		y0 = y0 - y1;
-		x1++;
-		y1++;
-		break;
-	case 0xF: // Lower-right
-		x1 = ((int)cmd.CMDXB);
-		y1 = ((int)cmd.CMDYB);
-		x0 = x0 - x1;
-		y0 = y0 - y1;
-		x1++;
-		y1++;
-		break;
-	}
-
-	topLeftx = x0;
-	topLefty = y0;
-
-	topRightx = x1+x0 - 1;
-	topRighty = topLefty;
-
-	bottomRightx = x1+x0 - 1;
-	bottomRighty = y1+y0 - 1;
-
-	bottomLeftx = topLeftx;
-	bottomLefty = y1+y0 - 1;
-   drawQuad(topLeftx, topLefty, bottomLeftx, bottomLefty, topRightx, topRighty, bottomRightx, bottomRighty, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
-}
-
-#define EPSILON (1e-10 )
-
-static int loop = 0;
-
-void VIDSoftGLESVdp1DistortedSpriteDraw(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
-    s32 xa,ya,xb,yb,xc,yc,xd,yd;
-    vdp1cmd_struct cmd;
-
-    Vdp1ReadCommand(&cmd, regs->addr, ram);
- 
-     xa = (s32)(cmd.CMDXA + regs->localX);
-     ya = (s32)(cmd.CMDYA + regs->localY);
-     xb = (s32)(cmd.CMDXB + regs->localX);
-     yb = (s32)(cmd.CMDYB + regs->localY);
-     xc = (s32)(cmd.CMDXC + regs->localX);
-     yc = (s32)(cmd.CMDYC + regs->localY);
-     xd = (s32)(cmd.CMDXD + regs->localX);
-     yd = (s32)(cmd.CMDYD + regs->localY);
-
-    drawQuad(xa, ya, xd, yd, xb, yb, xc, yc, ram, regs, &cmd, ((framebuffer *)back_framebuffer)->fb);
-}
-
-
 Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int i = 0, j=0;
 
@@ -3835,352 +3649,6 @@ recycleCache();
       bad_cycle_setting[TITAN_NBG3] = 0;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-
-
-static void VIDSoftGLESDrawSprite(Vdp2 * vdp2_regs, u8 * spr_window_mask, u8* vdp1_front_framebuffer, u8 * vdp2_ram, Vdp1* vdp1_regs, Vdp2* vdp2_lines, u8*color_ram)
-{
-   int i, i2;
-   u16 pixel;
-   u8 prioritytable[8];
-   u32 vdp1coloroffset;
-   int colormode = vdp2_regs->SPCTL & 0x20;
-   vdp2draw_struct info = { 0 };
-   int islinewindow;
-   clipping_struct clip[2];
-   u32 linewnd0addr, linewnd1addr;
-   int wctl;
-   clipping_struct colorcalcwindow[2];
-   int framebuffer_readout_y = 0;
-   int start_line = 0, line_increment = 0;
-   int sprite_window_enabled = vdp2_regs->SPCTL & 0x10;
-   int vdp1spritetype = 0;
-
-   if (sprite_window_enabled)
-   {
-      memset(spr_window_mask, 0, 704 * 512);
-   }
-
-   // Figure out whether to draw vdp1 framebuffer or vdp2 framebuffer pixels
-   // based on priority
-   if (Vdp1External.disptoggle && (vdp2_regs->TVMD & 0x8000))
-   {
-      int SPCCCS = (vdp2_regs->SPCTL >> 12) & 0x3;
-      int SPCCN = (vdp2_regs->SPCTL >> 8) & 0x7;
-      u8 colorcalctable[8];
-      vdp2rotationparameterfp_struct p;
-      int x, y;
-      int output_y = 0;
-
-      prioritytable[0] = vdp2_regs->PRISA & 0x7;
-      prioritytable[1] = (vdp2_regs->PRISA >> 8) & 0x7;
-      prioritytable[2] = vdp2_regs->PRISB & 0x7;
-      prioritytable[3] = (vdp2_regs->PRISB >> 8) & 0x7;
-      prioritytable[4] = vdp2_regs->PRISC & 0x7;
-      prioritytable[5] = (vdp2_regs->PRISC >> 8) & 0x7;
-      prioritytable[6] = vdp2_regs->PRISD & 0x7;
-      prioritytable[7] = (vdp2_regs->PRISD >> 8) & 0x7;
-      colorcalctable[0] = ((~vdp2_regs->CCRSA & 0x1F) << 1) + 1;
-      colorcalctable[1] = ((~vdp2_regs->CCRSA >> 7) & 0x3E) + 1;
-      colorcalctable[2] = ((~vdp2_regs->CCRSB & 0x1F) << 1) + 1;
-      colorcalctable[3] = ((~vdp2_regs->CCRSB >> 7) & 0x3E) + 1;
-      colorcalctable[4] = ((~vdp2_regs->CCRSC & 0x1F) << 1) + 1;
-      colorcalctable[5] = ((~vdp2_regs->CCRSC >> 7) & 0x3E) + 1;
-      colorcalctable[6] = ((~vdp2_regs->CCRSD & 0x1F) << 1) + 1;
-      colorcalctable[7] = ((~vdp2_regs->CCRSD >> 7) & 0x3E) + 1;
-
-      vdp1coloroffset = (vdp2_regs->CRAOFB & 0x70) << 4;
-      vdp1spritetype = vdp2_regs->SPCTL & 0xF;
-
-      ReadVdp2ColorOffset(vdp2_regs, &info, 0x40, 0x40);
-
-      wctl = vdp2_regs->WCTLC >> 8;
-      clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
-      clip[1].xstart = clip[1].ystart = clip[1].xend = clip[1].yend = 0;
-      ReadWindowData(wctl, clip, vdp2_regs);
-      linewnd0addr = linewnd1addr = 0;
-      ReadLineWindowData(&islinewindow, wctl, &linewnd0addr, &linewnd1addr, vdp2_regs);
-
-      /* color calculation window: in => no color calc, out => color calc */
-      ReadWindowData(vdp2_regs->WCTLD >> 8, colorcalcwindow, vdp2_regs);
-
-      if (vdp1_regs->TVMR & 2)
-         Vdp2ReadRotationTableFP(0, &p, vdp2_regs, vdp2_ram);
-
-      info.titan_which_layer = TITAN_SPRITE;
-
-      info.linescreen = (vdp2_regs->LNCLEN >> 5) & 1;
-
-      Vdp2GetInterlaceInfo(&start_line, &line_increment);
-
-      for (i2 = start_line; i2 < vdp2height; i2 += line_increment)
-      {
-         float framebuffer_readout_pos = 0;
-
-         ReadLineWindowClip(islinewindow, clip, &linewnd0addr, &linewnd1addr, vdp2_ram, vdp2_regs);
-
-         if (vdp2_interlace)
-            LoadLineParamsSprite(&info, i2 / 2, vdp2_lines);
-         else
-            LoadLineParamsSprite(&info, i2, vdp2_lines);
-
-         if (vdp2_interlace)
-         {
-            y = framebuffer_readout_y;
-            framebuffer_readout_y += 1;
-         }
-         else
-         {
-            y = i2;
-         }
-
-         for (i = 0; i < vdp2width; i++)
-         {
-
-            info.titan_shadow_type = 0;
-            // See if screen position is clipped, if it isn't, continue
-            if (!(vdp2_regs->SPCTL & 0x10))
-            {
-               if (!TestBothWindow(wctl, clip, i, i2))
-               {
-                  continue;
-               }
-            }
-
-            if (vdp1_regs->TVMR & 2) {
-               x = (touint(p.Xst + i * p.deltaX + i2 * p.deltaXst)) & (vdp1width - 1);
-               y = (touint(p.Yst + i * p.deltaY + i2 * p.deltaYst)) & (vdp1height - 1);
-            }
-            else
-            {
-               if (vdp1width == 1024 && vdp2_x_hires)
-               {
-                  //hi res vdp1 and hi res vdp2
-                  //pixels 1:1
-                  x = (int)framebuffer_readout_pos;
-                  framebuffer_readout_pos += 1;
-               }
-               else if (vdp1width == 512 && vdp2_x_hires)
-               {
-                  //low res vdp1,hi res vdp2
-                  //vdp1 pixel doubling
-                  x = (int)framebuffer_readout_pos;
-                  framebuffer_readout_pos += .5;
-               }
-               else if (vdp1width == 1024 && (!vdp2_x_hires))
-               {
-                  //hi res vdp1, low res vdp2
-                  //the vdp1 framebuffer is read out at half-res
-                  x = (int)framebuffer_readout_pos;
-                  framebuffer_readout_pos += 2;
-               }
-               else
-                  x = i;
-            }
-            if (vdp1pixelsize == 2)
-            {
-               // 16-bit pixel size
-               pixel = ((u16 *)vdp1_front_framebuffer)[(y * vdp1width) + x];
-               if (pixel == 0)
-                  ;
-               else if (pixel & 0x8000 && colormode)
-               {
-                  // 16 BPP               
-                  u8 alpha = 0x3F;
-                  if (TestBothWindow(vdp2_regs->WCTLD >> 8, colorcalcwindow, i, i2) && (vdp2_regs->CCCTL & 0x40))
-                  {
-                     switch (SPCCCS) {
-                     case 0:
-                        if (prioritytable[0] <= SPCCN)
-                        {
-                           alpha = colorcalctable[0];
-                           if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        }
-                        break;
-                     case 1:
-                        if (prioritytable[0] == SPCCN)
-                        {
-                           alpha = colorcalctable[0];
-                           if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        }
-                        break;
-                     case 2:
-                        if (prioritytable[0] >= SPCCN)
-                        {
-                           alpha = colorcalctable[0];
-                           if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        }
-                        break;
-                     case 3:
-                        alpha = colorcalctable[0];
-                        if (vdp2_regs->CCCTL & 0x300) alpha |= 0x80;
-                        break;
-                     }
-                  }
-
-                  // if pixel is 0x8000, only draw pixel if sprite window
-                  // is disabled/sprite type 2-7. sprite types 0 and 1 are
-                  // -always- drawn and sprite types 8-F are always
-                  // transparent.
-
-                  if (pixel != 0x8000 || vdp1spritetype < 2 || (vdp1spritetype < 8 && !(vdp2_regs->SPCTL & 0x10)))
-                     TitanPutPixel(prioritytable[0], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB16(alpha, pixel)), info.linescreen, &info);
-               }
-               else
-               {
-                  // Color bank
-                  spritepixelinfo_struct spi;
-                  u8 alpha = 0x3F;
-                  u32 dot;
-
-                  Vdp1GetSpritePixelInfo(vdp1spritetype, &pixel, &spi);
-                  if (spi.normalshadow)
-                  {
-                     info.titan_shadow_type = TITAN_NORMAL_SHADOW;
-                     TitanPutPixel(prioritytable[spi.priority], i, output_y, COLSAT2YAB16(0x3f, 0), info.linescreen, &info);
-                     continue;
-                  }
-
-                  dot = Vdp2ColorRamGetColor(vdp1coloroffset + pixel,color_ram);
-
-                  if (TestBothWindow(vdp2_regs->WCTLD >> 8, colorcalcwindow, i, i2) && (vdp2_regs->CCCTL & 0x40))
-                  {
-                     int transparent = 0;
-
-                     /* Sprite color calculation */
-                     switch (SPCCCS) {
-                     case 0:
-                        if (prioritytable[spi.priority] <= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 1:
-                        if (prioritytable[spi.priority] == SPCCN)
-                           transparent = 1;
-                        break;
-                     case 2:
-                        if (prioritytable[spi.priority] >= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 3:
-                        if (dot & 0x80000000)
-                           transparent = 1;
-                        break;
-                     }
-
-                     if (vdp2_regs->CCCTL & 0x200) {
-                        /* "bottom" mode, the alpha channel will be used by another layer,
-                        so we set it regardless of whether sprites are transparent or not.
-                        The highest priority bit is only set if the sprite is transparent
-                        (in this case, it's the alpha channel of the lower priority layer
-                        that will be used. */
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (transparent) alpha |= 0x80;
-                     }
-                     else if (transparent) {
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (vdp2_regs->CCCTL & 0x100) alpha |= 0x80;
-                     }
-                  }
-                  if (spi.msbshadow)
-                  {
-                     if (sprite_window_enabled) {
-                        spr_window_mask[(y*vdp2width) + x] = 1;
-                        info.titan_shadow_type = TITAN_MSB_SHADOW;
-                     }
-                     else
-                     {
-                        info.titan_shadow_type = TITAN_MSB_SHADOW;
-                     }
-
-                     if (pixel == 0)
-                     {
-                        TitanPutPixel(prioritytable[spi.priority], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, 0)), info.linescreen, &info);
-                        continue;
-                     }
-                  }
-
-                  if ((sprite_window_enabled))
-                  {
-                     if (!TestBothWindow(wctl, clip, i, i2))
-                     {
-                        continue;
-                     }
-                  }
-
-                  TitanPutPixel(prioritytable[spi.priority], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), info.linescreen, &info);
-               }
-            }
-            else
-            {
-               // 8-bit pixel size
-               pixel = vdp1_front_framebuffer[(y * vdp1width) + x];
-
-               if (pixel != 0)
-               {
-                  // Color bank(fix me)
-                  spritepixelinfo_struct spi;
-                  u8 alpha = 0x3F;
-                  u32 dot;
-
-                  Vdp1GetSpritePixelInfo(vdp1spritetype, &pixel, &spi);
-                  if (spi.normalshadow)
-                  {
-                     info.titan_shadow_type = TITAN_NORMAL_SHADOW;
-                     TitanPutPixel(prioritytable[spi.priority], i, output_y, COLSAT2YAB16(0x3f, 0), info.linescreen, &info);
-                     continue;
-                  }
-
-                  dot = Vdp2ColorRamGetColor(vdp1coloroffset + pixel, color_ram);
-
-                  if (TestBothWindow(vdp2_regs->WCTLD >> 8, colorcalcwindow, i, i2) && (vdp2_regs->CCCTL & 0x40))
-                  {
-                     int transparent = 0;
-
-                     /* Sprite color calculation */
-                     switch (SPCCCS) {
-                     case 0:
-                        if (prioritytable[spi.priority] <= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 1:
-                        if (prioritytable[spi.priority] == SPCCN)
-                           transparent = 1;
-                        break;
-                     case 2:
-                        if (prioritytable[spi.priority] >= SPCCN)
-                           transparent = 1;
-                        break;
-                     case 3:
-                        if (dot & 0x80000000)
-                           transparent = 1;
-                        break;
-                     }
-
-                     if (vdp2_regs->CCCTL & 0x200) {
-                        /* "bottom" mode, the alpha channel will be used by another layer,
-                        so we set it regardless of whether sprites are transparent or not.
-                        The highest priority bit is only set if the sprite is transparent
-                        (in this case, it's the alpha channel of the lower priority layer
-                        that will be used. */
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (transparent) alpha |= 0x80;
-                     }
-                     else if (transparent) {
-                        alpha = colorcalctable[spi.colorcalc];
-                        if (vdp2_regs->CCCTL & 0x100) alpha |= 0x80;
-                     }
-                  }
-
-                  TitanPutPixel(prioritytable[spi.priority], i, output_y, info.PostPixelFetchCalc(&info, COLSAT2YAB32(alpha, dot)), info.linescreen, &info);
-               }
-            }
-         }
-
-         output_y++;
-      }
-   }
-}
-
 void VIDSoftGLESVdp2DrawEnd(void)
 {
 
@@ -4193,20 +3661,12 @@ void VIDSoftGLESVdp2DrawEnd(void)
    glDisable(GL_SCISSOR_TEST);
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
    glViewport(0,0,800, 600);
-#ifndef DO_NOT_RENDER_SW
-   TitanRender(dispbuffergles);
-#else
+
    TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
    TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
    TitanRenderFBO(&fbo);
-#endif
+
    VIDSoftGLESVdp1SwapFrameBuffer();
-
-#ifndef DO_NOT_RENDER_SW
-   if (OSDUseBuffer())
-      OSDDisplayMessages(dispbuffergles, vdp2width, vdp2height);
-#endif
-
 
 //VIDSoftGLESDrawSoftwareBuffer();
 
@@ -4269,32 +3729,10 @@ static void VIDSoftGLESVdp2DrawScreens(void)
    screenRenderThread(Vdp2DrawNBG2, 2);
    screenRenderThread(Vdp2DrawNBG3, 3);
    screenRenderThread(Vdp2DrawRBG0, 4);
-#ifndef DO_NOT_RENDER_SW
-   VIDSoftGLESDrawSprite(Vdp2Regs, sprite_window_mask, vdp1frontframebuffer->fb, Vdp2Ram, Vdp1Regs, Vdp2Lines, Vdp2ColorRam);
-#endif
-}
-
-
-static pixel_t* VIDSoftGLESgetFramebuffer(void) {
-    return dispbuffergles;
 }
 
 static int VidSoftGLESgetDevFbo(void) {
-#ifdef DO_NOT_RENDER_SW
     return fbo.fb;
-
-    //return vdp1frontframebuffer->fbo.fb;
-#else
-    return -1;
-#endif
-}
-
-static u8 * VidSoftGLESgetSWFbo(void) {
-#ifdef DEBUG_SW
-    return vdp1frontframebuffer->fb; //Manque taille et le type... Il faut renvoyer une structure
-#else
-    return NULL;
-#endif;
 }
 
 //////////////////////////////////////////////////////////////////////////////
