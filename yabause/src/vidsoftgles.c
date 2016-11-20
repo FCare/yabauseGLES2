@@ -2249,6 +2249,14 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 void VIDSoftGLESVdp1DrawStart()
 {
       VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1backframebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+	glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+	glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
       Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
 }
 
@@ -3481,15 +3489,6 @@ void VIDSoftGLESVdp2DrawStart(void)
 {
    int titanblendmode = TITAN_BLEND_TOP;
 
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-glClearColor(0.0, 0.0, 0.0, 0.0);
-glClear(GL_COLOR_BUFFER_BIT);
-glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
-glClearColor(0.0, 0.0, 0.0, 0.0);
-glClear(GL_COLOR_BUFFER_BIT);
-
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 glEnable(GL_BLEND);
 
@@ -3526,10 +3525,6 @@ void VIDSoftGLESVdp2DrawEnd(void)
    screenRenderWait(2);
    screenRenderWait(3);
    screenRenderWait(4);
-
-   glDisable(GL_SCISSOR_TEST);
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-   glViewport(0,0,800, 600);
 
    TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
    TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
