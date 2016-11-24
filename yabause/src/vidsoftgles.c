@@ -38,6 +38,8 @@
 #include "glutils/gles20utils.h"
 #include "patternManager.h"
 
+#include "vdp1asyncRenderer.h"
+
 #include "yui.h"
 #include "threads.h"
 
@@ -2249,14 +2251,6 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 void VIDSoftGLESVdp1DrawStart()
 {
       VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1backframebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-	glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-	glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
       Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
 }
 
@@ -3181,15 +3175,7 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	drawPattern(pattern, quadVertices);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-
-        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
-
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3234,15 +3220,7 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 			xc, yc, 1.0f, 1.0f, 1.0f,
 			xd, yd, 0.0, 1.0f, 1.0f};
 
-	drawPattern(pattern, quadVertices);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-
-        drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
-
-        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3299,16 +3277,7 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 			xc, yc, u3, u3, u3,
 			xd, yd, 0.0, u4, u4}; 
 
-    drawPattern(pattern, quadVertices);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
-    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->priority.width, ((framebuffer *)vdp1backframebuffer)->priority.height);
-
-    drawPriority(pattern, quadVertices, (Vdp2Regs->PRISA & 0x7));
-
-    glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
-    glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
-
+    addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
 }
 
 static void gouraudLineSetup(double * redstep, double * greenstep, double * bluestep, int length, COLOR table1, COLOR table2, u8* ram, Vdp1* regs, vdp1cmd_struct * cmd, u8 * back_framebuffer) {
@@ -3683,10 +3652,15 @@ static void VIDSoftGLESVdp1SwapFrameBuffer(void)
    {
 		framebuffer *temp;
 
+      renderVdp1();
+
       temp = vdp1frontframebuffer;
       vdp1frontframebuffer = vdp1backframebuffer;
       vdp1backframebuffer = temp;
       Vdp1External.manualchange = 0;
+
+      setupVdp1(((framebuffer *)vdp1backframebuffer)->fbo.fb, ((framebuffer *)vdp1backframebuffer)->priority.fb, ((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+
    }
 }
 

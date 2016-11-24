@@ -7,6 +7,8 @@ typedef struct sPattern {
 	unsigned int tex;
 	int width;
 	int height;
+	int inUse;
+	int managed;
 	float tw;
 	float th;
 	u32 param[3];

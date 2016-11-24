@@ -154,7 +154,6 @@ int gles20_createFBO(gl_fbo* fbo, int w, int h, int format)
    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo->tex, 0);
    //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fbo->stencil);
 
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
    //Does the GPU support current FBO configuration?
    status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
    switch(status)

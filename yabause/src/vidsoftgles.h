@@ -21,6 +21,7 @@
 #define VIDSOFTGLES_H
 
 #include "vdp1.h"
+#include "vdp1asyncRenderer.h"
 
 #define VIDCORE_OGLES   3
 

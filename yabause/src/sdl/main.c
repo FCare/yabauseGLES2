@@ -381,6 +381,7 @@ void YuiSwapBuffers(void) {
    if ((currentTime - lastFrameTime) < delayUs) {
 	usleep((delayUs - (currentTime - lastFrameTime)));
    }   
+	
    SDL_GL_SwapWindow(window);
 
    lastFrameTime = getCurrentTimeUs(0);
