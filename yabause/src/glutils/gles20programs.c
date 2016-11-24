@@ -95,6 +95,27 @@ void createPatternProgram() {
    if (vertexSWBuffer == -1) 
        glGenBuffers(1, &vertexSWBuffer);
 }
+void preparePriorityRenderer(){
+	glDisable(GL_BLEND);
+    	glUseProgram(priorityProgram);
+	glUniform1i(prioSamplerLoc, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+
+    	if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
+    	if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+	glActiveTexture ( GL_TEXTURE0 );
+}
+
+void prepareSpriteRenderer() {
+	glEnable(GL_BLEND);
+	glUseProgram(patternObject);
+	glUniform1i(samplerLoc, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+
+	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
+    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+	glActiveTexture ( GL_TEXTURE0 );
+}
 
 void drawPattern(Pattern* pattern, GLfloat* vertex){
 	int i;
@@ -102,38 +123,12 @@ void drawPattern(Pattern* pattern, GLfloat* vertex){
 		glBlendColor(0.0,0.0,0.0,0.5);
 		glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
 	}
-	glUseProgram(patternObject);
-	glUniform1i(samplerLoc, 0);
-
-        if (pattern->tw != 1.0f) {
-		vertex[2]*=pattern->tw;
-		vertex[7]*=pattern->tw;
-		vertex[12]*=pattern->tw;
-		vertex[17]*=pattern->tw;
-	}
-        if (pattern->th != 1.0f) {
-		vertex[3]*=pattern->th;
-		vertex[8]*=pattern->th;
-		vertex[13]*=pattern->th;
-		vertex[18]*=pattern->th;
-	}
-
-    	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
-
+	
     	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
-
     	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
     	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 
-    	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
-    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
-
-    	glActiveTexture ( GL_TEXTURE0 );
     	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 
     	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
@@ -144,29 +139,13 @@ void drawPattern(Pattern* pattern, GLfloat* vertex){
 }
 
 void drawPriority(Pattern* pattern, GLfloat* vertex, int priority) {
-	glDisable(GL_BLEND);
-    	glUseProgram(priorityProgram);
-	glUniform1i(prioSamplerLoc, 0);
-
-    	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
-
     	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
 
     	if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
     	if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 
-    	if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
-    	if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
 
-    	glActiveTexture ( GL_TEXTURE0 );
     	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-    	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-
     	glUniform1f(prioValueLoc, priority/255.0f);
-
     	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	glEnable(GL_BLEND);
 }

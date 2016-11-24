@@ -3049,6 +3049,10 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     glGenTextures(1,&curPattern->tex);
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, curPattern->tex);
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     if(!isTextured) {
     	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
     } else {
@@ -3171,9 +3175,9 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	yd = (float)bottomLefty/(float)vdp2height;
 
     	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
-			xb, yb, 1.0f , 0.0f, 1.0f,
-			xc, yc, 1.0f, 1.0f, 1.0f,
-			xd, yd, 0.0, 1.0f, 1.0f};
+			xb, yb, pattern->tw , 0.0f, 1.0f,
+			xc, yc, pattern->tw, pattern->th, 1.0f,
+			xd, yd, 0.0, pattern->th, 1.0f};
 
 	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
 }
@@ -3216,9 +3220,9 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
         yd /= (float)vdp2height;
 
     	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
-			xb, yb, 1.0f , 0.0f, 1.0f,
-			xc, yc, 1.0f, 1.0f, 1.0f,
-			xd, yd, 0.0, 1.0f, 1.0f};
+			xb, yb, pattern->tw , 0.0f, 1.0f,
+			xc, yc, pattern->tw, pattern->th, 1.0f,
+			xd, yd, 0.0, pattern->th, 1.0f};
 
 	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
 }
@@ -3273,9 +3277,9 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
     float u4 = ((d2==0.0f)||isfinite(d2)==0)?1.0:(d4 + d2)/d2;
 
     GLfloat quadVertices [20] =  {xa, ya, 0.0, 0.0, u1,
-			xb, yb, u2, 0.0, u2,
-			xc, yc, u3, u3, u3,
-			xd, yd, 0.0, u4, u4}; 
+			xb, yb, u2*pattern->tw, 0.0, u2,
+			xc, yc, u3*pattern->tw, u3*pattern->th, u3,
+			xd, yd, 0.0, u4*pattern->th, u4}; 
 
     addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
 }

@@ -74,6 +74,7 @@ void renderVdp1() {
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	prepareSpriteRenderer();
 	while (curList != NULL) {
 		executeOpSprite(curList);
 		curList = curList->next;
@@ -85,6 +86,7 @@ void renderVdp1() {
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	preparePriorityRenderer();
 	while (curList != NULL) {
 		executeOpPriority(curList);
 		curList = curList->next;
