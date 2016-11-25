@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "vdp1asyncRenderer.h"
 #include "glutils/gles20programs.h"
 
@@ -30,30 +31,30 @@ static void executeOpPriority(vdp1RenderList* cur) {
 static void clearList() {
 	vdp1RenderList* curList;
 	vdp1RenderList* del;
-	del = mStartRenderList;
+	curList = mStartRenderList;
 	mStartRenderList = NULL;
 	mEndRenderList = NULL;
-	while (del != NULL) {
-		curList = del;
-		if (del->pattern->managed == 0) deleteCachePattern(del->pattern);
+	while (curList != NULL) {
+		del = curList;
+		curList = curList->next;
+		pushCachePattern(del->pattern);
 		free(del->vertices);
 		free(del);
-		del = curList->next;
 	}
 }
 
 
-void addToVdp1Renderer(Pattern* pattern, RenderingOperation op, GLfloat* vertices, int nbvertices, int prio) {
+void addToVdp1Renderer(Pattern* pattern, RenderingOperation op, const float* vertices, int nbvertices, int prio) {
 	vdp1RenderList* curList;
-	vdp1RenderList* last;
 	if (pattern == NULL) return;
-	curList = (vdp1RenderList*) calloc(sizeof(vdp1RenderList),1);
+	curList = calloc(1, sizeof *curList);
 	curList->op = op;
-	curList->vertices = (GLfloat*)malloc(nbvertices*sizeof(GLfloat));
-	memcpy(curList->vertices, vertices, nbvertices*sizeof(GLfloat));
+	curList->vertices = calloc(nbvertices,sizeof *curList->vertices);
+	memcpy(curList->vertices, vertices, nbvertices*sizeof *curList->vertices);
 	curList->nbVertices = nbvertices;
 	curList->pattern = pattern;
 	curList->priority = prio;
+	curList->next = NULL;
 	if (mStartRenderList == NULL) {
 		mStartRenderList = curList;
 	}

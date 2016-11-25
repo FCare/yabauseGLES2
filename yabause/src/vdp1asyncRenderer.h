@@ -20,4 +20,6 @@ struct s_vdp1renderer{
   struct s_vdp1renderer* previous;
 };
 
+void addToVdp1Renderer(Pattern* pattern, RenderingOperation op, const float* vertices, int nbvertices, int prio);
+
 #endif

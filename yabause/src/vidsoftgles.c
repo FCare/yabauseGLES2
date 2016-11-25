@@ -2905,7 +2905,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 		   Vdp1ReadPattern16( characterAddress + characterHeight*(i+1)/probe*characterWidth, characterWidth*(i+1)/probe , ram);
     }
 
-    Pattern* curPattern = getCachePattern(param0, param1, param2, characterWidth, characterHeight);
+    Pattern* curPattern = popCachePattern(param0, param1, param2, characterWidth, characterHeight);
     if (curPattern != NULL) {
   	return curPattern;
     }
@@ -3174,7 +3174,7 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 	xd = (float)bottomLeftx/(float)vdp2width;
 	yd = (float)bottomLefty/(float)vdp2height;
 
-    	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
+    	float quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
 			xb, yb, pattern->tw , 0.0f, 1.0f,
 			xc, yc, pattern->tw, pattern->th, 1.0f,
 			xd, yd, 0.0, pattern->th, 1.0f};
@@ -3219,7 +3219,7 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
         xd /= (float)vdp2width;
         yd /= (float)vdp2height;
 
-    	GLfloat quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
+    	float quadVertices [20] = {xa, ya, 0.0f, 0.0f, 1.0f,
 			xb, yb, pattern->tw , 0.0f, 1.0f,
 			xc, yc, pattern->tw, pattern->th, 1.0f,
 			xd, yd, 0.0, pattern->th, 1.0f};
@@ -3276,7 +3276,7 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
     float u3 = ((d1==0.0f)||isfinite(d1)==0)?1.0:(d3 + d1)/d1;
     float u4 = ((d2==0.0f)||isfinite(d2)==0)?1.0:(d4 + d2)/d2;
 
-    GLfloat quadVertices [20] =  {xa, ya, 0.0, 0.0, u1,
+    float quadVertices [20] =  {xa, ya, 0.0, 0.0, u1,
 			xb, yb, u2*pattern->tw, 0.0, u2,
 			xc, yc, u3*pattern->tw, u3*pattern->th, u3,
 			xd, yd, 0.0, u4*pattern->th, u4}; 
