@@ -723,7 +723,7 @@ static pointer map_address(u32 address)
 void ll_add(struct ll_entry **head,int vaddr,void *addr)
 {
   struct ll_entry *new_entry;
-  new_entry=malloc(sizeof(struct ll_entry));
+  new_entry=calloc(1, sizeof(struct ll_entry));
   assert(new_entry!=NULL);
   new_entry->vaddr=vaddr;
   new_entry->reg32=0;
