@@ -2190,7 +2190,7 @@ void load_assemble(int i,struct regstat *i_regs)
   int s,o,t,addr,map=-1,cache=-1;
   int offset;
   int jaddr=0;
-  int memtarget,c=0;
+  int memtarget =0,c=0;
   int dualindex=(addrmode[i]==DUALIND||addrmode[i]==GBRIND);
   int size=(opcode[i]==4)?2:(opcode2[i]&3);
   unsigned int hr;
@@ -2380,7 +2380,7 @@ void store_assemble(int i,struct regstat *i_regs)
   int addr,temp;
   int offset;
   int jaddr=0,jaddr2,type;
-  int memtarget,c=0,constaddr;
+  int memtarget = 0,c=0,constaddr;
   int dualindex=(addrmode[i]==DUALIND);
   int size=(opcode[i]==4)?2:(opcode2[i]&3);
   int agr=AGEN1+(i&1);
