@@ -94,13 +94,6 @@ void FASTCALL SoundRamWriteByte(u32 addr, u8 val);
 void FASTCALL SoundRamWriteWord(u32 addr, u16 val);
 void FASTCALL SoundRamWriteLong(u32 addr, u32 val);
 
-u8 FASTCALL Sh2SoundRamReadByte(SH2_struct *sh, u32 addr);
-u16 FASTCALL Sh2SoundRamReadWord(SH2_struct *sh, u32 addr);
-u32 FASTCALL Sh2SoundRamReadLong(SH2_struct *sh, u32 addr);
-void FASTCALL Sh2SoundRamWriteByte(SH2_struct *sh, u32 addr, u8 val);
-void FASTCALL Sh2SoundRamWriteWord(SH2_struct *sh, u32 addr, u16 val);
-void FASTCALL Sh2SoundRamWriteLong(SH2_struct *sh, u32 addr, u32 val);
-
 int ScspInit(int coreid);
 int ScspChangeSoundCore(int coreid);
 void ScspDeInit(void);
@@ -124,21 +117,14 @@ int ScspSlotDebugAudioSaveWav(u8 slotnum, const char *filename);
 void ScspMuteAudio(int flags);
 void ScspUnMuteAudio(int flags);
 void ScspSetVolume(int volume);
-
-
-u8 FASTCALL ScspReadByte(u32 addr);
-void FASTCALL ScspWriteByte(u32 addr, u8 val);
-u16 FASTCALL ScspReadWord(u32 addr);
-void FASTCALL ScspWriteWord(u32 addr, u16 val);
-u32 FASTCALL ScspReadLong(u32 addr);
-void FASTCALL ScspWriteLong(u32 addr, u32 val);
-
-u8 FASTCALL Sh2ScspReadByte(SH2_struct *sh, u32 addr);
-void FASTCALL Sh2ScspWriteByte(SH2_struct *sh, u32 addr, u8 val);
-u16 FASTCALL Sh2ScspReadWord(SH2_struct *sh, u32 addr);
-void FASTCALL Sh2ScspWriteWord(SH2_struct *sh, u32 addr, u16 val);
-u32 FASTCALL Sh2ScspReadLong(SH2_struct *sh, u32 addr);
-void FASTCALL Sh2ScspWriteLong(SH2_struct *sh, u32 addr, u32 val);
+void ScspAsynMain(void * p);
+void ScspExecAsync();
+void FASTCALL scsp_w_b(u32, u8);
+void FASTCALL scsp_w_w(u32, u16);
+void FASTCALL scsp_w_d(u32, u32);
+u8 FASTCALL scsp_r_b(u32);
+u16 FASTCALL scsp_r_w(u32);
+u32 FASTCALL scsp_r_d(u32);
 
 void scsp_init(u8 *scsp_ram, void (*sint_hand)(u32), void (*mint_hand)(void));
 void scsp_shutdown(void);

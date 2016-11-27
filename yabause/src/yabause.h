@@ -28,7 +28,6 @@
 typedef struct
 {
    int percoretype;
-   int sh1coretype;
    int sh2coretype;
    int vidcoretype;
    int sndcoretype;

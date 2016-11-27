@@ -92,6 +92,7 @@ newline:
 	mov	MSH2, %eax
 	mov	NumberOfInterruptsOffset, %ecx
 	sub	%edx, %ebx  /* sh2cycles(full line) - decilinecycles*9 */
+	mov	%eax, CurrentSH2
 	mov	%ebx, -24(%ebp) /* sh2cycles */
 	cmp	$0, (%eax, %ecx)
 	jne	master_handle_interrupts
@@ -129,6 +130,7 @@ slave_entry:
 	je	cc_interrupt_master /* slave not running */
 	mov	SSH2, %eax
 	mov	NumberOfInterruptsOffset, %ecx
+	mov	%eax, CurrentSH2
 	cmp	$0, (%eax, %ecx)
 	jne	slave_handle_interrupts
 	mov	slave_cc, %esi
@@ -175,6 +177,7 @@ cc_interrupt_master:
 	mov	master_cc, %esi
 	mov	MSH2, %eax
 	mov	NumberOfInterruptsOffset, %ecx
+	mov	%eax, CurrentSH2
 	cmp	$0, (%eax, %ecx)
 	jne	master_handle_interrupts
 	sub	%ebx, %esi

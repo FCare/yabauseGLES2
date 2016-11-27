@@ -41,32 +41,31 @@ struct Sh2JitContext
    s32 dest, src, ans;
 };
 
-int SH2JitInit(enum SHMODELTYPE model, SH2_struct *msh, SH2_struct *ssh);
+int SH2JitInit();
 void SH2JitDeInit(void);
-void SH2JitReset(SH2_struct *context);
-void FASTCALL SH2JitExec(SH2_struct *context, u32 cycles);
-void SH2JitGetRegisters(SH2_struct *context, sh2regs_struct *regs);
-u32 SH2JitGetGPR(SH2_struct *context, int num);
-u32 SH2JitGetSR(SH2_struct *context);
-u32 SH2JitGetGBR(SH2_struct *context);
-u32 SH2JitGetVBR(SH2_struct *context);
-u32 SH2JitGetMACH(SH2_struct *context);
-u32 SH2JitGetMACL(SH2_struct *context);
-u32 SH2JitGetPR(SH2_struct *context);
-u32 SH2JitGetPC(SH2_struct *context);
-void SH2JitSetRegisters(SH2_struct *context, const sh2regs_struct *regs);
-void SH2JitSetGPR(SH2_struct *context, int num, u32 value);
-void SH2JitSetSR(SH2_struct *context, u32 value);
-void SH2JitSetGBR(SH2_struct *context, u32 value);
-void SH2JitSetVBR(SH2_struct *context, u32 value);
-void SH2JitSetMACH(SH2_struct *context, u32 value);
-void SH2JitSetMACL(SH2_struct *context, u32 value);
-void SH2JitSetPR(SH2_struct *context, u32 value);
-void SH2JitSetPC(SH2_struct *context, u32 value);
-void SH2JitSendInterrupt(SH2_struct *context, u8 level, u8 vector);
-int SH2JitGetInterrupts(SH2_struct *context,
-                                interrupt_struct interrupts[MAX_INTERRUPTS]);
-void SH2JitSetInterrupts(SH2_struct *context, int num_interrupts,
+void SH2JitReset();
+void FASTCALL SH2JitExec(u32 cycles);
+void SH2JitGetRegisters(sh2regs_struct *regs);
+u32 SH2JitGetGPR(int num);
+u32 SH2JitGetSR();
+u32 SH2JitGetGBR();
+u32 SH2JitGetVBR();
+u32 SH2JitGetMACH();
+u32 SH2JitGetMACL();
+u32 SH2JitGetPR();
+u32 SH2JitGetPC();
+void SH2JitSetRegisters(const sh2regs_struct *regs);
+void SH2JitSetGPR(int num, u32 value);
+void SH2JitSetSR(u32 value);
+void SH2JitSetGBR(u32 value);
+void SH2JitSetVBR(u32 value);
+void SH2JitSetMACH(u32 value);
+void SH2JitSetMACL(u32 value);
+void SH2JitSetPR(u32 value);
+void SH2JitSetPC(u32 value);
+void SH2JitSendInterrupt(u8 level, u8 vector);
+int SH2JitGetInterrupts(interrupt_struct interrupts[MAX_INTERRUPTS]);
+void SH2JitSetInterrupts(int num_interrupts,
                                  const interrupt_struct interrupts[MAX_INTERRUPTS]);
 
 extern SH2Interface_struct SH2Jit;

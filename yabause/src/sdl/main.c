@@ -375,22 +375,15 @@ void YuiSwapBuffers(void) {
 
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
        DrawDevFBO();
-   }
-
-   currentTime = getCurrentTimeUs(0);
-   if ((currentTime - lastFrameTime) < delayUs) {
-	usleep((delayUs - (currentTime - lastFrameTime)));
-   }   
+   }  
 	
    SDL_GL_SwapWindow(window);
-
-   lastFrameTime = getCurrentTimeUs(0);
 }
 
 void YuiInit() {
 	yinit.m68kcoretype = M68KCORE_MUSASHI;
 	yinit.percoretype = PERCORE_SDLJOY;
-	yinit.sh2coretype = SH2CORE_DEFAULT;
+	yinit.sh2coretype = 2;
 #ifdef FORCE_CORE_SOFT
         yinit.vidcoretype = VIDCORE_SOFT;
 #else
@@ -409,7 +402,7 @@ void YuiInit() {
 	yinit.osdcoretype = OSDCORE_DEFAULT;
 	yinit.skip_load = 0;
 
-	yinit.sh1coretype = SH2CORE_DEFAULT;
+	//yinit.sh1coretype = 2;
 	yinit.use_cd_block_lle = 0;
 	yinit.usethreads = 1;
 	yinit.numthreads = 4;

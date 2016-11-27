@@ -228,7 +228,7 @@ FASTCALL void sh2_trace(SH2_struct *state, u32 address)
             setvbuf(logfile, NULL, _IOFBF, 65536);
         }
 
-        opcode = MappedMemoryReadWordNocache(state, address);
+        opcode = MappedMemoryReadWordNocache(address);
 
 #ifdef BINARY_LOG
 

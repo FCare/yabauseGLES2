@@ -569,9 +569,9 @@ void op3(struct Slot * slot)
       return;
 
    if (!slot->regs.pcm8b)
-      slot->state.wave = c68k_word_read(addr);
+      slot->state.wave = SoundRamReadWord(addr);
    else
-      slot->state.wave = c68k_byte_read(addr) << 8;
+      slot->state.wave = SoundRamReadByte(addr) << 8;
 
    slot->state.output = slot->state.wave;
 }
@@ -1666,7 +1666,7 @@ static void scsp_slot_update_keyon(slot_t *slot);
 
 static int scsp_mute_flags = 0;
 static int scsp_volume = 100;
-
+static int thread_running = 0;
 ////////////////////////////////////////////////////////////////
 // Misc
 
@@ -4686,102 +4686,6 @@ SoundRamWriteLong (u32 addr, u32 val)
 
 //////////////////////////////////////////////////////////////////////////////
 
-u8 FASTCALL
-Sh2ScspReadByte(SH2_struct *sh, u32 addr)
-{
-   return ScspReadByte(addr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void FASTCALL
-Sh2ScspWriteByte(SH2_struct *sh, u32 addr, u8 val)
-{
-   ScspWriteByte(addr, val);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-u16 FASTCALL
-Sh2ScspReadWord(SH2_struct *sh, u32 addr)
-{
-   return ScspReadWord(addr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void FASTCALL
-Sh2ScspWriteWord(SH2_struct *sh, u32 addr, u16 val)
-{
-   ScspWriteWord(addr, val);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-u32 FASTCALL
-Sh2ScspReadLong(SH2_struct *sh, u32 addr)
-{
-   return ScspReadLong(addr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void FASTCALL
-Sh2ScspWriteLong(SH2_struct *sh, u32 addr, u32 val)
-{
-   ScspWriteLong(addr, val);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-u8 FASTCALL
-Sh2SoundRamReadByte(SH2_struct *sh, u32 addr)
-{
-   return SoundRamReadByte(addr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void FASTCALL
-Sh2SoundRamWriteByte(SH2_struct *sh, u32 addr, u8 val)
-{
-   SoundRamWriteByte(addr, val);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-u16 FASTCALL
-Sh2SoundRamReadWord(SH2_struct *sh, u32 addr)
-{
-   return SoundRamReadWord(addr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void FASTCALL
-Sh2SoundRamWriteWord(SH2_struct *sh, u32 addr, u16 val)
-{
-   SoundRamWriteWord(addr, val);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-u32 FASTCALL
-Sh2SoundRamReadLong(SH2_struct *sh, u32 addr)
-{
-   return SoundRamReadLong(addr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-void FASTCALL
-Sh2SoundRamWriteLong(SH2_struct *sh, u32 addr, u32 val)
-{
-   SoundRamWriteLong(addr, val);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
 int
 ScspInit (int coreid)
 {
@@ -4893,6 +4797,12 @@ ScspChangeSoundCore (int coreid)
 void
 ScspDeInit (void)
 {
+  scsp_mute_flags = 0;
+  thread_running = 0; 
+#if defined(ASYNC_SCSP)
+  YabThreadWait(YAB_THREAD_SCSP);
+#endif
+
   if (scspchannel[0].data32)
     free(scspchannel[0].data32);
   scspchannel[0].data32 = NULL;
@@ -4964,8 +4874,12 @@ __attribute__((noinline))
 #endif
 static s32 FASTCALL M68KExecBP (s32 cycles);
 
-void
-M68KExec (s32 cycles)
+#if defined(ASYNC_SCSP)
+void M68KExec(s32 cycles){}
+void MM68KExec(s32 cycles)
+#else
+void M68KExec(s32 cycles)
+#endif
 {
   s32 newcycles = savedcycles - cycles;
   if (LIKELY(IsM68KRunning))
@@ -5069,11 +4983,17 @@ M68KStep (void)
 //////////////////////////////////////////////////////////////////////////////
 
 // Wait for background execution to finish (used on PSP)
-void
-M68KSync (void)
+#if defined(ASYNC_SCSP)
+void M68KSync(void){}
+void MM68KSync (void)
+#else
+void M68KSync(void)
+#endif
 {
   M68K->Sync();
 }
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -5180,17 +5100,124 @@ void new_scsp_update_samples(s32 *bufL, s32 *bufR, int scspsoundlen)
    new_scsp_outbuf_pos = 0;
 }
 
-void
-ScspExec ()
-{
+
+//////////////////////////////////////////////////////////////////////////////
+#if !defined(ASYNC_SCSP)
+void ScspExec(){
   u32 audiosize;
 
   ScspInternalVars->scsptiming2 +=
-    ((scspsoundlen << 16) + scsplines / 2) / scsplines;
+	  ((scspsoundlen << 16) + scsplines / 2) / scsplines;
   if (!use_new_scsp)
-     scsp_update_timer (ScspInternalVars->scsptiming2 >> 16); // Pass integer part
+	  scsp_update_timer(ScspInternalVars->scsptiming2 >> 16); // Pass integer part
   ScspInternalVars->scsptiming2 &= 0xFFFF; // Keep fractional part
   ScspInternalVars->scsptiming1++;
+#else
+
+void ScspAsynMain( void * p ){
+
+	u64 before;
+	u64 now;
+	u32 difftime;
+
+	YabThreadSetCurrentThreadAffinityMask( 0x03 );
+
+	u32 m68k_cycles_per_deciline = 0;
+	u32 scsp_cycles_per_deciline = 0;
+
+	int lines = 0;
+	int frames = 0;
+
+	if (yabsys.IsPal)
+	{
+		lines = 313;
+		frames = 50;
+	}
+	else
+	{
+		lines = 263; 
+		frames = 60;
+	}
+
+	scsp_cycles_per_deciline = get_cycles_per_line_division(44100 * 512, frames, lines, 10);
+	m68k_cycles_per_deciline = get_cycles_per_line_division(44100 * 256, frames, lines, 10);
+
+	//clock_gettime(CLOCK_MONOTONIC, &before);
+	before = YabauseGetTicks() * 1000000 / yabsys.tickfreq;
+	int DecilineCount = 0;
+	while (thread_running){
+		
+		int need_to_sync = 0;
+
+		DecilineCount++;
+
+		if (DecilineCount == 10){
+			ScspInternalVars->scsptiming2 +=
+				((scspsoundlen << 16) + scsplines / 2) / scsplines;
+			if (!use_new_scsp)
+				scsp_update_timer(ScspInternalVars->scsptiming2 >> 16); // Pass integer part
+			ScspInternalVars->scsptiming2 &= 0xFFFF; // Keep fractional part
+			ScspInternalVars->scsptiming1++;
+
+			if (ScspInternalVars->scsptiming1 >= scsplines){
+				need_to_sync = 1;
+			}
+			ScspExecAsync();
+			DecilineCount = 0;
+		}
+
+		u32 m68k_integer_part = 0, scsp_integer_part = 0;
+		saved_m68k_cycles += m68k_cycles_per_deciline;
+		m68k_integer_part = saved_m68k_cycles >> SCSP_FRACTIONAL_BITS;
+		MM68KExec(m68k_integer_part);
+		saved_m68k_cycles -= m68k_integer_part << SCSP_FRACTIONAL_BITS;
+
+		if (use_new_scsp) {
+			saved_scsp_cycles += scsp_cycles_per_deciline;
+			scsp_integer_part = saved_scsp_cycles >> SCSP_FRACTIONAL_BITS;
+			new_scsp_exec(scsp_integer_part);
+			saved_scsp_cycles -= scsp_integer_part << SCSP_FRACTIONAL_BITS;
+		}
+
+		if( need_to_sync){
+			int sleeptime = 0;
+			u64 checktime = 0;
+			//u64 operation_time = YabauseGetTicks() * 1000000 / yabsys.tickfreq;
+
+			do {
+				now = YabauseGetTicks() * 1000000 / yabsys.tickfreq;
+				if (now > before){
+					difftime = now - before;
+				}
+				else{
+					difftime = now + (ULLONG_MAX - before);
+				}
+				sleeptime = (16666 - difftime);
+				if (sleeptime > 10000 ) YabThreadUSleep(0);
+			}while( sleeptime > 0);
+
+			checktime = YabauseGetTicks()* 1000000 / yabsys.tickfreq;
+			//yprintf("vsynctime = %d(%d)\n", (s32)(checktime - before), (s32)(operation_time - before));
+			before = checktime;
+
+		}
+	}
+
+	YabThreadWake(YAB_THREAD_SCSP);
+}
+
+void ScspExec(){
+
+	if (thread_running == 0){
+		thread_running = 1;
+		YabThreadStart(YAB_THREAD_SCSP, ScspAsynMain, NULL);
+	}
+}
+void ScspExecAsync() {
+  u32 audiosize;
+
+#endif
+
 
   if (ScspInternalVars->scsptiming1 >= scsplines)
   {
@@ -5269,7 +5296,10 @@ ScspExec ()
   {
      SNDCore->MidiOut(scsp_midi_out_read());
   }
+#endif
 
+#if defined(ASYNC_SCSP)
+  while (scsp_mute_flags){ YabThreadUSleep(16666); }
 #endif
 }
 

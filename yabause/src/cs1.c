@@ -28,74 +28,74 @@
 
 //////////////////////////////////////////////////////////////////////////////
 
-u8 FASTCALL Cs1ReadByte(SH2_struct *sh, u32 addr)
+u8 FASTCALL Cs1ReadByte(u32 addr)
 {
    addr &= 0xFFFFFF;
                
    if (addr == 0xFFFFFF)
       return CartridgeArea->cartid;
 
-   return CartridgeArea->Cs1ReadByte(sh, addr);
+   return CartridgeArea->Cs1ReadByte(addr);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-u16 FASTCALL Cs1ReadWord(SH2_struct *sh, u32 addr)
+u16 FASTCALL Cs1ReadWord(u32 addr)
 {
    addr &= 0xFFFFFF;
 
    if (addr == 0xFFFFFE)
       return (0xFF00 | CartridgeArea->cartid);
 
-   return CartridgeArea->Cs1ReadWord(sh, addr);
+   return CartridgeArea->Cs1ReadWord(addr);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-u32 FASTCALL Cs1ReadLong(SH2_struct *sh, u32 addr)
+u32 FASTCALL Cs1ReadLong(u32 addr)
 {
    addr &= 0xFFFFFF;
 
    if (addr == 0xFFFFFC)
       return (0xFF00FF00 | (CartridgeArea->cartid << 16) | CartridgeArea->cartid);
 
-   return CartridgeArea->Cs1ReadLong(sh, addr);
+   return CartridgeArea->Cs1ReadLong(addr);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void FASTCALL Cs1WriteByte(SH2_struct *sh, u32 addr, u8 val)
+void FASTCALL Cs1WriteByte(u32 addr, u8 val)
 {
    addr &= 0xFFFFFF;
 
    if (addr == 0xFFFFFF)
       return;
 
-   CartridgeArea->Cs1WriteByte(sh, addr, val);
+   CartridgeArea->Cs1WriteByte(addr, val);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void FASTCALL Cs1WriteWord(SH2_struct *sh, u32 addr, u16 val)
+void FASTCALL Cs1WriteWord(u32 addr, u16 val)
 {
    addr &= 0xFFFFFF;
 
    if (addr == 0xFFFFFE)
       return;
 
-   CartridgeArea->Cs1WriteWord(sh, addr, val);
+   CartridgeArea->Cs1WriteWord(addr, val);
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
-void FASTCALL Cs1WriteLong(SH2_struct *sh, u32 addr, u32 val)
+void FASTCALL Cs1WriteLong(u32 addr, u32 val)
 {
    addr &= 0xFFFFFF;
 
    if (addr == 0xFFFFFC)
       return;
 
-   CartridgeArea->Cs1WriteLong(sh, addr, val);
+   CartridgeArea->Cs1WriteLong(addr, val);
 }
 
 //////////////////////////////////////////////////////////////////////////////

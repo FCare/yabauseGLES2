@@ -140,6 +140,7 @@ struct ll_entry
   extern int slave_pc; // Virtual PC
   extern void * slave_ip; // Translated PC
   extern u8 restore_candidate[512];
+  extern u8 * Vdp1Ram;
 
   /* registers that may be allocated */
   /* 0-15 gpr */
@@ -723,7 +724,7 @@ static pointer map_address(u32 address)
 void ll_add(struct ll_entry **head,int vaddr,void *addr)
 {
   struct ll_entry *new_entry;
-  new_entry=calloc(1, sizeof(struct ll_entry));
+  new_entry=malloc(sizeof(struct ll_entry));
   assert(new_entry!=NULL);
   new_entry->vaddr=vaddr;
   new_entry->reg32=0;
@@ -868,6 +869,7 @@ void invalidate_page(u32 page)
 {
   struct ll_entry *head;
   struct ll_entry *next;
+  if( page >= 2048 ) return;
   head=jump_in[page];
   jump_in[page]=0;
   while(head!=NULL) {
@@ -4615,8 +4617,9 @@ void unneeded_registers(int istart,int iend,int r)
     //u=uu=0; // DEBUG
     //tdep=(~uu>>rt1[i])&1;
     // Written registers are unneeded
-    if(rt1[i]>=0) u|=1LL<<rt1[i];
-    if(rt2[i]>=0) u|=1LL<<rt2[i];
+    // MACH,MACL will used at macl()
+    if(rt1[i]>=0 && rt1[i]!=MACH && rt1[i]!=MACL) u|=1LL<<rt1[i];
+    if(rt2[i]>=0 && rt2[i]!=MACH && rt2[i]!=MACL) u|=1LL<<rt2[i];
     // Accessed registers are needed
     if(rs1[i]>=0) u&=~(1LL<<rs1[i]);
     if(rs2[i]>=0) u&=~(1LL<<rs2[i]);
@@ -5358,6 +5361,10 @@ int sh2_recompile_block(int addr)
   else if (cached_addr >= 0x00200000 && cached_addr < 0x00300000) {
     source = (u16 *)((char *)LowWram+(start & 0xFFFFF));
     pagelimit = (addr|0xFFFFF) + 1;
+  }
+  else if (cached_addr >= 0x05c00000 && cached_addr < 0x05cc0000) {
+    source = (u16 *)((char *)Vdp1Ram+(start & 0x07FFFF));
+    pagelimit = (addr|0x07FFFF) + 1;
   }
   else if (cached_addr >= 0x06000000 && cached_addr < 0x08000000) {
     source = (u16 *)((char *)HighWram+(start & 0xFFFFF));
@@ -8174,12 +8181,12 @@ void DynarecMasterHandleInterrupts()
   if (MSH2->interrupts[MSH2->NumberOfInterrupts-1].level > ((master_reg[SR]>>4)&0xF))
   {
     master_reg[15] -= 4;
-    MappedMemoryWriteLongNocache(MSH2, master_reg[15], master_reg[SR]);
+    MappedMemoryWriteLong(master_reg[15], master_reg[SR]);
     master_reg[15] -= 4;
-    MappedMemoryWriteLongNocache(MSH2, master_reg[15], master_pc);
+    MappedMemoryWriteLong(master_reg[15], master_pc);
     master_reg[SR] &= 0xFFFFFF0F;
     master_reg[SR] |= (MSH2->interrupts[MSH2->NumberOfInterrupts-1].level)<<4;
-    master_pc = MappedMemoryReadLongNocache(MSH2, master_reg[VBR] + (MSH2->interrupts[MSH2->NumberOfInterrupts-1].vector << 2));
+    master_pc = MappedMemoryReadLong(master_reg[VBR] + (MSH2->interrupts[MSH2->NumberOfInterrupts-1].vector << 2));
     master_ip = get_addr_ht(master_pc);
     MSH2->NumberOfInterrupts--;
     MSH2->isIdle = 0;
@@ -8195,12 +8202,12 @@ void DynarecSlaveHandleInterrupts()
   if (SSH2->interrupts[SSH2->NumberOfInterrupts-1].level > ((slave_reg[SR]>>4)&0xF))
   {
     slave_reg[15] -= 4;
-    MappedMemoryWriteLongNocache(SSH2, slave_reg[15], slave_reg[SR]);
+    MappedMemoryWriteLong(slave_reg[15], slave_reg[SR]);
     slave_reg[15] -= 4;
-    MappedMemoryWriteLongNocache(SSH2, slave_reg[15], slave_pc);
+    MappedMemoryWriteLong(slave_reg[15], slave_pc);
     slave_reg[SR] &= 0xFFFFFF0F;
     slave_reg[SR] |= (SSH2->interrupts[SSH2->NumberOfInterrupts-1].level)<<4;
-    slave_pc = MappedMemoryReadLongNocache(SSH2, slave_reg[VBR] + (SSH2->interrupts[SSH2->NumberOfInterrupts-1].vector << 2));
+    slave_pc = MappedMemoryReadLong(slave_reg[VBR] + (SSH2->interrupts[SSH2->NumberOfInterrupts-1].vector << 2));
     slave_ip = get_addr_ht(slave_pc|1);
     SSH2->NumberOfInterrupts--;
     SSH2->isIdle = 0;
@@ -8216,7 +8223,7 @@ int SH2InterpreterGetInterrupts(SH2_struct *context,
 void SH2InterpreterSetInterrupts(SH2_struct *context, int num_interrupts,
                                  const interrupt_struct interrupts[MAX_INTERRUPTS]);
 
-int SH2DynarecInit(enum SHMODELTYPE model, SH2_struct *msh, SH2_struct *ssh) {return 0;}
+int SH2DynarecInit(void) {return 0;}
 
 void SH2DynarecDeInit() {
   sh2_dynarec_cleanup();
