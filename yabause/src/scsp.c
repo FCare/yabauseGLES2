@@ -87,6 +87,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
+#include <limits.h>
 
 #include "c68k/c68k.h"
 #include "cs2.h"
@@ -98,7 +99,8 @@
 #include "yabause.h"
 #include "scsp.h"
 #include "scspdsp.h"
-#include "scsp_dsp_jit.h"
+#include "threads.h"
+
 #if 0
 #include "windows/aviout.h"
 #endif
@@ -5120,8 +5122,6 @@ void ScspAsynMain( void * p ){
 	u64 now;
 	u32 difftime;
 
-	YabThreadSetCurrentThreadAffinityMask( 0x03 );
-
 	u32 m68k_cycles_per_deciline = 0;
 	u32 scsp_cycles_per_deciline = 0;
 
@@ -5193,7 +5193,7 @@ void ScspAsynMain( void * p ){
 					difftime = now + (ULLONG_MAX - before);
 				}
 				sleeptime = (16666 - difftime);
-				if (sleeptime > 10000 ) YabThreadUSleep(0);
+				if (sleeptime > 10000 ) usleep(0);
 			}while( sleeptime > 0);
 
 			checktime = YabauseGetTicks()* 1000000 / yabsys.tickfreq;
@@ -5299,7 +5299,7 @@ void ScspExecAsync() {
 #endif
 
 #if defined(ASYNC_SCSP)
-  while (scsp_mute_flags){ YabThreadUSleep(16666); }
+  while (scsp_mute_flags){ usleep(16666); }
 #endif
 }
 

@@ -124,4 +124,9 @@ extern yabsys_struct yabsys;
 
 int YabauseEmulate(void);
 
+extern u32 saved_scsp_cycles;
+extern u32 saved_m68k_cycles;
+#define SCSP_FRACTIONAL_BITS 20
+
+
 #endif
