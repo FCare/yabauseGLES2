@@ -12,7 +12,6 @@ typedef struct sPattern {
 	float tw;
 	float th;
 	u32 param[3];
-	int frameout;
         u32 mesh;
 } Pattern;
 

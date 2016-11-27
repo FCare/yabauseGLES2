@@ -38,23 +38,9 @@ static u16 getHash(int param0, int param1) {
 	return hash;
 }
 
-void recycleCache() {
-	int i;
-	for (i = 0; i < 0xFFFF; i++) {
-		Pattern* tmp = patternCache[i];
-		if (tmp == NULL) continue;
-		tmp->frameout--;
-		if (tmp->frameout == 0) {
-			deleteCachePattern(tmp);
-			patternCache[i] = NULL;
-		}
-	}
-}
-
 Pattern* popCachePattern(int param0, int param1, int param2, int w, int h) {
   Pattern *pat = patternCache[getHash(param0, param1)];
   if ((pat!= NULL) && (pat->param[0]==param0) && (pat->param[1]==param1) && (pat->param[2]==param2) && (pat->width == w) && (pat->height == h)) {
-        pat->frameout = CACHE_LIFETIME;
 	pat->inUse++;
   	return pat;
   } else {
@@ -90,7 +76,6 @@ Pattern* createCachePattern(int param0, int param1, int param2, int w, int h, fl
         new->tw = tw;
         new->th = th;
 	new->mesh = mesh;
-	new->frameout = CACHE_LIFETIME;
 	return new;
 }
 
