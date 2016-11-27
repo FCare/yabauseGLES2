@@ -2899,11 +2899,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
     int param2 = 0;
 
-    int probe = MIN(10,((characterHeight*characterWidth/2)*2));
-    for (i=0; i<probe; i+=2) {
-	param2 ^=  Vdp1ReadPattern16( characterAddress + characterHeight*i/probe*characterWidth, characterWidth*i/probe , ram) << 16 |
-		   Vdp1ReadPattern16( characterAddress + characterHeight*(i+1)/probe*characterWidth, characterWidth*(i+1)/probe , ram);
-    }
+    param2 = T1ReadByte(ram, (characterAddress + characterHeight*characterWidth/3 + (characterWidth/3 >> 1)) & 0x7FFFF) << 16 | T1ReadByte(ram, (characterAddress + characterHeight*characterWidth*2/3 + (characterWidth*2/3 >> 1)) & 0x7FFFF);
 
     Pattern* curPattern = popCachePattern(param0, param1, param2, characterWidth, characterHeight);
     if (curPattern != NULL) {
