@@ -63,6 +63,8 @@
 #define WINDOW_WIDTH 600
 #define WINDOW_HEIGHT 600
 
+//#define THROTTLING
+
 M68K_struct * M68KCoreList[] = {
 &M68KDummy,
 #ifdef HAVE_MUSASHI
@@ -385,8 +387,9 @@ void YuiSwapBuffers(void) {
    }
 	
    SDL_GL_SwapWindow(window);
-
+#ifdef THROTTLING
   usleep(time_left());
+ #endif 
   nextFrameTime += delayUs;
 
    //lastFrameTime = getCurrentTimeUs(0);
