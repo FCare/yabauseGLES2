@@ -327,8 +327,8 @@ void YuiDrawSoftwareBuffer() {
    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
-unsigned long lastFrameTime = 0;
-unsigned long delayUs = 1000000/60;
+static unsigned long nextFrameTime = 0;
+static unsigned long delayUs = 1000000/60;
 
 static unsigned long getCurrentTimeUs(unsigned long offset) {
     struct timeval s;
@@ -338,11 +338,18 @@ static unsigned long getCurrentTimeUs(unsigned long offset) {
     return (s.tv_sec * 1000000 + s.tv_usec) - offset;
 }
 
+static unsigned long time_left(void)
+{
+    unsigned long now;
+
+    now = getCurrentTimeUs(0);
+    if(nextFrameTime <= now)
+        return 0;
+    else
+        return nextFrameTime - now;
+}
+
 void YuiSwapBuffers(void) {
-
-   unsigned long currentTime;
-
-   if (lastFrameTime == 0) lastFrameTime = getCurrentTimeUs(0);
 
    if( window == NULL ){
       return;
@@ -378,6 +385,11 @@ void YuiSwapBuffers(void) {
    }  
 	
    SDL_GL_SwapWindow(window);
+
+  usleep(time_left());
+  nextFrameTime += delayUs;
+
+   //lastFrameTime = getCurrentTimeUs(0);
 }
 
 void YuiInit() {
@@ -444,6 +456,8 @@ void SDLInit(void) {
 
         glClearColor( 0.0f,0.0f,0.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+  nextFrameTime = getCurrentTimeUs(0) + delayUs;
 }
 
 ///
