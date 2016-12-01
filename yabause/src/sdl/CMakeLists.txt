@@ -1,6 +1,6 @@
 project(yabause-sdl)
 
-add_subdirectory(test)
+#add_subdirectory(test)
 
 yab_port_start()
 
