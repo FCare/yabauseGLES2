@@ -3534,32 +3534,32 @@ static int IsSpriteWindowEnabled(u16 wtcl)
 
 static void VIDSoftGLESVdp2DrawScreens(void)
 {
-   int draw_priority_0[6] = { 0 };
-   int layer_priority[6] = { 0 };
+   int draw_needed[6] = { 0 };
    
    VIDSoftGLESVdp2SetResolution(Vdp2Regs->TVMD);
-   layer_priority[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
-   layer_priority[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
-   layer_priority[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
-   layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
-   layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
+   draw_needed[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
+   draw_needed[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
+   draw_needed[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
+   draw_needed[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
+   draw_needed[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
    TitanErase();
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {
-      draw_priority_0[TITAN_NBG0] = (Vdp2Regs->SFPRMD >> 0) & 0x3;
-      draw_priority_0[TITAN_NBG1] = (Vdp2Regs->SFPRMD >> 2) & 0x3;
-      draw_priority_0[TITAN_NBG2] = (Vdp2Regs->SFPRMD >> 4) & 0x3;
-      draw_priority_0[TITAN_NBG3] = (Vdp2Regs->SFPRMD >> 6) & 0x3;
-      draw_priority_0[TITAN_RBG0] = (Vdp2Regs->SFPRMD >> 8) & 0x3;
+      draw_needed[TITAN_NBG0] += (Vdp2Regs->SFPRMD >> 0) & 0x3;
+      draw_needed[TITAN_NBG1] += (Vdp2Regs->SFPRMD >> 2) & 0x3;
+      draw_needed[TITAN_NBG2] += (Vdp2Regs->SFPRMD >> 4) & 0x3;
+      draw_needed[TITAN_NBG3] += (Vdp2Regs->SFPRMD >> 6) & 0x3;
+      draw_needed[TITAN_RBG0] += (Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
 
-   screenRenderThread(Vdp2DrawNBG0, 0);
-   screenRenderThread(Vdp2DrawNBG1, 1);
-   screenRenderThread(Vdp2DrawNBG2, 2);
-   screenRenderThread(Vdp2DrawNBG3, 3);
-   screenRenderThread(Vdp2DrawRBG0, 4);
+   if (draw_needed[TITAN_NBG0] > 0) screenRenderThread(Vdp2DrawNBG0, 0);
+   if (draw_needed[TITAN_NBG1] > 0) screenRenderThread(Vdp2DrawNBG1, 1);
+   if (draw_needed[TITAN_NBG2] > 0) screenRenderThread(Vdp2DrawNBG2, 2);
+   if (draw_needed[TITAN_NBG3] > 0) screenRenderThread(Vdp2DrawNBG3, 3);
+   if (draw_needed[TITAN_RBG0] > 0) screenRenderThread(Vdp2DrawRBG0, 4);
+
 }
 
 static int VidSoftGLESgetDevFbo(void) {
