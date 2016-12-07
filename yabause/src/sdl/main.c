@@ -151,6 +151,7 @@ int fbo_buf_width = -1;
 int fbo_buf_height = -1;
 
 static int resizeFilter = GL_NEAREST;
+static int fullscreen = 0;
 
 static char biospath[256] = "\0";
 static char cdpath[256] = "\0";
@@ -426,6 +427,7 @@ void YuiInit() {
 void SDLInit(void) {
 	SDL_GLContext context;
 	SDL_Renderer* rdr;
+	Uint32 flags = (fullscreen == 1)?SDL_WINDOW_FULLSCREEN|SDL_WINDOW_OPENGL:SDL_WINDOW_OPENGL;
 
 	SDL_InitSubSystem(SDL_INIT_VIDEO);
 
@@ -443,7 +445,8 @@ void SDLInit(void) {
 	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
 	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
 
-	window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
+	
+	window = SDL_CreateWindow("OpenGL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, flags);
 	if (!window) {
     		fprintf(stderr, "Couldn't create window: %s\n", SDL_GetError());
     		return;
@@ -570,6 +573,10 @@ int main(int argc, char *argv[]) {
          // Set sound
          else if (strcmp(argv[i], "-ns") == 0 || strcmp(argv[i], "--nosound") == 0) {
 	    yinit.sndcoretype = 0;
+	 }
+         // Set sound
+         else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fullscreen") == 0) {
+	    fullscreen = 1;
 	 }
          // Set sound
          else if (strcmp(argv[i], "-rb") == 0 || strcmp(argv[i], "--resizebilinear") == 0) {
