@@ -353,27 +353,30 @@ static unsigned long time_left(void)
 }
 
 void YuiSwapBuffers(void) {
+  int SDLWidth, SDLHeight;
 
    if( window == NULL ){
       return;
    }
    int buf_width, buf_height;
    int glWidth, glHeight;
+   SDL_GetWindowSize(window, &SDLWidth, &SDLHeight);
    VIDCore->GetGlSize(&buf_width, &buf_height);
 
    float ar = (float)buf_width/(float)buf_height;
-   float dar = (float)WINDOW_WIDTH/(float)WINDOW_HEIGHT;
+
+   float dar = (float)SDLWidth/(float)SDLHeight;
 
    if (ar <= dar) {
-     glHeight = WINDOW_HEIGHT;
+     glHeight = SDLHeight;
      glWidth = ar * glHeight;
    } else {
-     glWidth = WINDOW_WIDTH;
+     glWidth = SDLWidth;
      glHeight = glWidth/ar;
    }
 
    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-   glViewport((WINDOW_WIDTH-glWidth)/2,(WINDOW_HEIGHT-glHeight)/2,glWidth, glHeight);
+   glViewport((SDLWidth-glWidth)/2,(SDLHeight-glHeight)/2,glWidth, glHeight);
 
    if(VIDCore->getFramebuffer() != NULL){
        YuiDrawSoftwareBuffer();
