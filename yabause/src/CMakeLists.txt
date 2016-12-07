@@ -698,8 +698,8 @@ set(YAB_OPTIMIZATION "-O3" CACHE STRING "Override optimization level")
 
 
 if(DEFINED RPI)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -mcpu=cortex-a53  -mfpu=neon-fp-armv8 -mfloat-abi=hard -mlittle-endian -munaligned-access")
-    set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -O3 -mcpu=cortex-a53  -mfpu=neon-fp-armv8 -mfloat-abi=hard -mlittle-endian -munaligned-access")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -mcpu=cortex-a53  -mfpu=neon-fp-armv8 -ffast-math -mfloat-abi=hard -mlittle-endian -munaligned-access")
+    set(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} -O3 -mcpu=cortex-a53  -mfpu=neon-fp-armv8 -ffast-math -mfloat-abi=hard -mlittle-endian -munaligned-access")
 else(DEFINED RPI)
 
 if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "i686")
