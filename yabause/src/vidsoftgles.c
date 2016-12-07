@@ -2122,7 +2122,7 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
  
-   gles20_createFBO(&fbo, 320, 256, 2);
+   gles20_createFBO(&fbo, 320, 256, 0);
 
    // Initialize VDP1 framebuffer 1
    if ((vdp1framebuffer[0] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
@@ -2141,8 +2141,8 @@ int VIDSoftGLESInit(void)
    gles20_createFBO(&vdp1framebuffer[0]->fbo, 768, 512, 0);
    gles20_createFBO(&vdp1framebuffer[1]->fbo, 768, 512, 0);
 
-   gles20_createFBO(&vdp1framebuffer[0]->priority, 768, 512, 1);
-   gles20_createFBO(&vdp1framebuffer[1]->priority, 768, 512, 1);
+   gles20_createFBO(&vdp1framebuffer[0]->priority, 768, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[1]->priority, 768, 512, 0);
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
