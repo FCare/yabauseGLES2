@@ -92,8 +92,11 @@ void createPatternProgram() {
    // Get the sampler location
    samplerLoc = glGetUniformLocation ( patternObject, "s_texture" );
 
-   if (vertexSWBuffer == -1) 
+   if (vertexSWBuffer == -1) {
        glGenBuffers(1, &vertexSWBuffer);
+       glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+       glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),NULL,GL_DYNAMIC_DRAW);
+    }
 }
 void preparePriorityRenderer(){
 	glDisable(GL_BLEND);
@@ -123,8 +126,7 @@ void drawPattern(Pattern* pattern, GLfloat* vertex){
 		glBlendColor(0.0,0.0,0.0,0.5);
 		glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
 	}
-	
-    	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
+      glBufferSubData(GL_ARRAY_BUFFER, 0, 20*sizeof(GLfloat),vertex);
     	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
     	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 
@@ -139,7 +141,7 @@ void drawPattern(Pattern* pattern, GLfloat* vertex){
 }
 
 void drawPriority(Pattern* pattern, GLfloat* vertex, int priority) {
-    	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
+    	glBufferSubData(GL_ARRAY_BUFFER, 0, 20*sizeof(GLfloat),vertex);
 
     	if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
     	if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
