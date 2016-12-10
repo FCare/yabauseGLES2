@@ -2250,6 +2250,7 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 
 void VIDSoftGLESVdp1DrawStart()
 {
+      addVdp1Renderer(VDP1START);
       VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1backframebuffer);
       Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
 }
@@ -2258,6 +2259,7 @@ void VIDSoftGLESVdp1DrawStart()
 
 void VIDSoftGLESVdp1DrawEnd(void)
 {
+     addVdp1Renderer(VDP1STOP);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3649,8 +3651,6 @@ static void VIDSoftGLESVdp1SwapFrameBuffer(void)
    if (((Vdp1Regs->FBCR & 2) == 0) || Vdp1External.manualchange)
    {
 		framebuffer *temp;
-
-      renderVdp1();
 
       temp = vdp1frontframebuffer;
       vdp1frontframebuffer = vdp1backframebuffer;
