@@ -3467,8 +3467,6 @@ void VIDSoftGLESVdp2DrawStart(void)
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 glEnable(GL_BLEND);
 
-recycleCache();
-
    if (Vdp2Regs->CCCTL & 0x100) titanblendmode = TITAN_BLEND_ADD;
    else if (Vdp2Regs->CCCTL & 0x200) titanblendmode = TITAN_BLEND_BOTTOM;
    TitanSetBlendingMode(titanblendmode);
