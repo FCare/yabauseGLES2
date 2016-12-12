@@ -2141,8 +2141,8 @@ int VIDSoftGLESInit(void)
    gles20_createFBO(&vdp1framebuffer[0]->fbo, 768, 512, 3);
    gles20_createFBO(&vdp1framebuffer[1]->fbo, 768, 512, 3);
 
-   gles20_createFBO(&vdp1framebuffer[0]->priority, 768, 512, 3);
-   gles20_createFBO(&vdp1framebuffer[1]->priority, 768, 512, 3);
+   gles20_createFBO(&vdp1framebuffer[0]->priority, 768, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[1]->priority, 768, 512, 0);
 
    vdp1backframebuffer = vdp1framebuffer[0];
    vdp1frontframebuffer = vdp1framebuffer[1];
