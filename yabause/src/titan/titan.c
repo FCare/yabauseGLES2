@@ -745,7 +745,7 @@ void createGLPrograms(void) {
       "  vec4 prio = texture2D( priority, s_texCoord );\n"  
       "  vec4 spritepix = texture2D( sprite, s_texCoord );\n"
       "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
-      "  if ((prio.a*255.0 + 0.5) >= layerpriority) {\n"
+      "  if ((prio.r*255.0 + 0.5) >= layerpriority) {\n"
       "        if (spritepix.a >= (1.0/255.0))\n"
       "            gl_FragColor = spritepix.a*spritepix + (1.0 - spritepix.a)*layerpix; \n"
       "        else discard;\n"

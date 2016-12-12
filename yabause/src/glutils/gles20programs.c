@@ -35,7 +35,7 @@ void createPriorityProgram() {
       "{                                                   \n"
       "  vec4 color = texture2D( s_texture, v_texCoord.xy/v_texCoord.z);\n"  
       "  if (color.a < 0.1) discard;\n" 
-      "  gl_FragColor.a = u_priority;\n"
+      "  gl_FragColor.r = u_priority;\n"
       "}                                                   \n";
    if (priorityProgram > 0) return;
    priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
