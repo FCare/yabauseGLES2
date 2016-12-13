@@ -745,7 +745,7 @@ void createGLPrograms(void) {
       "  vec4 prio = texture2D( priority, s_texCoord );\n"  
       "  vec4 spritepix = texture2D( sprite, s_texCoord );\n"
       "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
-      "  if ((prio.r*255.0 + 0.5) >= layerpriority) {\n"
+      "  if (prio.r >= layerpriority) {\n"
       "        if (spritepix.a >= (1.0/255.0))\n"
       "            gl_FragColor = spritepix.a*spritepix + (1.0 - spritepix.a)*layerpix; \n"
       "        else discard;\n"
@@ -957,7 +957,7 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	    glUniform1i(layerLoc, 0);
 	    glUniform1i(spriteLoc, 1);
 	    glUniform1i(prioLoc, 2);
-	    glUniform1f(refPrioLoc, (float)(tt_context.layer_priority[bg_layer]));
+	    glUniform1f(refPrioLoc, (float)(tt_context.layer_priority[bg_layer])/8.0f);
 	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
 	    glVertexAttribPointer ( posGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), 0 );

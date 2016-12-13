@@ -148,6 +148,6 @@ void drawPattern(Pattern* pattern, GLfloat* vertex, int index){
 
 void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int index) {
     	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    	glUniform1f(prioValueLoc, priority/255.0f);
+    	glUniform1f(prioValueLoc, ((float)priority+ 0.5f)/8.0f);
     	glDrawArrays(GL_TRIANGLE_FAN, index/5, 4);
 }
