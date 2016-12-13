@@ -22,7 +22,9 @@
 
 #include "../core.h"
 #include "../vidshared.h"
+#ifdef _OGLES_
 #include "../glutils/gles20utils.h"
+#endif
 
 #define TITAN_BLEND_TOP     0
 #define TITAN_BLEND_BOTTOM  1
@@ -55,9 +57,11 @@ void TitanPutLineHLine(int linescreen, s32 y, u32 color);
 void TitanPutPixel(int priority, s32 x, s32 y, u32 color, int linescreen, vdp2draw_struct* info);
 void TitanPutHLine(int priority, s32 x, s32 y, s32 width, u32 color);
 
+#ifdef _OGLES_
 void TitanRenderFBO(gl_fbo *fbo);
 void TitanSetVdp2Fbo(int fb, int nb);
 void TitanSetVdp2Priority(int fb, int nb);
+#endif
 void TitanRender(pixel_t * dispbuffer);
 
 void TitanWriteColor(pixel_t * dispbuffer, s32 bufwidth, s32 x, s32 y, u32 color);

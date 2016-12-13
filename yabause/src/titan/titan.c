@@ -35,6 +35,7 @@ extern int vdp2_interlace;
 int vidsoft_num_priority_threads = 0;
 typedef u32 PixelData;
 
+#ifdef _OGLES_
 static GLuint g_VertexSWBuffer = 0;
 static GLuint programObject  = 0;
 static GLuint positionLoc    = 0;
@@ -52,7 +53,7 @@ static GLuint layerLoc = 0;
 static GLuint prioLoc = 0;
 static GLuint refPrioLoc = 0;
 
-
+#endif
 
 struct StencilData{
    u8 linescreen : 2 ;
@@ -130,7 +131,7 @@ static INLINE u8 TitanGetBlue(u32 pixel) { return pixel & 0xFF; }
 static INLINE u32 TitanCreatePixel(u8 alpha, u8 red, u8 green, u8 blue) { return (alpha << 24) | (red << 16) | (green << 8) | blue; }
 #endif
 
-
+#ifdef _OGLES_
 void TitanSetVdp2Fbo(int fb, int nb){
 	tt_context.vdp2fbo[nb] = fb;
 }
@@ -138,6 +139,7 @@ void TitanSetVdp2Fbo(int fb, int nb){
 void TitanSetVdp2Priority(int fb, int nb) {
 	tt_context.vdp2prio[nb] = fb;
 }
+#endif
 
 void set_layer_y(const int start_line, int * layer_y)
 {
@@ -470,8 +472,9 @@ int TitanInit()
 
    for(i = 1;i < 4;i++)
       memset(tt_context.linescreen[i], 0, sizeof(u32) * 512);
-
+#ifdef _OGLES_
    createGLPrograms();
+#endif
 
    return 0;
 }
@@ -692,6 +695,8 @@ void TitanRenderThreads(pixel_t * dispbuffer, int can_use_simplified)
       TitanWaitForPriorityThread(i);
    }
 }
+
+#ifdef _OGLES_
 
 void createGLPrograms(void) {
 
@@ -970,6 +975,7 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	}
    }
 }
+#endif
 
 void TitanRender(pixel_t * dispbuffer)
 {

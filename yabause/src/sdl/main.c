@@ -157,6 +157,8 @@ static char biospath[256] = "\0";
 static char cdpath[256] = "\0";
 
 SDL_Window *window;
+SDL_Texture* fb;
+SDL_Renderer* rdr;
 
 yabauseinit_struct yinit;
 
@@ -287,7 +289,9 @@ void YuiDrawSoftwareBuffer() {
     int buf_width, buf_height;
     int error;
 
-    
+    VIDCore->GetGlSize(&buf_width, &buf_height);
+
+#ifdef _OGLES_    
     glUseProgram(programObject);
 
     if( g_FrameBuffer == 0 )
@@ -304,7 +308,6 @@ void YuiDrawSoftwareBuffer() {
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, g_FrameBuffer);
 
-    VIDCore->GetGlSize(&buf_width, &buf_height);
     if ((buf_width == 0) || (buf_height == 0)) return;
     glTexSubImage2D(GL_TEXTURE_2D, 0,0,0,buf_width,buf_height,GL_RGBA,GL_UNSIGNED_BYTE,VIDCore->getFramebuffer());
 
@@ -328,6 +331,21 @@ void YuiDrawSoftwareBuffer() {
    glEnableVertexAttribArray ( texCoordLoc );
 
    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+#else
+   SDL_Rect rect;
+  rect.x = 0;
+  rect.y = 0;
+  rect.w = buf_width;
+  rect.h = buf_height;
+  SDL_Rect dest;
+  dest.x = 0;
+  dest.y = 0;
+  dest.w = WINDOW_WIDTH;
+  dest.h = WINDOW_HEIGHT;
+   SDL_UpdateTexture(fb,&rect,VIDCore->getFramebuffer(),704*sizeof(pixel_t)/2);
+   SDL_RenderCopy(rdr,fb,&rect,&dest);
+   SDL_RenderPresent(rdr);
+#endif
 }
 
 static unsigned long nextFrameTime = 0;
@@ -380,7 +398,9 @@ void YuiSwapBuffers(void) {
 
    if(VIDCore->getFramebuffer() != NULL){
        YuiDrawSoftwareBuffer();
-   } else
+   }
+#ifdef _OGLES_ 
+   else
 
    if ((VIDCore->getSWFbo != NULL) && (VIDCore->getSWFbo() != NULL)) {
        DrawSWFBO();
@@ -389,7 +409,7 @@ void YuiSwapBuffers(void) {
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
        DrawDevFBO();
    }  
-	
+#endif
    SDL_GL_SwapWindow(window);
 #ifdef THROTTLING
   usleep(time_left());
@@ -429,12 +449,11 @@ void YuiInit() {
 
 void SDLInit(void) {
 	SDL_GLContext context;
-	SDL_Renderer* rdr;
 	Uint32 flags = (fullscreen == 1)?SDL_WINDOW_FULLSCREEN|SDL_WINDOW_OPENGL:SDL_WINDOW_OPENGL;
 
 	SDL_InitSubSystem(SDL_INIT_VIDEO);
 
-#if HAVE_LIBGLES
+#ifdef _OGLES_
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
@@ -463,8 +482,17 @@ void SDLInit(void) {
 
 	rdr = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
+#ifdef _OGLES_
         glClearColor( 0.0f,0.0f,0.0f,1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+#else
+        SDL_RenderClear(rdr);
+#ifdef USE_16BPP
+        fb = SDL_CreateTexture(rdr,SDL_PIXELFORMAT_ABGR1555,SDL_TEXTUREACCESS_STREAMING, 704, 512);
+#else
+        fb = SDL_CreateTexture(rdr,SDL_PIXELFORMAT_ABGR8888,SDL_TEXTUREACCESS_STREAMING, 704, 512);
+#endif
+#endif
 
   nextFrameTime = getCurrentTimeUs(0) + delayUs;
 }
@@ -476,6 +504,7 @@ void SDLInit(void) {
 
 int YuiInitProgramForSoftwareRendering()
 {
+#ifdef _OGLES_
    GLbyte vShaderStr[] =
       "attribute vec4 a_position;   \n"
       "attribute vec2 a_texCoord;   \n"
@@ -511,6 +540,9 @@ int YuiInitProgramForSoftwareRendering()
    samplerLoc = glGetUniformLocation ( programObject, "s_texture" );
 
    return GL_TRUE;
+#else
+   return 0;
+#endif
 }
 
 
