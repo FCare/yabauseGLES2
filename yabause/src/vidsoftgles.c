@@ -3015,7 +3015,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             int patternRow = (flip & 0x1)?characterWidth-1-j:j;
             patternLine*=characterWidth;
             pix[index] = Vdp1ReadPattern128(characterAddress + patternLine, patternRow , ram);
-            if(isTextured && endcodesEnabled && currentPixel == endcode)
+            if(isTextured && endcodesEnabled && pix[index] == endcode)
               break;
             if ((pix[index]  != 0) || SPD) 
               pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff80)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
