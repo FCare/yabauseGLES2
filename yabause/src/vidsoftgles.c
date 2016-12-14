@@ -2873,6 +2873,7 @@ static int is_pre_clipped(s16 tl_x, s16 tl_y, s16 bl_x, s16 bl_y, s16 tr_x, s16 
 
 Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int i = 0, j=0;
+    int isEmpty = 0;
 
     int characterWidth = ((cmd.CMDSIZE >> 8) & 0x3F) * 8;
     int characterHeight = cmd.CMDSIZE & 0xFF;
@@ -2928,6 +2929,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 				switch (colorCalc) {
 				case 0:
 			    		pix[index] = untexturedColor;
+              isEmpty |= pix[index];
 					break;
 				case 4:
 					gouraud = T1ReadWord(ram, gouraudTableAddress + index*2);
@@ -2935,6 +2937,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 						    ((untexturedColor & 0xFF00) >> 8 + ((gouraud & 0x3E0) >> 5 - 0x10) << 3 ) << 8 | 
 						    ((untexturedColor & 0xFF0000) >> 16 + ((gouraud & 0x7C00) >> 10 -0x10) << 3) << 16;
 					pix[index] = final;
+          isEmpty |= pix[index];
 					break;
 				default:
 					break;
@@ -2960,7 +2963,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) 
 				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (0xFF << 24);
 			else pix[index]  = 0;
-                        
+      isEmpty |= pix[index];                        
 		    }
 	        }
             break;
@@ -2979,12 +2982,13 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, ((pix[index] & 0xF) * 2 + colorlut) & 0x7FFFF);
 				if (temp & 0x8000) {
-                        		pix[index] = COLSAT2YAB16(0xFF,temp);
+          pix[index] = COLSAT2YAB16(0xFF,temp);
 				} else
 					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (0xFF << 24);
 			} else pix[index]  = 0;
-		    }
-	        }
+      isEmpty |= pix[index];
+		}
+	 }
             break;
 	    case 0x2://8bpp bank
 	        endcode = 0xff;
@@ -3000,6 +3004,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) 
 				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
 			else pix[index]  = 0;
+      isEmpty |= pix[index];
 		    }
 	        }
             break;
@@ -3017,6 +3022,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index] != 0) || SPD) 
 				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (0xFF << 24);
 			else pix[index]  = 0;
+      isEmpty |= pix[index];
 		    }
 	        }
 	    break;
@@ -3035,6 +3041,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index] != 0) || SPD) 
 				pix[index]  = COLSAT2YAB16(0xFF,pix[index]);
 			else pix[index]  = 0;
+      isEmpty |= pix[index];
 		    }
 	        }
 	    break;
@@ -3043,16 +3050,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             break;
         }
     }
-    j = 0;
-    if(!isTextured) {
-      for(i=0; i<4; i++) j |= pix[i];
-    } else {
-      for(i=0; i<characterWidth*characterHeight; i++) j |= pix[i];
-    }
-    if (j == 0) return NULL;
+    if (isEmpty == 0) return NULL;
 
     curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight, tw, th, mesh);
     glGenTextures(1,&curPattern->tex);
+    if (glGetError() != GL_NO_ERROR) printf("Error\n");
     glActiveTexture ( GL_TEXTURE0 );
     glBindTexture(GL_TEXTURE_2D, curPattern->tex);
     glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
@@ -3064,7 +3066,6 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     } else {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, characterWidth, characterHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
     }
-
     addCachePattern(curPattern);
 
     return curPattern;
