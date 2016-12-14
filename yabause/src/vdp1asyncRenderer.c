@@ -10,7 +10,7 @@ static int spritefb;
 static int width;
 static int height;
 
-#define PATTERNMAX 20000
+#define PATTERNMAX 100000
 
 static GLfloat mergedVertices[PATTERNMAX];
 static int sizeVertices;
