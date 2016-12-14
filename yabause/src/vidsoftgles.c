@@ -856,6 +856,8 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
 
    SetupScreenVars(info, &sinfo, info->PlaneAddr, regs);
 
+   TitanEraseScroll(info->titan_which_layer);
+
    scrolly = info->y;
 
    clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
@@ -1156,6 +1158,8 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
    vdp2rotationparameterfp_struct *p=&parameter[info->rotatenum];
    clipping_struct clip[2];
    u32 linewnd0addr, linewnd1addr;
+
+   TitanEraseScroll(info->titan_which_layer);
 
    clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
    clip[1].xstart = clip[1].ystart = clip[1].xend = clip[1].yend = 0;
@@ -3587,7 +3591,6 @@ static void VIDSoftGLESVdp2DrawScreens(void)
    draw_needed[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    draw_needed[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
-   TitanErase();
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {

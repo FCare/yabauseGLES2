@@ -479,14 +479,18 @@ int TitanInit()
    return 0;
 }
 
+void TitanEraseScroll(int i) {
+   memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * 704 * 256);
+   memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
+   memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * 704 * 256);
+}
+
 void TitanErase()
 {
    int i = 0;
 
    for (i = 0; i < 6; i++) {
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * 704 * 256);
-      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
-      memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * 704 * 256);
+      TitanEraseScroll(i);
    }
 }
 

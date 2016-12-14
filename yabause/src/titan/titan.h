@@ -44,6 +44,7 @@
 int TitanInit();
 int TitanDeInit();
 void TitanErase();
+void TitanEraseScroll(int id);
 
 void TitanSetResolution(int width, int height);
 void TitanGetResolution(int * width, int * height);
