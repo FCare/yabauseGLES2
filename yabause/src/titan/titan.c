@@ -483,15 +483,10 @@ void TitanErase()
 {
    int i = 0;
 
-   int height = tt_context.vdp2height;
-
-   if (vdp2_interlace)
-      height /= 2;
-
    for (i = 0; i < 6; i++) {
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * tt_context.vdp2width * height);
-      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * tt_context.vdp2width * height);
-      memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * tt_context.vdp2width * height);
+      memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * 704 * 256);
+      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
+      memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * 704 * 256);
    }
 }
 
