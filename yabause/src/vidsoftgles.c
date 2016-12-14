@@ -2267,7 +2267,6 @@ void VIDSoftGLESVdp1DrawStart()
 void VIDSoftGLESVdp1DrawEnd(void)
 {
      addVdp1Renderer(VDP1STOP);
-     vdp1updated = 1;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3214,6 +3213,7 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 			xd, yd, 0.0, pattern->th, 1.0f};
 
 	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
+  vdp1updated = 1;
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3259,6 +3259,7 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 			xd, yd, 0.0, pattern->th, 1.0f};
 
 	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
+  vdp1updated = 1;
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3316,6 +3317,7 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 			xd, yd, 0.0, u4*pattern->th, u4}; 
 
     addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
+    vdp1updated = 1;
 }
 
 static void gouraudLineSetup(double * redstep, double * greenstep, double * bluestep, int length, COLOR table1, COLOR table2, u8* ram, Vdp1* regs, vdp1cmd_struct * cmd, u8 * back_framebuffer) {
