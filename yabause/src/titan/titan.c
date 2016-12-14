@@ -425,11 +425,11 @@ int TitanInit()
    {
       for(i = 0;i < 6;i++)
       {
-         if ((tt_context.vdp2framebuffer[i] = (PixelData *)calloc(sizeof(PixelData), 704 * 256)) == NULL)
+         if ((tt_context.vdp2framebuffer[i] = (PixelData *)calloc(sizeof(PixelData), 704 * 512)) == NULL)
             return -1;
-         if ((tt_context.vdp2stencil[i] = (struct StencilData*)calloc(sizeof(struct StencilData), 704 * 256)) == NULL)
+         if ((tt_context.vdp2stencil[i] = (struct StencilData*)calloc(sizeof(struct StencilData), 704 * 512)) == NULL)
 	    return -1;
-         if ((tt_context.vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 256)) == NULL)
+         if ((tt_context.vdp2priority[i] = (u8*)calloc(sizeof(u8), 704 * 512)) == NULL)
 	    return -1;
 	 tt_context.vdp2fbo[i] = -1;
          tt_context.vdp2prio[i] = -1;
@@ -464,9 +464,9 @@ int TitanInit()
    }
 
    for(i = 0;i < 6;i++) {
-      memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 256);
-      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
-      memset(tt_context.vdp2priority[i], 0, sizeof(u8) * 704 * 256);
+      memset(tt_context.vdp2framebuffer[i], 0, sizeof(u32) * 704 * 512);
+      memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 512);
+      memset(tt_context.vdp2priority[i], 0, sizeof(u8) * 704 * 512);
    }
 
    for(i = 1;i < 4;i++)
@@ -479,9 +479,9 @@ int TitanInit()
 }
 
 void TitanEraseScroll(int i) {
-   memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * 704 * 256);
-   memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 256);
-   memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * 704 * 256);
+   memset(tt_context.vdp2framebuffer[i], 0, sizeof(PixelData) * 704 * 512);
+   memset(tt_context.vdp2stencil[i], 0, sizeof(struct StencilData) * 704 * 512);
+   memset(tt_context.vdp2priority[i], 0, sizeof(struct StencilData) * 704 * 512);
 }
 
 void TitanErase()
