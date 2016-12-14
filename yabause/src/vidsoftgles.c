@@ -3006,6 +3006,25 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 		    }
 	        }
             break;
+      case 0x3://128 color
+        endcode = 0xff;
+        for (i=0; i<characterHeight ; i++) {
+          for (j=0; j<characterWidth; j++ ){
+            int index = i*characterWidth+j;
+            int patternLine = (flip&0x2)?characterHeight-1-i:i;
+            int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+            patternLine*=characterWidth;
+            pix[index] = Vdp1ReadPattern128(characterAddress + patternLine, patternRow , ram);
+            if(isTextured && endcodesEnabled && currentPixel == endcode)
+              break;
+            if ((pix[index]  != 0) || SPD) 
+              pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff80)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
+            else pix[index]  = 0;
+            isEmpty |= pix[index];
+          }
+        }
+        break;
+
 	    case 0x4://256 color
 		endcode = 0xff;
                 for (i=0; i<characterHeight ; i++) {
