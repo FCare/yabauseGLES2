@@ -108,6 +108,9 @@ static void VIDSoftGLESVdp2DispOff(void);
 static int VidSoftGLESgetDevFbo(void);
 static pixel_t* VidSoftGLESgetFramebuffer(void);
 
+static int draw_needed[6] = { 0 };
+static int vdp1updated = 0;
+
 VideoInterface_struct VIDSoftGLES = {
 VIDCORE_OGLES,
 "Software Video Interface",
@@ -2260,6 +2263,7 @@ void VIDSoftGLESVdp1DrawStart()
 void VIDSoftGLESVdp1DrawEnd(void)
 {
      addVdp1Renderer(VDP1STOP);
+     vdp1updated = 1;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -3469,6 +3473,12 @@ void VIDSoftGLESVdp2DrawStart(void)
 {
    int titanblendmode = TITAN_BLEND_TOP;
 
+   draw_needed[TITAN_NBG0] = 0;
+   draw_needed[TITAN_NBG1] = 0;
+   draw_needed[TITAN_NBG2] = 0;
+   draw_needed[TITAN_NBG3] = 0;
+   draw_needed[TITAN_RBG0] = 0;
+
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 glEnable(GL_BLEND);
 
@@ -3497,21 +3507,27 @@ glEnable(GL_BLEND);
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+   int updated = vdp1updated | draw_needed[TITAN_NBG0] | draw_needed[TITAN_NBG1] | draw_needed[TITAN_NBG2] | draw_needed[TITAN_NBG3] | draw_needed[TITAN_RBG0];
 
-   screenRenderWait(0);
-   screenRenderWait(1);
-   screenRenderWait(2);
-   screenRenderWait(3);
-   screenRenderWait(4);
+   if (draw_needed[TITAN_NBG0] > 0) screenRenderWait(0);
+   if (draw_needed[TITAN_NBG1] > 0) screenRenderWait(1);
+   if (draw_needed[TITAN_NBG2] > 0) screenRenderWait(2);
+   if (draw_needed[TITAN_NBG3] > 0) screenRenderWait(3);
+   if (draw_needed[TITAN_RBG0] > 0) screenRenderWait(4);
 
-   TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
-   TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
-   TitanRenderFBO(&fbo);
+   if (updated != 0) {
+    TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
+    TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
+    TitanRenderFBO(&fbo);
+   }
 
-   VIDSoftGLESVdp1SwapFrameBuffer();
+   if (vdp1updated == 1)
+    VIDSoftGLESVdp1SwapFrameBuffer();
 
 //VIDSoftGLESDrawSoftwareBuffer();
-
+   if ( updated == 0) {
+      return;
+    }
    YuiSwapBuffers();
 
    if (updateProfiler()) {
@@ -3545,8 +3561,6 @@ static int IsSpriteWindowEnabled(u16 wtcl)
 
 static void VIDSoftGLESVdp2DrawScreens(void)
 {
-   int draw_needed[6] = { 0 };
-   
    VIDSoftGLESVdp2SetResolution(Vdp2Regs->TVMD);
    draw_needed[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
    draw_needed[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
@@ -3665,6 +3679,7 @@ static void VIDSoftGLESVdp1SwapFrameBuffer(void)
       vdp1frontframebuffer = vdp1backframebuffer;
       vdp1backframebuffer = temp;
       Vdp1External.manualchange = 0;
+      vdp1updated = 0;
 
       setupVdp1(((framebuffer *)vdp1backframebuffer)->fbo.fb, ((framebuffer *)vdp1backframebuffer)->priority.fb, ((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
 
