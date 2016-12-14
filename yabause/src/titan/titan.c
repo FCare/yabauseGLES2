@@ -807,6 +807,13 @@ static int back_tex = -1;
 static int sprite_tex = -1;
 static int stencil_tex = -1;
 
+int isNotEmpty(PixelData * buf, int width, int height) {
+   int i = 0;
+   for (i = 0; i < width*height; i++)
+      if (buf[i] != 0) return 1;
+   return 0;
+}
+
 void TitanRenderFBO(gl_fbo *fbo) {
 
    int width = tt_context.vdp2width;
@@ -904,11 +911,10 @@ void TitanRenderFBO(gl_fbo *fbo) {
    {
       for (layer = 0; layer <= TITAN_RBG0; layer++)
       {
-         if (tt_context.layer_priority[layer] > 0 && tt_context.layer_priority[layer] == i)
+         if (tt_context.layer_priority[layer] > 0 && tt_context.layer_priority[layer] == i && (isNotEmpty(tt_context.vdp2framebuffer[layer], width,height) == 1))
             sorted_layers[num_layers++] = layer;
       }
    }
-   
    if( g_VertexSWBuffer == 0 )
    {
 	glGenBuffers(1, &g_VertexSWBuffer);

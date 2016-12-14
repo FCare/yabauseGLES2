@@ -3043,6 +3043,14 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             break;
         }
     }
+    j = 0;
+    if(!isTextured) {
+      for(i=0; i<4; i++) j |= pix[i];
+    } else {
+      for(i=0; i<characterWidth*characterHeight; i++) j |= pix[i];
+    }
+    if (j == 0) return NULL;
+
     curPattern = createCachePattern(param0, param1, param2, characterWidth, characterHeight, tw, th, mesh);
     glGenTextures(1,&curPattern->tex);
     glActiveTexture ( GL_TEXTURE0 );
