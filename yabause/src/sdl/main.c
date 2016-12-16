@@ -63,7 +63,6 @@
 #define WINDOW_WIDTH 600
 #define WINDOW_HEIGHT 600
 
-//#define THROTTLING
 
 M68K_struct * M68KCoreList[] = {
 &M68KDummy,
@@ -351,6 +350,8 @@ void YuiDrawSoftwareBuffer() {
 static unsigned long nextFrameTime = 0;
 static unsigned long delayUs = 1000000/60;
 
+static int frameskip = 1;
+
 static unsigned long getCurrentTimeUs(unsigned long offset) {
     struct timeval s;
 
@@ -411,9 +412,9 @@ void YuiSwapBuffers(void) {
    }  
 #endif
    SDL_GL_SwapWindow(window);
-#ifdef THROTTLING
-  usleep(time_left());
- #endif 
+  if (frameskip == 1)
+    usleep(time_left());
+
   nextFrameTime += delayUs;
 
    //lastFrameTime = getCurrentTimeUs(0);
@@ -621,12 +622,8 @@ int main(int argc, char *argv[]) {
 	    yinit.vidcoretype = VIDCORE_SOFT;
 	 }
          // Auto frame skip
-         else if (strstr(argv[i], "--autoframeskip=")) {
-            int fscount;
-            int fsenable;
-            fscount = sscanf(argv[i] + strlen("--autoframeskip="), "%d", &fsenable);
-            //if (fscount > 0)
-              // yui_window_set_frameskip(YUI_WINDOW(yui), fsenable);
+         else if (strstr(argv[i], "--vsyncoff")) {
+              frameskip = 0;
          }
 	 // Binary
 	 else if (strstr(argv[i], "--binary=")) {
