@@ -853,8 +853,6 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
 
    SetupScreenVars(info, &sinfo, info->PlaneAddr, regs);
 
-   TitanEraseScroll(info->titan_which_layer);
-
    scrolly = info->y;
 
    clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
@@ -1155,8 +1153,6 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
    vdp2rotationparameterfp_struct *p=&parameter[info->rotatenum];
    clipping_struct clip[2];
    u32 linewnd0addr, linewnd1addr;
-
-   TitanEraseScroll(info->titan_which_layer);
 
    clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
    clip[1].xstart = clip[1].ystart = clip[1].xend = clip[1].yend = 0;
@@ -2245,6 +2241,8 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
       vdp1height = 256;
       vdp1pixelsize = 2;
    }
+
+   VIDSoftGLESVdp1EraseFrameBuffer(regs, back_framebuffer);
 
    //night warriors doesn't set clipping most frames and uses
    //the last part of the vdp1 framebuffer as scratch ram
@@ -3699,7 +3697,8 @@ static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer)
 {   
    int i,i2;
    int w,h;
-   if (((regs->FBCR & 2) == 0) || Vdp1External.manualerase)
+   int mode = (regs->FBCR & 3) | (regs->TVMR & 8) >> 1;
+   if ((mode == 0) || (mode == 2) || (mode == 7) || Vdp1External.manualerase)
    {
       h = (regs->EWRR & 0x1FF) + 1;
       if (h > vdp1height) h = vdp1height;
@@ -3730,6 +3729,13 @@ static void VIDSoftGLESVdp1EraseFrameBuffer(Vdp1* regs, u8 * back_framebuffer)
             }
          }
       }
+        glClearColor(0.0, 0.0, 0.0, 0.0);
+        glViewport(0,0,((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->fbo.fb);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, ((framebuffer *)vdp1backframebuffer)->priority.fb);
+        glClear(GL_COLOR_BUFFER_BIT);
+        TitanEraseScroll(TITAN_SPRITE);
       Vdp1External.manualerase = 0;
    }
 }
