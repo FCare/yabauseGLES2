@@ -907,23 +907,25 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
    }
 
-   sorted_layers[num_layers++] = TITAN_BACK;
-
    //pre-sort the layers so it doesn't have to be done per-pixel
-   for (i = 0; i < 8; i++)
+   for (i = 7; i > 0; i--)
    {
-      for (layer = 0; layer <= TITAN_RBG0; layer++)
+      for (layer = TITAN_RBG0; (layer >=0) && (num_layers<=3); layer--)
       {
          if (tt_context.layer_priority[layer] > 0 && tt_context.layer_priority[layer] == i && (isNotEmpty(tt_context.vdp2framebuffer[layer], width,height) == 1))
             sorted_layers[num_layers++] = layer;
       }
    }
+
+   sorted_layers[num_layers++] = TITAN_BACK;
+
+
    if( g_VertexSWBuffer == 0 )
    {
 	glGenBuffers(1, &g_VertexSWBuffer);
    }
 
-   for (j = 0; j < num_layers; j++)
+   for (j = num_layers-1; j >= 0; j--)
    {
 	int bg_layer = sorted_layers[j];
         if (bg_layer == TITAN_BACK) {
