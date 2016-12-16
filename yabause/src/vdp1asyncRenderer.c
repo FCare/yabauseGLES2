@@ -99,8 +99,6 @@ void renderVdp1() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, spritefb);
         glViewport(0,0,width,height);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	prepareSpriteRenderer();
 	while (curList != NULL) {
@@ -111,8 +109,6 @@ void renderVdp1() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, priorityfb);
         glViewport(0,0,width,height);
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	preparePriorityRenderer();
 	while (curList != NULL) {
