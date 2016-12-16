@@ -3586,13 +3586,16 @@ static int IsSpriteWindowEnabled(u16 wtcl)
 
 static void VIDSoftGLESVdp2DrawScreens(void)
 {
+   int enable[5];
+   int i;
+
    VIDSoftGLESVdp2SetResolution(Vdp2Regs->TVMD);
+
    draw_needed[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
    draw_needed[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
    draw_needed[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
    draw_needed[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    draw_needed[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
-
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {
@@ -3602,6 +3605,22 @@ static void VIDSoftGLESVdp2DrawScreens(void)
       draw_needed[TITAN_NBG3] += (Vdp2Regs->SFPRMD >> 6) & 0x3;
       draw_needed[TITAN_RBG0] += (Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
+
+   enable[TITAN_NBG0] = (Vdp2Regs->BGON & 0x1);
+   enable[TITAN_NBG1] = (Vdp2Regs->BGON & 0x2) >> 1;
+   enable[TITAN_NBG2] = (Vdp2Regs->BGON & 0x4) >> 2;
+   enable[TITAN_NBG3] = (Vdp2Regs->BGON & 0x8) >> 3;
+   enable[TITAN_RBG0] = (Vdp2Regs->BGON & 0x10) >> 4;
+
+   draw_needed[TITAN_NBG0] *= (Vdp2Regs->BGON & 0x1);
+   draw_needed[TITAN_NBG1] *= (Vdp2Regs->BGON & 0x2) >> 1;
+   draw_needed[TITAN_NBG2] *= (Vdp2Regs->BGON & 0x4) >> 2;
+   draw_needed[TITAN_NBG3] *= (Vdp2Regs->BGON & 0x8) >> 3;
+   draw_needed[TITAN_RBG0] *= (Vdp2Regs->BGON & 0x10) >> 4;
+
+  for (i =0; i<5; i++) {
+      TitanEraseScroll(i);
+   } 
 
    if (draw_needed[TITAN_NBG0] > 0) screenRenderThread(Vdp2DrawNBG0, 0);
    if (draw_needed[TITAN_NBG1] > 0) screenRenderThread(Vdp2DrawNBG1, 1);

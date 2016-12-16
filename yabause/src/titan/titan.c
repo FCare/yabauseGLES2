@@ -853,10 +853,14 @@ void TitanRenderFBO(gl_fbo *fbo) {
    tt_context.layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    tt_context.layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
+   tt_context.layer_priority[TITAN_NBG0] *= (Vdp2Regs->BGON & 0x1);
+   tt_context.layer_priority[TITAN_NBG1] *= (Vdp2Regs->BGON & 0x2) >> 1;
+   tt_context.layer_priority[TITAN_NBG2] *= (Vdp2Regs->BGON & 0x4) >> 2;
+   tt_context.layer_priority[TITAN_NBG3] *= (Vdp2Regs->BGON & 0x8) >> 3;
+   tt_context.layer_priority[TITAN_RBG0] *= (Vdp2Regs->BGON & 0x10) >> 4;
+
    glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
    glViewport(0,0,fbo->width, fbo->height);
-   glClearColor(0.0, 0.0, 0.0, 0.0);
-   glClear(GL_COLOR_BUFFER_BIT);
 
    if (back_tex == -1) {
 	glGenTextures(1, &back_tex);
