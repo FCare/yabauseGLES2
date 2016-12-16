@@ -3675,7 +3675,8 @@ static void VIDSoftGLESVdp2SetResolution(u16 TVMD)
 
 static void VIDSoftGLESVdp1SwapFrameBuffer(void)
 {
-   if (((Vdp1Regs->FBCR & 2) == 0) || Vdp1External.manualchange)
+   int mode = (Vdp1Regs->TVMR & 0x8) >> 1 | (Vdp1Regs->FBCR & 0x3);
+   if ((mode == 0) || (mode == 3) || (mode == 7) || Vdp1External.manualchange)
    {
 		framebuffer *temp;
 
