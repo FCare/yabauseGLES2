@@ -133,17 +133,8 @@ void prepareSpriteRenderer() {
 
 void drawPattern(Pattern* pattern, GLfloat* vertex, int index){
 	int i;
-	if (pattern->mesh != 0) {
-		glBlendColor(0.0,0.0,0.0,0.5);
-		glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
-	}
   	glBindTexture(GL_TEXTURE_2D, pattern->tex);
   	glDrawArrays(GL_TRIANGLE_FAN, index/5, 4);
-
-	if (pattern->mesh != 0) {
-		glBlendColor(0.0,0.0,0.0,0.0);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
 }
 
 void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int index) {

@@ -2141,8 +2141,8 @@ int VIDSoftGLESInit(void)
    if ((vdp1framebuffer[1]->fb = (u8 *)calloc(sizeof(u8), 0x40000)) == NULL)
       return -1;
 
-   gles20_createFBO(&vdp1framebuffer[0]->fbo, 768, 512, 3);
-   gles20_createFBO(&vdp1framebuffer[1]->fbo, 768, 512, 3);
+   gles20_createFBO(&vdp1framebuffer[0]->fbo, 768, 512, 0);
+   gles20_createFBO(&vdp1framebuffer[1]->fbo, 768, 512, 0);
 
    gles20_createFBO(&vdp1framebuffer[0]->priority, 768, 512, 0);
    gles20_createFBO(&vdp1framebuffer[1]->priority, 768, 512, 0);
@@ -2906,6 +2906,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int param0 = cmd.CMDSRCA << 16 | cmd.CMDCOLR;
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
     int param2 = 0;
+    char alpha = (mesh != 0)?0x7F:0xFF;
 
     param2 = T1ReadByte(ram, (characterAddress + characterHeight*characterWidth/3 + (characterWidth/3 >> 1)) & 0x7FFFF) << 16 | T1ReadByte(ram, (characterAddress + characterHeight*characterWidth*2/3 + (characterWidth*2/3 >> 1)) & 0x7FFFF);
 
@@ -2922,9 +2923,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
         tw = (float)characterWidth/2.0f;
 	th = (float)characterHeight/2.0f;
 	if (untexturedColor & 0x8000)
-		untexturedColor = COLSAT2YAB16(0xFF, untexturedColor);
+		untexturedColor = COLSAT2YAB16(alpha, untexturedColor);
 	else
-		untexturedColor = Vdp2ColorRamGetColor(untexturedColor, Vdp2ColorRam) | (0xFF << 24);
+		untexturedColor = Vdp2ColorRamGetColor(untexturedColor, Vdp2ColorRam) | (alpha << 24);
 	if (colorCalc == 4)
 		gouraudTableAddress = (((unsigned int)cmd.CMDGRDA) << 3);
         for (i=0; i<2 ; i++) {
@@ -2961,12 +2962,15 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+      if (vdp1interlace == 2){
+          patternRow = patternRow/2 + (patternRow%2)*characterHeight/2;
+      }
 			patternLine*=(characterWidth>>1);
 			pix[index] = Vdp1ReadPattern16( characterAddress + patternLine, patternRow , ram) & 0xF;
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (0xFF << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (alpha << 24);
 			else pix[index]  = 0;
       isEmpty |= pix[index];                        
 		    }
@@ -2979,6 +2983,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+      if (vdp1interlace == 2){
+          patternRow = patternRow/2 + (patternRow%2)*characterHeight/2;
+      }
 			patternLine*=(characterWidth>>1);
 			pix[index] = Vdp1ReadPattern16(characterAddress + patternLine, patternRow , ram);
 			if( endcodesEnabled && pix[index] == endcode) {
@@ -2987,9 +2994,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, ((pix[index] & 0xF) * 2 + colorlut) & 0x7FFFF);
 				if (temp & 0x8000) {
-          pix[index] = COLSAT2YAB16(0xFF,temp);
+          pix[index] = COLSAT2YAB16(alpha,temp);
 				} else
-					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (0xFF << 24);
+					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (alpha << 24);
 			} else pix[index]  = 0;
       isEmpty |= pix[index];
 		}
@@ -3002,12 +3009,15 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+      if (vdp1interlace == 2){
+          patternRow = patternRow/2 + (patternRow%2)*characterHeight/2;
+      }
 			patternLine*=characterWidth;
 			pix[index] = Vdp1ReadPattern64(characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (alpha << 24);
 			else pix[index]  = 0;
       isEmpty |= pix[index];
 		    }
@@ -3020,12 +3030,15 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             int index = i*characterWidth+j;
             int patternLine = (flip&0x2)?characterHeight-1-i:i;
             int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+            if (vdp1interlace == 2){
+              patternRow = patternRow/2 + (patternRow%2)*characterHeight/2;
+            }
             patternLine*=characterWidth;
             pix[index] = Vdp1ReadPattern128(characterAddress + patternLine, patternRow , ram);
             if(isTextured && endcodesEnabled && pix[index] == endcode)
               break;
             if ((pix[index]  != 0) || SPD) 
-              pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff80)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
+              pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff80)| (pix[index]& 0xFF), Vdp2ColorRam) | (alpha << 24);
             else pix[index]  = 0;
             isEmpty |= pix[index];
           }
@@ -3039,12 +3052,15 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+      if (vdp1interlace == 2){
+              patternRow = patternRow/2 + (patternRow%2)*characterHeight/2;
+            }
 			patternLine*=characterWidth;
 			pix[index] = Vdp1ReadPattern256( characterAddress + patternLine, patternRow , ram);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (0xFF << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (alpha << 24);
 			else pix[index]  = 0;
       isEmpty |= pix[index];
 		    }
@@ -3058,8 +3074,11 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int index = i*characterWidth+j;
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
+      if (vdp1interlace == 2){
+              patternRow = patternRow/2 + (patternRow%2)*characterHeight/2;
+            }
 			patternLine*=characterWidth*2;
-			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | (0xFF << 24);
+			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | (alpha << 24);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
