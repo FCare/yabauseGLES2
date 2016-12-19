@@ -296,6 +296,7 @@ nextframe:
 dyna_linker:
 	/* eax = virtual target address */
 	/* ebx = instruction to patch */
+	mov	%rdi, %r13
 	mov	%eax, %ecx
 	mov	$1023, %edx
 	shr	$12, %ecx
@@ -363,9 +364,10 @@ dyna_linker:
 	mov	%ecx, hash_table+4(%edi)
 	jmp	*%rdx
 .B8:
-	mov	%eax, %edi
+	mov	%eax, %esi
 	mov	%eax, %ebp /* Note: assumes %rbx and %rbp are callee-saved */
 	mov	%esi, %r12d
+	mov 	%r13, %rdi
 	call	sh2_recompile_block
 	test	%eax, %eax
 	mov	%ebp, %eax
