@@ -341,7 +341,7 @@ void YuiDrawSoftwareBuffer() {
   dest.y = 0;
   dest.w = WINDOW_WIDTH;
   dest.h = WINDOW_HEIGHT;
-   SDL_UpdateTexture(fb,&rect,VIDCore->getFramebuffer(),704*sizeof(pixel_t)/2);
+   SDL_UpdateTexture(fb,&rect,VIDCore->getFramebuffer(),buf_width*sizeof(pixel_t));
    SDL_RenderCopy(rdr,fb,&rect,&dest);
    SDL_RenderPresent(rdr);
 #endif
