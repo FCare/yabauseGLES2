@@ -52,6 +52,7 @@ static GLuint spriteLoc = 0;
 static GLuint layerLoc = 0;
 static GLuint prioLoc = 0;
 static GLuint refPrioLoc = 0;
+
 #endif
 
 struct StencilData{
@@ -695,6 +696,7 @@ void TitanRenderThreads(pixel_t * dispbuffer, int can_use_simplified)
 }
 
 #ifdef _OGLES_
+
 void createGLPrograms(void) {
 
    GLbyte vShaderStr[] =
@@ -719,7 +721,10 @@ void createGLPrograms(void) {
       "{                                                   \n"
       "  vec4 sprite = texture2D( s_texture, s_texCoord );\n"
       "  vec4 back = texture2D( b_texture, v_texCoord );\n"
-      "  gl_FragColor = sprite.a*sprite + (1.0 - sprite.a)*back; \n"
+      "  if (sprite.a >= (1.0/255.0)){\n"
+      "     gl_FragColor = sprite + (1.0 - sprite.a) * back;\n"
+      "  }\n"
+      "  else gl_FragColor = back;\n"
       "}                                                   \n";
 
    GLbyte vShaderGPrioStr[] =
@@ -747,13 +752,15 @@ void createGLPrograms(void) {
       "  vec4 prio = texture2D( priority, s_texCoord );\n"  
       "  vec4 spritepix = texture2D( sprite, s_texCoord );\n"
       "  vec4 layerpix = texture2D( layer, v_texCoord );\n" 
-      "  if ((prio.a*255.0 + 0.5) >= layerpriority) {\n"
+      "  if (prio.r >= layerpriority) {\n"
       "        if (spritepix.a >= (1.0/255.0))\n"
-      "            gl_FragColor = spritepix.a*spritepix + (1.0 - spritepix.a)*layerpix; \n"
+      "            gl_FragColor = spritepix;\n"
+      "        if ((layerpix.r >= (1.0/255.0)) || (layerpix.g >= (1.0/255.0)) || (layerpix.b >= (1.0/255.0)))\n"
+      "             gl_FragColor += (1.0 - spritepix.a) * layerpix;\n"
       "        else discard;\n"
       "  } else {;\n"
-      "        if (layerpix.a >= (1.0/255.0))\n"
-      "             gl_FragColor = layerpix.a*layerpix + (1.0 - layerpix.a)*spritepix;\n"
+      "        if ((layerpix.r >= (1.0/255.0)) || (layerpix.g >= (1.0/255.0)) || (layerpix.b >= (1.0/255.0)))\n"
+      "             gl_FragColor = layerpix;\n"
       "        else discard;\n"
       "  }\n"
       "}                                                   \n";
@@ -851,10 +858,14 @@ void TitanRenderFBO(gl_fbo *fbo) {
    tt_context.layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    tt_context.layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
 
+   tt_context.layer_priority[TITAN_NBG0] *= (Vdp2Regs->BGON & 0x1);
+   tt_context.layer_priority[TITAN_NBG1] *= (Vdp2Regs->BGON & 0x2) >> 1;
+   tt_context.layer_priority[TITAN_NBG2] *= (Vdp2Regs->BGON & 0x4) >> 2;
+   tt_context.layer_priority[TITAN_NBG3] *= (Vdp2Regs->BGON & 0x8) >> 3;
+   tt_context.layer_priority[TITAN_RBG0] *= (Vdp2Regs->BGON & 0x10) >> 4;
+
    glBindFramebuffer(GL_FRAMEBUFFER, fbo->fb);
    glViewport(0,0,fbo->width, fbo->height);
-   glClearColor(0.0, 0.0, 0.0, 0.0);
-   glClear(GL_COLOR_BUFFER_BIT);
 
    if (back_tex == -1) {
 	glGenTextures(1, &back_tex);
@@ -919,6 +930,8 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	glGenBuffers(1, &g_VertexSWBuffer);
    }
 
+   glClear(GL_COLOR_BUFFER_BIT);
+   glEnable(GL_BLEND);
    for (j = num_layers-1; j >= 0; j--)
    {
 	int bg_layer = sorted_layers[j];
@@ -967,7 +980,7 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	    glUniform1i(layerLoc, 0);
 	    glUniform1i(spriteLoc, 1);
 	    glUniform1i(prioLoc, 2);
-	    glUniform1f(refPrioLoc, (float)(tt_context.layer_priority[bg_layer]));
+	    glUniform1f(refPrioLoc, (float)(tt_context.layer_priority[bg_layer])/8.0f);
 	    glBindBuffer(GL_ARRAY_BUFFER, g_VertexSWBuffer);
 	    glBufferData(GL_ARRAY_BUFFER, sizeof(swVertices),swVertices,GL_STATIC_DRAW);
 	    glVertexAttribPointer ( posGPrioLoc, 2, GL_FLOAT,  GL_FALSE, 6 * sizeof(GLfloat), 0 );
@@ -979,6 +992,7 @@ void TitanRenderFBO(gl_fbo *fbo) {
 	    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	}
    }
+   glDisable(GL_BLEND);
 }
 #endif
 

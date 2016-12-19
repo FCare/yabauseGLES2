@@ -108,6 +108,9 @@ static void VIDSoftGLESVdp2DispOff(void);
 static int VidSoftGLESgetDevFbo(void);
 static pixel_t* VidSoftGLESgetFramebuffer(void);
 
+static int draw_needed[6] = { 0 };
+static int vdp1updated = 0;
+
 VideoInterface_struct VIDSoftGLES = {
 VIDCORE_OGLES,
 "Software Video Interface",
@@ -842,7 +845,7 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
    int scrolly;
    int *mosaic_y, *mosaic_x;
    clipping_struct colorcalcwindow[2];
-   int start_line = 0, line_increment = 0;
+   int start_line = 0, line_increment = 1;
    int bad_cycle = bad_cycle_setting[info->titan_which_layer];
    int charaddr, paladdr;
    int output_y = 0;
@@ -2122,7 +2125,7 @@ int VIDSoftGLESInit(void)
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_NBG0, screenRenderThread3, NULL);
       YabThreadStart(YAB_THREAD_VIDSOFT_LAYER_RBG0, screenRenderThread4, NULL);
  
-   gles20_createFBO(&fbo, 320, 256, 0);
+   gles20_createFBO(&fbo, 320, 256, 3);
 
    // Initialize VDP1 framebuffer 1
    if ((vdp1framebuffer[0] = (framebuffer *)calloc(sizeof(framebuffer), 1)) == NULL)
@@ -2252,6 +2255,7 @@ void VIDSoftGLESVdp1DrawStartBody(Vdp1* regs, u8 * back_framebuffer)
 
 void VIDSoftGLESVdp1DrawStart()
 {
+      addVdp1Renderer(VDP1START);
       VIDSoftGLESVdp1DrawStartBody(Vdp1Regs, vdp1backframebuffer);
       Vdp1DrawCommands(Vdp1Ram, Vdp1Regs, vdp1backframebuffer);
 }
@@ -2260,6 +2264,7 @@ void VIDSoftGLESVdp1DrawStart()
 
 void VIDSoftGLESVdp1DrawEnd(void)
 {
+     addVdp1Renderer(VDP1STOP);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2901,6 +2906,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
     int param0 = cmd.CMDSRCA << 16 | cmd.CMDCOLR;
     int param1 = cmd.CMDPMOD << 16 | cmd.CMDCTRL;
     int param2 = 0;
+    char alpha = (mesh != 0)?0x7F:0xFF;
 
     param2 = T1ReadByte(ram, (characterAddress + characterHeight*characterWidth/3 + (characterWidth/3 >> 1)) & 0x7FFFF) << 16 | T1ReadByte(ram, (characterAddress + characterHeight*characterWidth*2/3 + (characterWidth*2/3 >> 1)) & 0x7FFFF);
 
@@ -2917,9 +2923,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
         tw = (float)characterWidth/2.0f;
 	th = (float)characterHeight/2.0f;
 	if (untexturedColor & 0x8000)
-		untexturedColor = COLSAT2YAB16(0xFF, untexturedColor);
+		untexturedColor = COLSAT2YAB16(alpha, untexturedColor);
 	else
-		untexturedColor = Vdp2ColorRamGetColor(untexturedColor, Vdp2ColorRam) | (0xFF << 24);
+		untexturedColor = Vdp2ColorRamGetColor(untexturedColor, Vdp2ColorRam) | (alpha << 24);
 	if (colorCalc == 4)
 		gouraudTableAddress = (((unsigned int)cmd.CMDGRDA) << 3);
         for (i=0; i<2 ; i++) {
@@ -2961,7 +2967,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (0xFF << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xfff0)| pix[index], Vdp2ColorRam) | (alpha << 24);
 			else pix[index]  = 0;
       isEmpty |= pix[index];                        
 		    }
@@ -2982,9 +2988,9 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if ((pix[index]  != 0) || SPD) {
 				u32 temp = T1ReadWord(Vdp1Ram, ((pix[index] & 0xF) * 2 + colorlut) & 0x7FFFF);
 				if (temp & 0x8000) {
-          pix[index] = COLSAT2YAB16(0xFF,temp);
+          pix[index] = COLSAT2YAB16(alpha,temp);
 				} else
-					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (0xFF << 24);
+					pix[index] =  Vdp2ColorRamGetColor(temp, Vdp2ColorRam) | (alpha << 24);
 			} else pix[index]  = 0;
       isEmpty |= pix[index];
 		}
@@ -3002,7 +3008,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index]  != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xffc0)| (pix[index]& 0xFF), Vdp2ColorRam) | (alpha << 24);
 			else pix[index]  = 0;
       isEmpty |= pix[index];
 		    }
@@ -3020,7 +3026,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
             if(isTextured && endcodesEnabled && pix[index] == endcode)
               break;
             if ((pix[index]  != 0) || SPD) 
-              pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff80)| (pix[index]& 0xFF), Vdp2ColorRam) | (0xFF << 24);
+              pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff80)| (pix[index]& 0xFF), Vdp2ColorRam) | (alpha << 24);
             else pix[index]  = 0;
             isEmpty |= pix[index];
           }
@@ -3039,7 +3045,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
-				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (0xFF << 24);
+				pix[index]  = Vdp2ColorRamGetColor((colorbank &0xff00)| (pix[index] & 0xFF), Vdp2ColorRam) | (alpha << 24);
 			else pix[index]  = 0;
       isEmpty |= pix[index];
 		    }
@@ -3054,7 +3060,7 @@ Pattern* getPattern(vdp1cmd_struct cmd, u8* ram) {
 			int patternLine = (flip&0x2)?characterHeight-1-i:i;
 			int patternRow = (flip & 0x1)?characterWidth-1-j:j;
 			patternLine*=characterWidth*2;
-			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | (0xFF << 24);
+			pix[index] = Vdp1ReadPattern64k( characterAddress + patternLine, patternRow , ram) | (alpha << 24);
 			if(isTextured && endcodesEnabled && pix[index] == endcode)
 				break;
 			if ((pix[index] != 0) || SPD) 
@@ -3206,6 +3212,7 @@ void VIDSoftGLESVdp1ScaledSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer
 			xd, yd, 0.0, pattern->th, 1.0f};
 
 	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
+  vdp1updated = 1;
 }
 
 void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuffer) {
@@ -3251,6 +3258,7 @@ void VIDSoftGLESVdp1NormalSpriteDrawGL(u8 * ram, Vdp1 * regs, u8 * back_framebuf
 			xd, yd, 0.0, pattern->th, 1.0f};
 
 	addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
+  vdp1updated = 1;
 }
 
 void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuffer) {
@@ -3308,6 +3316,7 @@ void VIDSoftGLESVdp1DistortedSpriteDrawGL(u8* ram, Vdp1*regs, u8 * back_framebuf
 			xd, yd, 0.0, u4*pattern->th, u4}; 
 
     addToVdp1Renderer(pattern, VDP1QUAD, quadVertices, 20, (Vdp2Regs->PRISA & 0x7));
+    vdp1updated = 1;
 }
 
 static void gouraudLineSetup(double * redstep, double * greenstep, double * bluestep, int length, COLOR table1, COLOR table2, u8* ram, Vdp1* regs, vdp1cmd_struct * cmd, u8 * back_framebuffer) {
@@ -3478,7 +3487,6 @@ void VIDSoftGLESVdp1WriteFrameBuffer(u32 type, u32 addr, u32 val)
 
 int VIDSoftGLESVdp2Reset(void)
 {
-
    return 0;
 }
 
@@ -3487,6 +3495,12 @@ int VIDSoftGLESVdp2Reset(void)
 void VIDSoftGLESVdp2DrawStart(void)
 {
    int titanblendmode = TITAN_BLEND_TOP;
+
+   draw_needed[TITAN_NBG0] = 0;
+   draw_needed[TITAN_NBG1] = 0;
+   draw_needed[TITAN_NBG2] = 0;
+   draw_needed[TITAN_NBG3] = 0;
+   draw_needed[TITAN_RBG0] = 0;
 
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 glEnable(GL_BLEND);
@@ -3516,21 +3530,27 @@ glEnable(GL_BLEND);
 
 void VIDSoftGLESVdp2DrawEnd(void)
 {
+   int updated = vdp1updated | draw_needed[TITAN_NBG0] | draw_needed[TITAN_NBG1] | draw_needed[TITAN_NBG2] | draw_needed[TITAN_NBG3] | draw_needed[TITAN_RBG0];
 
-   screenRenderWait(0);
-   screenRenderWait(1);
-   screenRenderWait(2);
-   screenRenderWait(3);
-   screenRenderWait(4);
+   if (draw_needed[TITAN_NBG0] > 0) screenRenderWait(0);
+   if (draw_needed[TITAN_NBG1] > 0) screenRenderWait(1);
+   if (draw_needed[TITAN_NBG2] > 0) screenRenderWait(2);
+   if (draw_needed[TITAN_NBG3] > 0) screenRenderWait(3);
+   if (draw_needed[TITAN_RBG0] > 0) screenRenderWait(4);
 
-   TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
-   TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
-   TitanRenderFBO(&fbo);
+   if (updated != 0) {
+    TitanSetVdp2Fbo(vdp1frontframebuffer->fbo.fb, TITAN_SPRITE);
+    TitanSetVdp2Priority(vdp1frontframebuffer->priority.fb, TITAN_SPRITE);
+    TitanRenderFBO(&fbo);
+   }
 
-   VIDSoftGLESVdp1SwapFrameBuffer();
+   if (vdp1updated == 1)
+    VIDSoftGLESVdp1SwapFrameBuffer();
 
 //VIDSoftGLESDrawSoftwareBuffer();
-
+   if ( updated == 0) {
+      return;
+    }
    YuiSwapBuffers();
 
    if (updateProfiler()) {
@@ -3564,15 +3584,16 @@ static int IsSpriteWindowEnabled(u16 wtcl)
 
 static void VIDSoftGLESVdp2DrawScreens(void)
 {
-   int draw_needed[6] = { 0 };
-   
+   int enable[5];
+   int i;
+
    VIDSoftGLESVdp2SetResolution(Vdp2Regs->TVMD);
+
    draw_needed[TITAN_NBG0] = Vdp2Regs->PRINA & 0x7;
    draw_needed[TITAN_NBG1] = ((Vdp2Regs->PRINA >> 8) & 0x7);
    draw_needed[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
    draw_needed[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    draw_needed[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
-
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {
@@ -3582,6 +3603,22 @@ static void VIDSoftGLESVdp2DrawScreens(void)
       draw_needed[TITAN_NBG3] += (Vdp2Regs->SFPRMD >> 6) & 0x3;
       draw_needed[TITAN_RBG0] += (Vdp2Regs->SFPRMD >> 8) & 0x3;
    }
+
+   enable[TITAN_NBG0] = (Vdp2Regs->BGON & 0x1);
+   enable[TITAN_NBG1] = (Vdp2Regs->BGON & 0x2) >> 1;
+   enable[TITAN_NBG2] = (Vdp2Regs->BGON & 0x4) >> 2;
+   enable[TITAN_NBG3] = (Vdp2Regs->BGON & 0x8) >> 3;
+   enable[TITAN_RBG0] = (Vdp2Regs->BGON & 0x10) >> 4;
+
+   draw_needed[TITAN_NBG0] *= (Vdp2Regs->BGON & 0x1);
+   draw_needed[TITAN_NBG1] *= (Vdp2Regs->BGON & 0x2) >> 1;
+   draw_needed[TITAN_NBG2] *= (Vdp2Regs->BGON & 0x4) >> 2;
+   draw_needed[TITAN_NBG3] *= (Vdp2Regs->BGON & 0x8) >> 3;
+   draw_needed[TITAN_RBG0] *= (Vdp2Regs->BGON & 0x10) >> 4;
+
+  for (i =0; i<5; i++) {
+      TitanEraseScroll(i);
+   } 
 
    if (draw_needed[TITAN_NBG0] > 0) screenRenderThread(Vdp2DrawNBG0, 0);
    if (draw_needed[TITAN_NBG1] > 0) screenRenderThread(Vdp2DrawNBG1, 1);
@@ -3680,15 +3717,13 @@ static void VIDSoftGLESVdp1SwapFrameBuffer(void)
    {
 		framebuffer *temp;
 
-      renderVdp1();
-
       temp = vdp1frontframebuffer;
       vdp1frontframebuffer = vdp1backframebuffer;
       vdp1backframebuffer = temp;
       Vdp1External.manualchange = 0;
+      vdp1updated = 0;
 
       setupVdp1(((framebuffer *)vdp1backframebuffer)->fbo.fb, ((framebuffer *)vdp1backframebuffer)->priority.fb, ((framebuffer *)vdp1backframebuffer)->fbo.width, ((framebuffer *)vdp1backframebuffer)->fbo.height);
-
    }
 }
 

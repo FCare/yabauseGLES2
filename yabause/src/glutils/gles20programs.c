@@ -35,7 +35,7 @@ void createPriorityProgram() {
       "{                                                   \n"
       "  vec4 color = texture2D( s_texture, v_texCoord.xy/v_texCoord.z);\n"  
       "  if (color.a < 0.1) discard;\n" 
-      "  gl_FragColor.a = u_priority;\n"
+      "  gl_FragColor.r = u_priority;\n"
       "}                                                   \n";
    if (priorityProgram > 0) return;
    priorityProgram = gles20_createProgram (vShaderPriorityStr, fShaderPriorityStr);
@@ -92,17 +92,28 @@ void createPatternProgram() {
    // Get the sampler location
    samplerLoc = glGetUniformLocation ( patternObject, "s_texture" );
 
-   if (vertexSWBuffer == -1) 
+   if (vertexSWBuffer == -1) {
        glGenBuffers(1, &vertexSWBuffer);
+       glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+       glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),NULL,GL_DYNAMIC_DRAW);
+    }
 }
+
+void updateRendererVertex(GLfloat *vert, int size) {
+    glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
+    glBufferData(GL_ARRAY_BUFFER, size*sizeof(GLfloat),vert,GL_STATIC_DRAW);
+}
+
 void preparePriorityRenderer(){
 	glDisable(GL_BLEND);
     	glUseProgram(priorityProgram);
 	glUniform1i(prioSamplerLoc, 0);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
 
-    	if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
-    	if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+  if (prioPositionLoc >= 0) glEnableVertexAttribArray ( prioPositionLoc );
+  if (prioTexCoordLoc >= 0) glEnableVertexAttribArray ( prioTexCoordLoc );
+  if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+  if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 	glActiveTexture ( GL_TEXTURE0 );
 }
 
@@ -112,40 +123,22 @@ void prepareSpriteRenderer() {
 	glUniform1i(samplerLoc, 0);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexSWBuffer);
 
+
 	if (positionLoc >= 0) glEnableVertexAttribArray ( positionLoc );
-    	if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+  if (texCoordLoc >= 0) glEnableVertexAttribArray ( texCoordLoc );
+  if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
+  if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
 	glActiveTexture ( GL_TEXTURE0 );
 }
 
-void drawPattern(Pattern* pattern, GLfloat* vertex){
+void drawPattern(Pattern* pattern, GLfloat* vertex, int index){
 	int i;
-	if (pattern->mesh != 0) {
-		glBlendColor(0.0,0.0,0.0,0.5);
-		glBlendFunc(GL_CONSTANT_ALPHA, GL_ONE_MINUS_CONSTANT_ALPHA);
-	}
-	
-    	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
-    	if (positionLoc >= 0) glVertexAttribPointer ( positionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    	if (texCoordLoc >= 0) glVertexAttribPointer ( texCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
-
-    	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-
-    	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-	if (pattern->mesh != 0) {
-		glBlendColor(0.0,0.0,0.0,0.0);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
+  	glBindTexture(GL_TEXTURE_2D, pattern->tex);
+  	glDrawArrays(GL_TRIANGLE_FAN, index/5, 4);
 }
 
-void drawPriority(Pattern* pattern, GLfloat* vertex, int priority) {
-    	glBufferData(GL_ARRAY_BUFFER, 20*sizeof(GLfloat),vertex,GL_STATIC_DRAW);
-
-    	if (prioPositionLoc >= 0) glVertexAttribPointer ( prioPositionLoc, 2, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), 0 );
-    	if (prioTexCoordLoc >= 0) glVertexAttribPointer ( prioTexCoordLoc, 3, GL_FLOAT,  GL_FALSE, 5 * sizeof(GLfloat), (void*)(sizeof(GLfloat)*2) );
-
-
+void drawPriority(Pattern* pattern, GLfloat* vertex, int priority, int index) {
     	glBindTexture(GL_TEXTURE_2D, pattern->tex);
-    	glUniform1f(prioValueLoc, priority/255.0f);
-    	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    	glUniform1f(prioValueLoc, ((float)priority+ 0.5f)/8.0f);
+    	glDrawArrays(GL_TRIANGLE_FAN, index/5, 4);
 }

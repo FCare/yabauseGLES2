@@ -63,7 +63,6 @@ void TitanRenderFBO(gl_fbo *fbo);
 void TitanSetVdp2Fbo(int fb, int nb);
 void TitanSetVdp2Priority(int fb, int nb);
 #endif
-
 void TitanRender(pixel_t * dispbuffer);
 
 void TitanWriteColor(pixel_t * dispbuffer, s32 bufwidth, s32 x, s32 y, u32 color);

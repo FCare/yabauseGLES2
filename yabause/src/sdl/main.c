@@ -409,6 +409,7 @@ void YuiSwapBuffers(void) {
 
    if (( VIDCore->getDevFbo!= NULL) && (VIDCore->getDevFbo() != -1)) {
        DrawDevFBO();
+   }  
 #endif
    SDL_GL_SwapWindow(window);
   if (frameskip == 1)
