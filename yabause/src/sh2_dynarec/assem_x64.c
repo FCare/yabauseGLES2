@@ -3257,7 +3257,7 @@ void do_writestub(SH2_struct *context, int n)
   emit_jmp(stubs[n][2]); // return address
 }
 
-void inline_writestub(int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
+void inline_writestub(SH2_struct *context, int type, int i, u32 addr, signed char regmap[], int target, int adj, u32 reglist)
 {
   int rt = 0;
   assem_debug("inline_writestub\n");
@@ -3267,8 +3267,9 @@ void inline_writestub(int type, int i, u32 addr, signed char regmap[], int targe
   assert(rt>=0);
   save_regs(reglist);
   // "FASTCALL" api: address in eax, data in edx
-  if(rt!=ESI) emit_mov(rt,ESI);
-  emit_movimm(addr,EDI); // FIXME - should be able to move the existing value
+  emit_movimm64((u64)context, EDI);
+  if(rt!=ESI) emit_mov(rt,EDX);
+  emit_movimm(addr,ESI); // FIXME - should be able to move the existing value
   if(type==STOREB_STUB)
     emit_call((int)WriteInvalidateByte);
   if(type==STOREW_STUB)
@@ -3366,13 +3367,6 @@ void do_rmwstub(int n)
     emit_cmpimm(12,1);
     emit_adcimm(0,sr);
   }
-  emit_jmp(stubs[n][2]); // return address
-}
-
-void do_unalignedwritestub(int n)
-{
-  set_jump_target(stubs[n][1],(int)out);
-  output_byte(0xCC);
   emit_jmp(stubs[n][2]); // return address
 }
 
