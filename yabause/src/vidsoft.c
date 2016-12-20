@@ -844,8 +844,6 @@ static void FASTCALL Vdp2DrawScroll(vdp2draw_struct *info, Vdp2* lines, Vdp2* re
    float lineszoom_table[512] = { 0 };
    int num_vertical_cell_scroll_enabled = 0;
 
-   TitanEraseScroll(info->titan_which_layer);
-
    SetupScreenVars(info, &sinfo, info->PlaneAddr, regs);
 
    scrolly = info->y;
@@ -1144,8 +1142,6 @@ static void FASTCALL Vdp2DrawRotationFP(vdp2draw_struct *info, vdp2rotationparam
    vdp2rotationparameterfp_struct *p=&parameter[info->rotatenum];
    clipping_struct clip[2];
    u32 linewnd0addr, linewnd1addr;
-
-   TitanEraseScroll(info->titan_which_layer);
 
    clip[0].xstart = clip[0].ystart = clip[0].xend = clip[0].yend = 0;
    clip[1].xstart = clip[1].ystart = clip[1].xend = clip[1].yend = 0;
@@ -3978,6 +3974,8 @@ void VIDSoftVdp2DrawScreens(void)
    layer_priority[TITAN_NBG2] = (Vdp2Regs->PRINB & 0x7);
    layer_priority[TITAN_NBG3] = ((Vdp2Regs->PRINB >> 8) & 0x7);
    layer_priority[TITAN_RBG0] = (Vdp2Regs->PRIR & 0x7);
+
+   TitanErase();
 
    if (Vdp2Regs->SFPRMD & 0x3FF)
    {
