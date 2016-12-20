@@ -3015,7 +3015,7 @@ void restore_regs(u32 reglist)
 
 /* Stubs/epilogue */
 
-void emit_extjump(SH2_struct *context, pointer addr, int target)
+void emit_extjump(pointer addr, int target)
 {
   u8 *ptr=(u8 *)addr;
   if(*ptr==0x0f)
@@ -3041,7 +3041,6 @@ void emit_extjump(SH2_struct *context, pointer addr, int target)
   emit_writeword(ECX,(int)&last_count);
 #endif
 //DEBUG <
-  emit_movimm64((u64)context, EDI);
   emit_jmp((pointer)dyna_linker);
 }
 
@@ -3185,9 +3184,9 @@ void inline_readstub(int type, int i, u32 addr, signed char regmap[], int target
   restore_regs(reglist);
 }
 
-void do_writestub(SH2_struct *context, int n)
+void do_writestub(int n)
 {
-  int type = 0, i = 0, rs = 0, addr = 0, rt = 0, ctx = (int)context;
+  int type = 0, i = 0, rs = 0, addr = 0, rt = 0;
   struct regstat *i_regs = NULL;
   signed char *i_regmap = NULL;
   u32 reglist = 0;
@@ -3206,23 +3205,21 @@ void do_writestub(SH2_struct *context, int n)
   if(addr<0) addr=get_reg(i_regmap,-1);
   assert(addr>=0);
   save_regs(reglist);
-  // "FASTCALL" api: context in edi, address in esi, data in edx
   // "FASTCALL" api: address in edi, data in esi
-  emit_movimm64((u64)context, EDI);
-  if(rs!=ESI) {
-    if(rt==ESI) {
-      if(rs==EDX) emit_xchg(ESI,EDX);
+  if(rs!=EDI) {
+    if(rt==EDI) {
+      if(rs==ESI) emit_xchg(EDI,ESI);
       else {
-        emit_mov(rt,EDX);
-        emit_mov(rs,ESI);
+        emit_mov(rt,ESI);
+        emit_mov(rs,EDI);
       }
     }
     else {
-      emit_mov(rs,ESI);
-      if(rt!=EDX) emit_mov(rt,EDX);
+      emit_mov(rs,EDI);
+      if(rt!=ESI) emit_mov(rt,ESI);
     }
   }
-  else if(rt!=EDX) emit_mov(rt,EDX);
+  else if(rt!=ESI) emit_mov(rt,ESI);
   //if(type==STOREB_STUB) emit_xorimm(EAX,1,EAX); // WriteInvalidateByteSwapped does this
   
   /*int temp;
