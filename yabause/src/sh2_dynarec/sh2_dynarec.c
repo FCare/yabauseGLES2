@@ -219,8 +219,8 @@ struct ll_entry
 #define NODS 3
 
 // asm linkage
-int sh2_recompile_block(SH2_struct *context, int addr);
-void *get_addr_ht(SH2_struct *context, u32 vaddr);
+int sh2_recompile_block(int addr);
+void *get_addr_ht(u32 vaddr);
 void get_bounds(pointer addr,u32 *start,u32 *end);
 void invalidate_addr(u32 addr);
 void remove_hash(int vaddr);
@@ -258,7 +258,7 @@ void nullf(const char *format, ...) {}
 
 // Get address from virtual address
 // This is called from the recompiled BRAF/BSRF instructions
-void *get_addr(SH2_struct *context, u32 vaddr)
+void *get_addr(u32 vaddr)
 {
   struct ll_entry *head;
   u32 page=(vaddr&0xDFFFFFFF)>>12;
@@ -337,11 +337,11 @@ void *get_addr(SH2_struct *context, u32 vaddr)
     }
     head=head->next;
   }
-  sh2_recompile_block(context, vaddr);
-  return get_addr(context, vaddr);
+  sh2_recompile_block(vaddr);
+  return get_addr(vaddr);
 }
 // Look up address in hash table first
-void *get_addr_ht(SH2_struct *context, u32 vaddr)
+void *get_addr_ht(u32 vaddr)
 {
   //printf("TRACE: count=%d next=%d (get_addr_ht %x)\n",Count,next_interupt,vaddr);
   //if(vaddr>>12==0x60a0) printf("TRACE: (get_addr_ht %x)\n",vaddr);
@@ -349,7 +349,7 @@ void *get_addr_ht(SH2_struct *context, u32 vaddr)
   //if(vaddr>>12==0x60a0) printf("%x %x %x %x\n",ht_bin[0],ht_bin[1],ht_bin[2],ht_bin[3]);
   if(ht_bin[0]==vaddr) return (void *)ht_bin[1];
   if(ht_bin[2]==vaddr) return (void *)ht_bin[3];
-  return get_addr(context, vaddr);
+  return get_addr(vaddr);
 }
 
 void clear_all_regs(signed char regmap[])
@@ -5322,7 +5322,7 @@ void sh2_dynarec_cleanup()
   for(n=0;n<2048;n++) ll_clear(jump_dirty+n);
 }
 
-int sh2_recompile_block(SH2_struct *context, int addr)
+int sh2_recompile_block(int addr)
 {
   pointer beginning;
   int hr;
@@ -8180,7 +8180,7 @@ void DynarecMasterHandleInterrupts()
     master_reg[SR] &= 0xFFFFFF0F;
     master_reg[SR] |= (MSH2->interrupts[MSH2->NumberOfInterrupts-1].level)<<4;
     master_pc = MappedMemoryReadLongNocache(MSH2, master_reg[VBR] + (MSH2->interrupts[MSH2->NumberOfInterrupts-1].vector << 2));
-    master_ip = get_addr_ht(MSH2, master_pc);
+    master_ip = get_addr_ht(master_pc);
     MSH2->NumberOfInterrupts--;
     MSH2->isIdle = 0;
     MSH2->isSleeping = 0;
@@ -8201,7 +8201,7 @@ void DynarecSlaveHandleInterrupts()
     slave_reg[SR] &= 0xFFFFFF0F;
     slave_reg[SR] |= (SSH2->interrupts[SSH2->NumberOfInterrupts-1].level)<<4;
     slave_pc = MappedMemoryReadLongNocache(SSH2, slave_reg[VBR] + (SSH2->interrupts[SSH2->NumberOfInterrupts-1].vector << 2));
-    slave_ip = get_addr_ht(SSH2, slave_pc|1);
+    slave_ip = get_addr_ht(slave_pc|1);
     SSH2->NumberOfInterrupts--;
     SSH2->isIdle = 0;
     SSH2->isSleeping = 0;
@@ -8333,11 +8333,11 @@ void SH2DynarecSetPC(SH2_struct *context, u32 value) {
   //printf("SH2DynarecSetPC(%s,%x)\n",(context==MSH2)?"master":"slave",value);
   if(context==MSH2) {
     master_pc=value;
-    master_ip=get_addr_ht(context, value);
+    master_ip=get_addr_ht(value);
   }
   else {
     slave_pc=value;
-    slave_ip=get_addr_ht(context, value+1);
+    slave_ip=get_addr_ht(value+1);
   }
 }
 
