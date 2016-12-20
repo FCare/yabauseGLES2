@@ -29,7 +29,7 @@ YabauseDynarecOneFrameExec:
 /* (arg2/esi - m68kcenticycles) */
 	push	%rbp
 	mov	%rsp, %rbp
-	movabs	master_ip, %rax
+	mov	master_ip, %rax
 	xor	%ecx, %ecx
 	push	%rbx
 	push	%r12
@@ -74,8 +74,8 @@ YabauseDynarecOneFrameExec:
 newline:
 /* const u32 decilinecycles = yabsys.DecilineStop >> YABSYS_TIMING_BITS; */
 /* const u32 cyclesinc = yabsys.DecilineStop * 10; */
-	movabs	decilinestop_p, %rax
-	mov	yabsys_timing_bits@GOTPCREL(%rip), %ecx
+	mov	decilinestop_p, %rax
+	mov	yabsys_timing_bits, %ecx
 	mov	(%rax), %eax
 	lea	(%eax,%eax,4), %ebx /* decilinestop*5 */
 	shr	%cl, %eax /* decilinecycles */
@@ -84,8 +84,8 @@ newline:
         /* yabsys.SH2CycleFrac += cyclesinc;*/
         /* sh2cycles = (yabsys.SH2CycleFrac >> (YABSYS_TIMING_BITS + 1)) << 1;*/
         /* yabsys.SH2CycleFrac &= ((YABSYS_TIMING_MASK << 1) | 1);*/
-	mov	SH2CycleFrac_p@GOTPCREL(%rip), %rsi
-	mov	yabsys_timing_mask@GOTPCREL(%rip), %edi
+	mov	SH2CycleFrac_p, %rsi
+	mov	yabsys_timing_mask, %edi
 	inc	%ecx /* yabsys_timing_bits+1 */
 	add	(%rsi), %ebx /* SH2CycleFrac */
 	stc
@@ -96,13 +96,13 @@ newline:
 	shr	%cl, %ebx
 	mov	%ebx, -56(%rbp) /* scucycles */
 	add	%ebx, %ebx /* sh2cycles */
-	mov	MSH2@GOTPCREL(%rip), %rax
-	mov	NumberOfInterruptsOffset@GOTPCREL(%rip), %ecx
+	mov	MSH2, %rax
+	mov	NumberOfInterruptsOffset, %ecx
 	sub	%edx, %ebx  /* sh2cycles(full line) - decilinecycles*9 */
 	mov	%ebx, -52(%rbp) /* sh2cycles */
 	cmp	$0, (%rax, %rcx)
 	jne	master_handle_interrupts
-	mov	master_cc@GOTPCREL(%rip), %esi
+	mov	master_cc, %esi
 	sub	%ebx, %esi
 	ret	/* jmp master_ip */
 	.size	YabauseDynarecOneFrameExec, .-YabauseDynarecOneFrameExec
@@ -111,10 +111,10 @@ newline:
 	.type	master_handle_interrupts, @function
 master_handle_interrupts:
 	mov	-80(%rbp), %rax /* get return address */
-	movabs	%rax, master_ip
+	mov	%rax, master_ip
 	call	DynarecMasterHandleInterrupts
-	movabs	master_ip, %rax
-	mov	master_cc@GOTPCREL(%rip), %esi
+	mov	master_ip, %rax
+	mov	master_cc, %esi
 	mov	%rax,-80(%rbp) /* overwrite return address */
 	sub	%ebx, %esi
 	ret	/* jmp master_ip */
@@ -124,19 +124,19 @@ master_handle_interrupts:
 	.type	slave_entry, @function
 slave_entry:
 	mov	28(%rsp), %ebx /* sh2cycles */
-	mov	%esi, master_cc@GOTPCREL(%rip)
+	mov	%esi, master_cc
 	mov	%ebx, %edi
 	call	FRTExec
 	mov	%ebx, %edi
 	call	WDTExec
-	mov	slave_ip@GOTPCREL(%rip), %rdx
+	mov	slave_ip, %rdx
 	test	%edx, %edx
 	je	cc_interrupt_master /* slave not running */
-	movabs	SSH2, %rax
-	mov	NumberOfInterruptsOffset@GOTPCREL(%rip), %ecx
+	mov	SSH2, %rax
+	mov	NumberOfInterruptsOffset, %ecx
 	cmp	$0, (%rax, %rcx)
 	jne	slave_handle_interrupts
-	mov	slave_cc@GOTPCREL(%rip), %esi
+	mov	slave_cc, %esi
 	sub	%ebx, %esi
 	jmp	*%rdx /* jmp *slave_ip */
 	.size	slave_entry, .-slave_entry
@@ -145,8 +145,8 @@ slave_entry:
 	.type	slave_handle_interrupts, @function
 slave_handle_interrupts:
 	call	DynarecSlaveHandleInterrupts
-	mov	slave_ip@GOTPCREL(%rip), %rdx
-	mov	slave_cc@GOTPCREL(%rip), %esi
+	mov	slave_ip, %rdx
+	mov	slave_cc, %esi
 	sub	%ebx, %esi
 	jmp	*%rdx /* jmp *slave_ip */
 	.size	slave_handle_interrupts, .-slave_handle_interrupts
@@ -155,8 +155,8 @@ slave_handle_interrupts:
 	.type	cc_interrupt, @function
 cc_interrupt: /* slave */
 	mov	28(%rsp), %ebx /* sh2cycles */
-	mov	%rbp, slave_ip@GOTPCREL(%rip)
-	mov	%esi, slave_cc@GOTPCREL(%rip)
+	mov	%rbp, slave_ip
+	mov	%esi, slave_cc
 	mov	%ebx, %edi
 	call	FRTExec
 	mov	%ebx, %edi
@@ -175,9 +175,9 @@ cc_interrupt_master:
 	je	.A2
 	mov	%ebx, -52(%rbp) /* sh2cycles */
 .A1:
-	mov	master_cc@GOTPCREL(%rip), %esi
-	mov	MSH2@GOTPCREL(%rip), %rax
-	mov	NumberOfInterruptsOffset@GOTPCREL(%rip), %ecx
+	mov	master_cc, %esi
+	mov	MSH2, %rax
+	mov	NumberOfInterruptsOffset, %ecx
 	cmpl	$0, (%rax, %rcx)
 	jne	master_handle_interrupts
 	sub	%ebx, %esi
@@ -191,9 +191,9 @@ cc_interrupt_master:
 	call	M68KSync
 	call	Vdp2HBlankOUT
 	call	ScspExec
-	mov	linecount_p@GOTPCREL(%rip), %rbx
-	mov	maxlinecount_p@GOTPCREL(%rip), %rax
-	mov	vblanklinecount_p@GOTPCREL(%rip), %rcx
+	mov	linecount_p, %rbx
+	mov	maxlinecount_p, %rax
+	mov	vblanklinecount_p, %rcx
 	mov	(%rbx), %edx
 	mov	(%rax), %eax
 	mov	(%rcx), %ecx
@@ -209,9 +209,9 @@ nextline:
 	jmp	newline
 finishline:
       /*const u32 usecinc = yabsys.DecilineUsec * 10;*/
-	mov	decilineusec_p@GOTPCREL(%rip), %rax
-	mov	UsecFrac_p@GOTPCREL(%rip), %rbx
-	mov	yabsys_timing_bits@GOTPCREL(%rip), %ecx
+	mov	decilineusec_p, %rax
+	mov	UsecFrac_p, %rbx
+	mov	yabsys_timing_bits, %ecx
 	mov	(%rax), %eax
 	mov	(%rbx), %edx
 	lea	(%eax,%eax,4), %edi
@@ -226,14 +226,14 @@ finishline:
 	shr	%cl, %edi
 	call	SmpcExec
 	/* SmpcExec may modify UsecFrac; must reload it */
-	mov	yabsys_timing_mask@GOTPCREL(%rip), %r12d
+	mov	yabsys_timing_mask, %r12d
 	mov	(%rbx), %edi /* UsecFrac */
-	mov	yabsys_timing_bits@GOTPCREL(%rip), %ecx
+	mov	yabsys_timing_bits, %ecx
 	and	%edi, %r12d
 	shr	%cl, %edi
 	call	Cs2Exec
 	mov	%r12d, (%rbx) /* UsecFrac */
-	mov	saved_centicycles@GOTPCREL(%rip), %ecx
+	mov	saved_centicycles, %ecx
 	mov	-60(%rbp), %ebx /* m68kcenticycles */
 	mov	-64(%rbp), %edi /* m68kcycles */
 	add	%ebx, %ecx
@@ -241,7 +241,7 @@ finishline:
 	add	$-100, %ecx
 	cmovnc	%ebx, %ecx
 	adc	$0, %edi
-	mov	%ecx, saved_centicycles@GOTPCREL(%rip)
+	mov	%ecx, saved_centicycles
 	call	M68KExec
 	add	$8, %rsp /* Align stack */
 	ret
@@ -255,20 +255,17 @@ nextframe:
 	andl	$0, (%rbx) /* linecount = 0 */
 	call	finishline
 	call	M68KSync
-	mov	rccount@GOTPCREL(%rip), %esi
+	mov	rccount, %esi
 	inc	%esi
-	andl	$0, invalidate_count@GOTPCREL(%rip)
+	andl	$0, invalidate_count
 	and	$0x3f, %esi
-	mov     $4, %rax
-	mul     %rsi 	
-	add  	restore_candidate@GOTPCREL(%rip), %rax
-	cmpl	$0, %eax
-	mov	%esi, rccount@GOTPCREL(%rip)
+	cmpl	$0, restore_candidate(,%esi,4)
+	mov	%esi, rccount
 	jne	.A5
 .A4:
 	mov	(%rsp), %rax
 	add	$40, %rsp
-	movabs	%rax, master_ip
+	mov	%rax, master_ip
 	pop	%r15 /* restore callee-save registers */
 	pop	%r14
 	pop	%r13
@@ -278,12 +275,9 @@ nextframe:
 	ret
 .A5:
 	/* Move 'dirty' blocks to the 'clean' list */
-	mov	%eax, %ebx
+	mov	restore_candidate(,%esi,4), %ebx
 	mov	%esi, %ebp
-	mov     $4, %rax
-	mul     %rsi 	
-	add  	restore_candidate@GOTPCREL(%rip), %rax
-	andl	$0, %eax
+	andl	$0, restore_candidate(,%esi,4)
 	shl	$5, %ebp
 .A6:
 	shr	$1, %ebx
@@ -311,10 +305,7 @@ dyna_linker:
 	cmp	%edx, %ecx
 	cmova	%edx, %ecx
 	/* jump_in lookup */
-	mov     $8, %rax
-	mul     %rcx	
-	add  	jump_in@GOTPCREL(%rip), %rax
-	movq	%rax, %r12
+	movq	jump_in(,%ecx,8), %r12
 .B1:
 	test	%r12, %r12
 	je	.B3
@@ -342,30 +333,17 @@ dyna_linker:
 	xor	%eax, %edi
 	movzwl	%di, %edi
 	shl	$4, %edi
-	mov     hash_table@GOTPCREL(%rip), %rbx   
-	cmp	%ebx, %eax
+	cmp	hash_table(%edi), %eax
 	jne	.B5
 .B4:
-        mov     $4, %rax
-        mul     %edi    
-        add     hash_table@GOTPCREL(%rip), %rax	
-	mov	%eax, %edx
+	mov	hash_table+4(%edi), %edx
 	jmp	*%rdx
 .B5:
-	mov 	%rax, %rbx
-        mov     $8, %rax
-        mul     %edi   
-        add     hash_table@GOTPCREL(%rip), %rax	
-	cmp	%eax, %ebx
-	mov 	%rbx, %rax
+	cmp	hash_table+8(%edi), %eax
 	lea	8(%edi), %edi
 	je	.B4
 	/* jump_dirty lookup */
-	mov     $8, %rax
-        mul     %rcx    
-        add     jump_dirty@GOTPCREL(%rip), %rax
-        movq    %rax, %r12
-
+	movq	jump_dirty(,%ecx,8), %r12
 .B6:
 	test	%r12, %r12
 	je	.B8
@@ -377,31 +355,12 @@ dyna_linker:
 .B7:
 	movl	8(%r12), %edx
 	/* hash_table insert */
-	mov 	%rax, %r12
-        mov     $8, %rax
-        mul     %edi
-	mov 	%rax, %r13
-	mov 	hash_table@GOTPCREL(%rip), %rax
-	sbb	%r13,%rax
-	mov	%eax, %ebx
-	mov 	%r12, %rax
-
-	mov     $4, %rax
-        mul     %edi
-	mov 	%rax, %r13
-	mov 	hash_table@GOTPCREL(%rip), %rax
-	sbb	%r13,%rax
-	mov	%eax, %ecx
-	mov	%edx, %eax
-
-	mov     %rdi, %rax
-	add     hash_table@GOTPCREL(%rip), %rax
-	mov	%ebx, %eax
-
-  	mov     $4, %rax
-        mul     %edi
-	add     hash_table@GOTPCREL(%rip), %rax
-	mov	%ecx, %eax
+	mov	hash_table-8(%edi), %ebx
+	mov	hash_table-4(%edi), %ecx
+	mov	%eax, hash_table-8(%edi)
+	mov	%edx, hash_table-4(%edi)
+	mov	%ebx, hash_table(%edi)
+	mov	%ecx, hash_table+4(%edi)
 	jmp	*%rdx
 .B8:
 	mov	%eax, %edi
@@ -493,22 +452,14 @@ jump_vaddr:
 	shr	$16, %eax
 	xor	%edi, %eax
 	movzwl	%ax, %eax
-	shl	$4, %eax  
-        add     hash_table@GOTPCREL(%rip), %rax	
-	cmp	%eax, %edi
+	shl	$4, %eax
+	cmp	hash_table(%eax), %edi
 	jne	.C2
 .C1:
-	add     hash_table@GOTPCREL(%rip), %rax	
-	add     hash_table@GOTPCREL(%rip), %rax	
-	add     hash_table@GOTPCREL(%rip), %rax	
-	cmp	%eax, %edi
+	mov	hash_table+4(%eax), %edi
 	jmp	*%rdi
 .C2:
-	add     hash_table@GOTPCREL(%rip), %rax	
-	add     hash_table@GOTPCREL(%rip), %rax	
-	add     hash_table@GOTPCREL(%rip), %rax
-	add     hash_table@GOTPCREL(%rip), %rax	
-	cmp	%eax, %edi
+	cmp	hash_table+8(%eax), %edi
 	lea	8(%eax), %eax
 	je	.C1
   /* No hit on hash table, call compiler */
@@ -555,7 +506,7 @@ verify_code:
 WriteInvalidateLong:
 	mov	%edi, %ecx
 	shr	$12, %ecx
-	bt	%ecx, cached_code@GOTPCREL(%rip)
+	bt	%ecx, cached_code
 	jnc	MappedMemoryWriteLongNocache
 	/*push	%rax*/
 	/*push	%rcx*/
@@ -575,7 +526,7 @@ WriteInvalidateLong:
 WriteInvalidateWord:
 	mov	%edi, %ecx
 	shr	$12, %ecx
-	bt	%ecx, cached_code@GOTPCREL(%rip)
+	bt	%ecx, cached_code
 	jnc	MappedMemoryWriteWordNocache
 	/*push	%rax*/
 	/*push	%rcx*/
@@ -600,7 +551,7 @@ WriteInvalidateByteSwapped:
 WriteInvalidateByte:
 	mov	%edi, %ecx
 	shr	$12, %ecx
-	bt	%ecx, cached_code@GOTPCREL(%rip)
+	bt	%ecx, cached_code
 	jnc	MappedMemoryWriteByteNocache
 	/*push	%rax*/
 	/*push	%rcx*/
@@ -762,13 +713,13 @@ macw_saturation:
 	.type	master_handle_bios, @function
 master_handle_bios:
 	mov	(%rsp), %rdx /* get return address */
-	mov	%eax, master_pc@GOTPCREL(%rip)
-	mov	%esi, master_cc@GOTPCREL(%rip)
-	mov	%rdx, master_ip@GOTPCREL(%rip)
-	mov	MSH2@GOTPCREL(%rip), %rdi
+	mov	%eax, master_pc
+	mov	%esi, master_cc
+	mov	%rdx, master_ip
+	mov	MSH2, %rdi
 	call	BiosHandleFunc
-	mov	master_ip@GOTPCREL(%rip), %rdx
-	mov	master_cc@GOTPCREL(%rip), %esi
+	mov	master_ip, %rdx
+	mov	master_cc, %esi
 	mov	%rdx, (%rsp)
 	ret	/* jmp *master_ip */
 	.size	master_handle_bios, .-master_handle_bios
@@ -777,13 +728,13 @@ master_handle_bios:
 	.type	slave_handle_bios, @function
 slave_handle_bios:
 	pop	%rdx /* get return address */
-	mov	%eax, slave_pc@GOTPCREL(%rip)
-	mov	%esi, slave_cc@GOTPCREL(%rip)
-	mov	%rdx, slave_ip@GOTPCREL(%rip)
-	mov	SSH2@GOTPCREL(%rip), %rdi
+	mov	%eax, slave_pc
+	mov	%esi, slave_cc
+	mov	%rdx, slave_ip
+	mov	SSH2, %rdi
 	call	BiosHandleFunc
-	mov	slave_ip@GOTPCREL(%rip), %rdx
-	mov	slave_cc@GOTPCREL(%rip), %esi
+	mov	slave_ip, %rdx
+	mov	slave_cc, %esi
 	jmp	*%rdx /* jmp *slave_ip */
 	.size	slave_handle_bios, .-slave_handle_bios
 
