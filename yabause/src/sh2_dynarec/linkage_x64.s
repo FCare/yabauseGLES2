@@ -302,7 +302,7 @@ nextframe:
 dyna_linker:
 	/* eax = virtual target address */
 	/* ebx = instruction to patch */
-	mov	%rdi, %r14
+	mov	%rdi, %r13
 	mov	%eax, %ecx
 	mov	$1023, %edx
 	shr	$12, %ecx
@@ -405,11 +405,10 @@ dyna_linker:
 	mov	%ecx, %eax
 	jmp	*%rdx
 .B8:
-/* WIP - Need to add here a pointer to SH2 as edi */
 	mov	%eax, %esi
 	mov	%eax, %ebp /* Note: assumes %rbx and %rbp are callee-saved */
 	mov	%esi, %r12d
-	mov 	%r14, %rdi
+	mov 	%r13, %rdi
 	call	sh2_recompile_block
 	test	%eax, %eax
 	mov	%ebp, %eax
@@ -576,7 +575,7 @@ WriteInvalidateLong:
 .globl WriteInvalidateWord
 	.type	WriteInvalidateWord, @function
 WriteInvalidateWord:
-	mov	%esi, %ecx
+	mov	%edi, %ecx
 	shr	$12, %ecx
 	bt	%ecx, cached_code@GOTPCREL(%rip)
 	jnc	MappedMemoryWriteWordNocache
@@ -596,12 +595,12 @@ WriteInvalidateWord:
 .globl WriteInvalidateByteSwapped
 	.type	WriteInvalidateByteSwapped, @function
 WriteInvalidateByteSwapped:
-	xor	$1, %edx
+	xor	$1, %edi
 	.size	WriteInvalidateByteSwapped, .-WriteInvalidateByteSwapped
 .globl WriteInvalidateByte
 	.type	WriteInvalidateByte, @function
 WriteInvalidateByte:
-	mov	%edx, %ecx
+	mov	%edi, %ecx
 	shr	$12, %ecx
 	bt	%ecx, cached_code@GOTPCREL(%rip)
 	jnc	MappedMemoryWriteByteNocache

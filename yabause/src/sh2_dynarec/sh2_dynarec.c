@@ -2374,7 +2374,7 @@ void load_assemble(int i,struct regstat *i_regs)
   }*/
 }
 
-void store_assemble(SH2_struct *context, int i,struct regstat *i_regs)
+void store_assemble(int i,struct regstat *i_regs)
 {
   int s,t,o,map=-1,cache=-1;
   int addr,temp;
@@ -2484,7 +2484,7 @@ void store_assemble(SH2_struct *context, int i,struct regstat *i_regs)
   if(jaddr) {
     add_stub(type,jaddr,(int)out,i,addr,(int)i_regs,ccadj[i],reglist);
   } else if(c&&!memtarget) {
-    inline_writestub(context, type,i,constaddr,i_regs->regmap,rs1[i],ccadj[i],reglist);
+    inline_writestub(type,i,constaddr,i_regs->regmap,rs1[i],ccadj[i],reglist);
   }
   if(addrmode[i]==PREDEC) {
     assert(s>=0);
@@ -2861,7 +2861,7 @@ void complex_assemble(int i,struct regstat *i_regs)
   }
 }
 
-void ds_assemble(SH2_struct *context, int i,struct regstat *i_regs)
+void ds_assemble(int i,struct regstat *i_regs)
 {
   is_delayslot=1;
   switch(itype[i]) {
@@ -2874,7 +2874,7 @@ void ds_assemble(SH2_struct *context, int i,struct regstat *i_regs)
     case LOAD:
       load_assemble(i,i_regs);break;
     case STORE:
-      store_assemble(context, i,i_regs);break;
+      store_assemble(i,i_regs);break;
     case RMW:
       rmw_assemble(i,i_regs);break;
     case PCREL:
@@ -3502,7 +3502,7 @@ int match_bt(signed char i_regmap[],u32 i_dirty,int addr)
 }
 
 // Used when a branch jumps into the delay slot of another branch
-void ds_assemble_entry(SH2_struct *context, int i)
+void ds_assemble_entry(int i)
 {
   int t=(ba[i]-start)>>1;
   if(!instr_addr[t]) instr_addr[t]=(pointer)out;
@@ -3525,7 +3525,7 @@ void ds_assemble_entry(SH2_struct *context, int i)
     case LOAD:
       load_assemble(t,&regs[t]);break;
     case STORE:
-      store_assemble(context, t,&regs[t]);break;
+      store_assemble(t,&regs[t]);break;
     case RMW:
       rmw_assemble(t,&regs[t]);break;
     case PCREL:
@@ -3717,7 +3717,7 @@ void add_to_linker(int addr,int target,int ext)
   linkcount++;
 }
 
-void ujump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
+void ujump_assemble(int i,struct regstat *i_regs)
 {
   u64 bc_unneeded;
   int cc,adj;
@@ -3752,7 +3752,7 @@ void ujump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
       }
     }
   }
-  ds_assemble(context, i+1,i_regs);
+  ds_assemble(i+1,i_regs);
   bc_unneeded=regs[i].u;
   bc_unneeded|=1LL<<rt1[i];
   wb_invalidate(regs[i].regmap,branch_regs[i].regmap,regs[i].dirty,
@@ -3813,7 +3813,7 @@ void ujump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
   else
     assem_debug("branch: external\n");
   if(internal_branch(ba[i])&&is_ds[(ba[i]-start)>>1]) {
-    ds_assemble_entry(context, i);
+    ds_assemble_entry(i);
   }
   else {
     add_to_linker((int)out,ba[i],internal_branch(ba[i]));
@@ -3821,7 +3821,7 @@ void ujump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
   }
 }
 
-void rjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
+void rjump_assemble(int i,struct regstat *i_regs)
 {
   signed char *i_regmap=i_regs->regmap;
   int temp;
@@ -3883,7 +3883,7 @@ void rjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
       }
     }
   }
-  ds_assemble(context, i+1,i_regs);
+  ds_assemble(i+1,i_regs);
   bc_unneeded=regs[i].u;
   bc_unneeded|=1LL<<rt1[i];
   bc_unneeded&=~(1LL<<rs1[i]);
@@ -3986,7 +3986,7 @@ void rjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
       if(internal_branch(constaddr)&&bt[(constaddr-start)>>1]) {
         assem_debug("branch: internal (constant address)\n");
         if(is_ds[(constaddr-start)>>1]) {
-          ds_assemble_entry(context, i);
+          ds_assemble_entry(i);
         }
         else {
           add_to_linker((int)out,constaddr,1/*internal_branch*/);
@@ -4047,7 +4047,7 @@ void rjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
   #endif
 }
 
-void cjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
+void cjump_assemble(int i,struct regstat *i_regs)
 {
   signed char *i_regmap=i_regs->regmap;
   int cc;
@@ -4082,7 +4082,7 @@ void cjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
       else
         assem_debug("branch: external\n");
       if(internal&&is_ds[(ba[i]-start)>>1]) {
-        ds_assemble_entry(context, i);
+        ds_assemble_entry(i);
       }
       else {
         add_to_linker((int)out,ba[i],internal);
@@ -4150,7 +4150,7 @@ void cjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
         else
           assem_debug("branch: external\n");
         if(internal&&is_ds[(ba[i]-start)>>1]) {
-          ds_assemble_entry(context, i);
+          ds_assemble_entry(i);
         }
         else {
           add_to_linker((int)out,ba[i],internal);
@@ -4165,7 +4165,7 @@ void cjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
   } // (!unconditional)
 }
 
-void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
+void sjump_assemble(int i,struct regstat *i_regs)
 {
   signed char *i_regmap=i_regs->regmap;
   int cc;
@@ -4200,7 +4200,7 @@ void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
     //printf("OOOE\n");
     do_cc(i,regs[i].regmap,&adj,start+i*2,NODS,invert);
     address_generation(i+1,i_regs,regs[i].regmap_entry);
-    ds_assemble(context, i+1,i_regs);
+    ds_assemble(i+1,i_regs);
     bc_unneeded=regs[i].u;
     bc_unneeded&=~((1LL<<rs1[i])|(1LL<<rs2[i]));
     wb_invalidate(regs[i].regmap,branch_regs[i].regmap,regs[i].dirty,
@@ -4220,7 +4220,7 @@ void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
         else
           assem_debug("branch: external\n");
         if(internal&&is_ds[(ba[i]-start)>>1]) {
-          ds_assemble_entry(context, i);
+          ds_assemble_entry(i);
         }
         else {
           add_to_linker((int)out,ba[i],internal);
@@ -4289,7 +4289,7 @@ void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
           else
             assem_debug("branch: external\n");
           if(internal&&is_ds[(ba[i]-start)>>1]) {
-            ds_assemble_entry(context, i);
+            ds_assemble_entry(i);
           }
           else {
             add_to_linker((int)out,ba[i],internal);
@@ -4342,7 +4342,7 @@ void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
         }
       }
       load_regs(regs[i].regmap,branch_regs[i].regmap,CCREG,CCREG,CCREG);
-      ds_assemble(context, i+1,&branch_regs[i]);
+      ds_assemble(i+1,&branch_regs[i]);
       cc=get_reg(branch_regs[i].regmap,CCREG);
       if(cc==-1) {
         emit_loadreg(CCREG,cc=HOST_CCREG);
@@ -4360,7 +4360,7 @@ void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
       else
         assem_debug("branch: external\n");
       if(internal&&is_ds[(ba[i]-start)>>1]) {
-        ds_assemble_entry(context, i);
+        ds_assemble_entry(i);
       }
       else {
         add_to_linker((int)out,ba[i],internal);
@@ -4382,7 +4382,7 @@ void sjump_assemble(SH2_struct *context, int i,struct regstat *i_regs)
         }
       }
       load_regs(regs[i].regmap,branch_regs[i].regmap,CCREG,CCREG,CCREG);
-      ds_assemble(context, i+1,&branch_regs[i]);
+      ds_assemble(i+1,&branch_regs[i]);
     }
   }
 }
@@ -7908,7 +7908,7 @@ int sh2_recompile_block(SH2_struct *context, int addr)
         case LOAD:
           load_assemble(i,&regs[i]);break;
         case STORE:
-          store_assemble(context, i,&regs[i]);break;
+          store_assemble(i,&regs[i]);break;
         case RMW:
           rmw_assemble(i,&regs[i]);break;
         case PCREL:
@@ -7928,13 +7928,13 @@ int sh2_recompile_block(SH2_struct *context, int addr)
         case BIOS:
           bios_assemble(i,&regs[i]);break;
         case UJUMP:
-          ujump_assemble(context, i,&regs[i]);ds=1;break;
+          ujump_assemble(i,&regs[i]);ds=1;break;
         case RJUMP:
-          rjump_assemble(context, i,&regs[i]);ds=1;break;
+          rjump_assemble(i,&regs[i]);ds=1;break;
         case CJUMP:
-          cjump_assemble(context, i,&regs[i]);break;
+          cjump_assemble(i,&regs[i]);break;
         case SJUMP:
-          sjump_assemble(context, i,&regs[i]);ds=1;break;
+          sjump_assemble(i,&regs[i]);ds=1;break;
       }
       if(itype[i]==UJUMP||itype[i]==RJUMP||(source[i]>>16)==0x1000)
         literal_pool(1024);
